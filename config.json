@@ -1,0 +1,47 @@
+{
+  "school": "ap",
+  "server": "https://ap.webuntis.com",
+  "weeks": 2,
+  "people": [
+    {
+      "id": "reda",
+      "name": "Reda",
+      "sources": [
+        { "class": "1IT7", "id": 10187, "include": ["Databases"] },
+        {
+          "class": "2ITCSC1a",
+          "id": 10220,
+          "include": [
+            "Cloud Computing",
+            "Enterprise networking",
+            "Network Security",
+            "Project methodology",
+            "Python advanced",
+            "Web Frameworks",
+            "ICT Architecture"
+          ]
+        },
+        { "class": "2ITCSC2a", "id": 10226, "include": ["DevOps"] },
+        {
+          "class": "1ITCSC2a",
+          "id": 10202,
+          "include": [
+            "Analysis",
+            "Communication",
+            "Cyber security",
+            "Linux services",
+            "Routing & switching",
+            "System administration"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kayra",
+      "name": "Kayra",
+      "sources": [
+        { "class": "1OR_6", "id": 7035, "exclude": ["inhaalexMM_OR"] }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Roosters</title>
+<meta name="description" content="Wanneer hebben Reda en Kayra les, pauze, en rijden ze samen?">
+<meta name="theme-color" content="#F2F4F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121821" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Roosters">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper: #F2F4F7;
+  --ink: #16202B;
+  --muted: #667286;
+  --line: #D8DDE5;
+  --card: #FFFFFF;
+  --reda: #2E5BFF;
+  --kayra: #F0457A;
+  --reda-soft: rgba(46, 91, 255, .16);
+  --kayra-soft: rgba(240, 69, 122, .16);
+  --together: #FFC21A;
+  --together-ink: #3A2C00;
+  --now: #16202B;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #121821;
+    --ink: #E9EEF4;
+    --muted: #93A0B2;
+    --line: #2A3442;
+    --card: #1A222D;
+    --reda: #5B80FF;
+    --kayra: #FF6A96;
+    --reda-soft: rgba(91, 128, 255, .22);
+    --kayra-soft: rgba(255, 106, 150, .22);
+    --together: #FFC93A;
+    --now: #E9EEF4;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+main { max-width: 860px; margin: 0 auto; }
+
+/* Vandaag */
+.today {
+  background: var(--card);
+  border-radius: 22px;
+  padding: 18px 20px 20px;
+  margin-bottom: 18px;
+}
+.today h1 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.trip {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 2px 12px;
+  align-items: center;
+  padding: 8px 0;
+}
+.trip + .trip { border-top: 1px solid var(--line); }
+.trip .ico {
+  grid-row: span 2;
+  font-size: 30px;
+  line-height: 1;
+  text-align: center;
+}
+.trip .what {
+  font-size: clamp(21px, 5.6vw, 28px);
+  font-weight: 750;
+  letter-spacing: -.01em;
+  line-height: 1.15;
+  font-variation-settings: "opsz" 72;
+}
+.trip .sub { font-size: 15px; color: var(--muted); }
+.who-r { color: var(--reda); }
+.who-k { color: var(--kayra); }
+.empty-day { font-size: 22px; font-weight: 700; margin: 4px 0 2px; }
+
+/* Balk met weekkeuze */
+.bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+  flex-wrap: wrap;
+}
+.seg {
+  display: inline-flex;
+  background: var(--card);
+  border-radius: 999px;
+  padding: 3px;
+}
+.seg button, .refresh {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.refresh { background: var(--card); margin-left: auto; display: inline-flex; gap: 6px; align-items: center; }
+.refresh svg { width: 16px; height: 16px; }
+.refresh.busy svg { animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+button:focus-visible { outline: 2px solid var(--reda); outline-offset: 2px; }
+
+/* Week */
+.week {
+  display: grid;
+  grid-template-columns: 34px repeat(5, minmax(0, 1fr));
+  gap: 0 6px;
+  background: var(--card);
+  border-radius: 22px;
+  padding: 14px 10px 14px 6px;
+}
+.day-head {
+  text-align: center;
+  padding-bottom: 6px;
+  border-radius: 12px;
+}
+.day-head .dn { font-size: 14px; color: var(--muted); font-weight: 600; }
+.day-head .dd { font-size: 20px; font-weight: 750; line-height: 1.1; }
+.day-head.is-today .dd {
+  display: inline-block;
+  background: var(--ink);
+  color: var(--card);
+  border-radius: 999px;
+  min-width: 32px;
+  padding: 0 6px;
+}
+.ride {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  min-height: 26px;
+  font-size: 15px;
+  border-radius: 8px;
+  margin: 2px 0;
+  white-space: nowrap;
+}
+.ride.together { background: var(--together); color: var(--together-ink); }
+.ride .t { font-size: 12px; font-weight: 700; }
+.ride .solo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 14px;
+}
+.ride .solo.r { background: var(--reda-soft); box-shadow: inset 0 -3px 0 var(--reda); }
+.ride .solo.k { background: var(--kayra-soft); box-shadow: inset 0 -3px 0 var(--kayra); }
+.axis { position: relative; }
+.axis span {
+  position: absolute;
+  right: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  transform: translateY(-50%);
+}
+.lanes {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+}
+.lanes .gridline {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 1px dashed var(--line);
+}
+.lane { position: relative; }
+.blk {
+  position: absolute;
+  left: 0; right: 0;
+  border-radius: 6px;
+}
+.les.r { background: var(--reda); }
+.les.k { background: var(--kayra); }
+.pauze.r { background: repeating-linear-gradient(135deg, var(--reda-soft) 0 5px, transparent 5px 9px); box-shadow: inset 0 0 0 1.5px var(--reda-soft); }
+.pauze.k { background: repeating-linear-gradient(135deg, var(--kayra-soft) 0 5px, transparent 5px 9px); box-shadow: inset 0 0 0 1.5px var(--kayra-soft); }
+.samen {
+  position: absolute;
+  left: -3px; right: -3px;
+  background: var(--together);
+  opacity: .9;
+  border-radius: 8px;
+  z-index: 0;
+}
+.lane { z-index: 1; }
+.now-line {
+  position: absolute;
+  left: -4px; right: -4px;
+  height: 2px;
+  background: var(--now);
+  z-index: 3;
+  border-radius: 2px;
+}
+.free {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Legenda en voet */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 14px 4px 6px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.legend i {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border-radius: 4px;
+  vertical-align: -2px;
+  margin-right: 5px;
+}
+.foot { font-size: 13px; color: var(--muted); margin: 6px 4px 0; }
+.error {
+  background: var(--card);
+  border-left: 4px solid var(--kayra);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+@media (max-width: 420px) {
+  .refresh .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .refresh { padding: 9px 11px; }
+  .seg button { padding: 7px 12px; }
+}
+@media (min-width: 640px) {
+  .week { padding: 18px 16px 18px 8px; gap: 0 10px; grid-template-columns: 40px repeat(5, minmax(0, 1fr)); }
+  .ride .t { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { .refresh.busy svg { animation: none; } }
+</style>
+</head>
+<body>
+<main>
+  <section class="today" id="today" aria-live="polite">
+    <h1>Laden…</h1>
+  </section>
+
+  <div class="bar">
+    <div class="seg" role="group" aria-label="Week kiezen" id="weeks"></div>
+    <button class="refresh" id="refresh" type="button" aria-label="Rooster opnieuw ophalen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+      <span class="lbl">Vernieuwen</span>
+    </button>
+  </div>
+
+  <div id="error"></div>
+  <section class="week" id="week" aria-label="Weekrooster"></section>
+
+  <div class="legend">
+    <span><i style="background:var(--reda)"></i>Reda les</span>
+    <span><i style="background:var(--kayra)"></i>Kayra les</span>
+    <span><i style="background:repeating-linear-gradient(135deg,var(--muted) 0 3px,transparent 3px 6px);opacity:.5"></i>Pauze of wachten</span>
+    <span><i style="background:var(--together)"></i>Samen pauze of samen rijden</span>
+    <span>🏍️ motor, 🚌 bus (onderlijnd in de kleur van wie)</span>
+  </div>
+  <p class="foot" id="foot"></p>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
