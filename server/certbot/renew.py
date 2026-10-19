@@ -125,7 +125,8 @@ def main():
                 "returncode": res.returncode,
                 "log": log[-6000:],
             })
-            print(f"Mislukt (code {res.returncode}); nieuwe poging over een uur")
+            print(f"Mislukt (code {res.returncode}); nieuwe poging over een uur. Uitvoer van certbot:")
+            print((res.stdout + "\n" + res.stderr).strip())
             time.sleep(RETRY_AFTER_FAIL)
 
 
