@@ -1,2 +1,5 @@
 site/data.json
 __pycache__/
+server/.env
+server/**/__pycache__/
+.pytest_cache/

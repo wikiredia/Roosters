@@ -1,0 +1,112 @@
+# Roosters-server: start met `./roosters.sh up` (of `docker compose up -d --build`).
+# Alleen Apache ("web") heeft open poorten. MySQL hangt enkel aan het interne netwerk.
+name: roosters
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options: { max-size: "5m", max-file: "3" }
+
+services:
+  db:
+    <<: *hardening
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: roosters
+      MYSQL_USER: roosters
+      MYSQL_PASSWORD: ${DB_PASSWORD:?zet DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?zet DB_ROOT_PASSWORD in .env}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --skip-name-resolve
+      - --mysqlx=OFF
+    volumes:
+      - db:/var/lib/mysql
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  api:
+    <<: *hardening
+    build: ./api
+    image: roosters-api
+    env_file: .env
+    environment: &appenv
+      DB_HOST: db
+      TZ: Europe/Brussels
+    depends_on:
+      db: { condition: service_healthy }
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    volumes:
+      - data:/data
+      - tls:/tls:ro
+    networks: [backend, frontend, egress]
+
+  worker:
+    <<: *hardening
+    image: roosters-api
+    command: ["python", "-m", "roosters.worker"]
+    env_file: .env
+    environment: *appenv
+    depends_on:
+      db: { condition: service_healthy }
+      api: { condition: service_started }
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    volumes:
+      - data:/data
+      - tls:/tls:ro
+    networks: [backend, egress]
+
+  web:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: apache/Dockerfile
+    env_file: .env
+    depends_on: [api]
+    ports:
+      - "80:8080"
+      - "443:8443"
+    read_only: true
+    tmpfs: [/tmp, /usr/local/apache2/logs]
+    cap_drop: [ALL]
+    volumes:
+      - tls:/tls:ro
+      - acme:/acme:ro
+    networks: [frontend]
+
+  certbot:
+    <<: *hardening
+    build: ./certbot
+    profiles: [letsencrypt]
+    env_file: .env
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - acme:/acme
+      - tls:/tls
+    networks: [egress]
+
+networks:
+  backend:
+    internal: true
+  frontend: {}
+  egress: {}
+
+volumes:
+  db: {}
+  data: {}
+  tls: {}
+  acme: {}
+  letsencrypt: {}
