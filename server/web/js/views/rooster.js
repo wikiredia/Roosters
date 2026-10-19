@@ -1,8 +1,10 @@
-// Rooster van één persoon: vandaag en de volgende twee lesdagen, horizontaal swipen.
+// Rooster van één persoon als echte roosterweergave: tijdlijn met uren, 1/2/3 dagen of een week,
+// verticaal of horizontaal, en verder scrollen naar de volgende weken.
 import { api } from "../api.js";
 import { state, go, myPerson, toast, toastError, showError } from "../app.js";
-import { h, clear, fmt, dur, icon, ago, brusselsMinutes, store } from "../util.js";
-import { dayScroller, lessonSheet, emptyState } from "./common.js";
+import { h, clear, fmt, dur, icon, ago, brusselsMinutes, store, dayLabel } from "../util.js";
+import { lessonSheet, emptyState } from "./common.js";
+import { prefs, viewControls, hourRange, freeHeight, legend } from "./grid.js";
 
 export async function render(root, { parts }) {
   const mine = myPerson();
@@ -43,7 +45,13 @@ export async function render(root, { parts }) {
         pid === mine?.id ? h("a", { class: "btn primary", href: "#/opties" }, "Rooster toevoegen") : null));
       return;
     }
-    body.append(dayScroller(data.days, data.today, (d) => dayList(d, data, flash)));
+    body.append(viewControls(() => draw()));
+    const n = prefs.days;
+    if (prefs.orient === "h") drawHorizontal(body, data, flash, n);
+    else drawVertical(body, data, flash, n);
+    const kinds = new Set(data.days.flatMap((d) => d.lessons.map((l) => l.kind || "les")));
+    const lg = legend(kinds);
+    if (lg) body.append(lg);
     for (const s of errors) body.append(h("p", { class: "source-error" }, `${s.label}: ${s.error}`));
   };
 
@@ -84,41 +92,148 @@ export async function render(root, { parts }) {
   return pullToRefresh(root, refresh);
 }
 
-function dayList(d, data, flash) {
-  const list = h("div", { class: "lessons" });
-  const isToday = d.day === data.today;
+const ACTIVE = (l) => l.state !== "cancelled" && l.state !== "removed";
+
+// Vanaf welke dag tonen we? Vandaag, tenzij je lessen van vandaag al voorbij zijn.
+function startIndex(data) {
   const now = brusselsMinutes();
-  const lessons = d.lessons;
-  if (!lessons.length) {
-    list.append(h("div", { class: "no-class" }, isToday ? "Geen les vandaag" : "Geen les"));
-    return list;
+  let i = data.days.findIndex((d) => d.day >= data.today);
+  if (i < 0) return 0;
+  const today = data.days[i];
+  if (today.day === data.today) {
+    const active = today.lessons.filter(ACTIVE);
+    if (active.length && Math.max(...active.map((l) => l.end)) <= now) i = Math.min(i + 1, data.days.length - 1);
   }
-  let prevEnd = null;
-  for (const l of lessons) {
-    const active = l.state !== "cancelled" && l.state !== "removed";
-    if (prevEnd != null && active && l.start > prevEnd) {
-      list.append(h("div", { class: "gap" }, h("span", null, `Pauze · ${dur(l.start - prevEnd)}`)));
+  return i;
+}
+
+function weekStart(days, i) {
+  // Eerste dag van dezelfde week (in de lijst)
+  const monday = (iso) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
+  const m = monday(days[i].day);
+  return days.findIndex((d) => d.day >= m);
+}
+
+function dayHead(d, today, narrow = false) {
+  const lab = dayLabel(d.day, today);
+  const date = new Date(d.day + "T12:00:00Z");
+  const short = new Intl.DateTimeFormat("nl-BE", { weekday: "short", day: "numeric", timeZone: "UTC" }).format(date);
+  if (narrow) {
+    // Smalle kolommen (week): "wo 21" met eronder "vandaag"/"morgen" of de maand
+    const month = new Intl.DateTimeFormat("nl-BE", { month: "short", timeZone: "UTC" }).format(date);
+    const rel = lab.main === "Vandaag" || lab.main === "Morgen" ? lab.main.toLowerCase() : month;
+    return { main: short, sub: rel };
+  }
+  return { main: lab.main === "Vandaag" || lab.main === "Morgen" ? lab.main : short, sub: lab.main === "Vandaag" || lab.main === "Morgen" ? short : lab.sub };
+}
+
+function lessonBlock(l, style, flash, isToday, now, compact) {
+  const badge = { cancelled: "vervalt", removed: "vervallen", changed: "gewijzigd", extra: "extra", exam: "examen" }[l.state] || (l.changed ? "nieuw" : null);
+  return h("button", {
+    type: "button",
+    class: `cal-blk k-${l.kind || "les"} s-${l.state} ${l.changed ? "changed" : ""} ${flash.has(l.id) ? "flash" : ""} ${isToday && l.end <= now ? "past" : ""} ${isToday && l.start <= now && now < l.end && ACTIVE(l) ? "now" : ""} ${compact ? "compact" : ""}`,
+    style,
+    onclick: () => lessonSheet(l.id, l),
+    "aria-label": `${l.title}, ${fmt(l.start)} tot ${fmt(l.end)}${l.location ? ", " + l.location : ""}`,
+  },
+    h("span", { class: "b-title" }, l.title),
+    h("span", { class: "b-time" }, `${fmt(l.start)}–${fmt(l.end)}`),
+    l.location ? h("span", { class: "b-loc" }, l.location) : null,
+    badge ? h("span", { class: "b-badge" }, badge) : null);
+}
+
+// Verticaal: dagen als kolommen, de tijd van boven naar onder
+function drawVertical(body, data, flash, n) {
+  const all = data.days.flatMap((d) => d.lessons);
+  const [lo, hi] = hourRange(all);
+  const span = hi - lo;
+  const wrap = h("div", { class: `calv cols-${n}`, style: { "--cols": String(n) } });
+  body.append(wrap);
+  const ppm = Math.max(0.75, Math.min(2.4, (freeHeight(wrap, 56) - 8) / span));
+  const height = Math.round(span * ppm);
+  const y = (m) => `${Math.round((m - lo) * ppm)}px`;
+  const now = brusselsMinutes();
+
+  const gutter = h("div", { class: "calv-gutter" }, h("div", { class: "calv-head" }));
+  const gbody = h("div", { class: "calv-gbody", style: { height: `${height}px` } });
+  for (let t = lo; t <= hi; t += 60) gbody.append(h("span", { style: { top: y(t) } }, `${t / 60}u`));
+  gutter.append(gbody);
+
+  const scroller = h("div", { class: "calv-scroll", tabindex: "0", "aria-label": "Dagen, veeg om verder te kijken" });
+  data.days.forEach((d) => {
+    const isToday = d.day === data.today;
+    const weekday = new Date(d.day + "T12:00:00Z").getUTCDay();
+    const head = dayHead(d, data.today, n >= 3);
+    const col = h("section", { class: `calv-col ${isToday ? "today" : ""} ${n === 5 && weekday === 1 ? "snap" : ""} ${n !== 5 ? "snap" : ""}` },
+      h("header", { class: "calv-head" }, h("b", null, head.main), h("span", null, head.sub)));
+    const colBody = h("div", { class: "calv-body", style: { height: `${height}px` } });
+    for (let t = lo + 60; t < hi; t += 60) colBody.append(h("i", { class: "hr", style: { top: y(t) } }));
+    const active = d.lessons.filter(ACTIVE).sort((a, b) => a.start - b.start);
+    for (let i = 1; i < active.length; i++) {
+      const gs = Math.max(...active.slice(0, i).map((l) => l.end)), ge = active[i].start;
+      if (ge - gs >= 45) colBody.append(h("span", { class: "gap-label", style: { top: y(gs), height: `${(ge - gs) * ppm}px` } }, `pauze ${dur(ge - gs)}`));
     }
-    const isNow = isToday && active && l.start <= now && now < l.end;
-    const badge = { cancelled: "Vervalt", removed: "Vervallen", changed: "Gewijzigd", extra: "Extra", exam: "Examen" }[l.state];
-    list.append(h("button", {
-      class: `lesson s-${l.state} ${l.changed ? "changed" : ""} ${isNow ? "now" : ""} ${flash.has(l.id) ? "flash" : ""} ${isToday && l.end <= now ? "past" : ""}`,
-      type: "button",
-      onclick: () => lessonSheet(l.id, l),
-    },
-      h("span", { class: "l-time" }, h("b", null, fmt(l.start)), h("span", null, fmt(l.end))),
-      h("span", { class: "l-main" },
-        h("span", { class: "l-title" }, l.title),
-        l.location ? h("span", { class: "l-loc" }, l.location) : null),
-      badge ? h("span", { class: "badge" }, badge) : (l.changed ? h("span", { class: "badge new" }, "Nieuw") : null),
-      isNow ? h("span", { class: "now-pill" }, "nu") : null));
-    if (active) prevEnd = Math.max(prevEnd ?? 0, l.end);
-  }
-  if (isToday && data.checkin && ["chilling", "want_chill"].includes(data.checkin.status)) {
-    list.append(h("div", { class: "gap chill" }, h("span", null,
-      `Blijft daarna in Antwerpen${data.checkin.until_min ? ` tot ${fmt(data.checkin.until_min)}` : ""}`)));
-  }
-  return list;
+    for (const l of d.lessons) {
+      colBody.append(lessonBlock(l, { top: y(l.start), height: `${Math.max(14, (l.end - l.start) * ppm - 2)}px` }, flash, isToday, now, (l.end - l.start) * ppm < 46));
+    }
+    if (!d.lessons.length) colBody.append(h("span", { class: "no-class-v" }, isToday ? "Geen les vandaag" : "Geen les"));
+    if (isToday && now > lo && now < hi) colBody.append(h("b", { class: "now-line", style: { top: y(now) } }));
+    if (isToday && data.checkin && ["chilling", "want_chill"].includes(data.checkin.status) && active.length) {
+      const from = Math.max(...active.map((l) => l.end)), until = Math.min(hi, data.checkin.until_min || hi);
+      if (until > from) colBody.append(h("span", { class: "chill-band", style: { top: y(from), height: `${(until - from) * ppm}px` } }, "blijft in Antwerpen"));
+    }
+    col.append(colBody);
+    scroller.append(col);
+  });
+  wrap.append(gutter, scroller);
+
+  let i = startIndex(data);
+  if (n === 5) i = weekStart(data.days, i);
+  requestAnimationFrame(() => {
+    const first = scroller.children[0], target = scroller.children[i];
+    if (first && target) scroller.scrollLeft = target.offsetLeft - first.offsetLeft;
+  });
+  scroller.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    scroller.scrollBy({ left: (e.key === "ArrowRight" ? 1 : -1) * scroller.clientWidth, behavior: "smooth" });
+  });
+}
+
+// Horizontaal: elke dag een rij, de tijd van links naar rechts
+function drawHorizontal(body, data, flash, n) {
+  const all = data.days.flatMap((d) => d.lessons);
+  const [lo, hi] = hourRange(all);
+  const span = hi - lo;
+  const pct = (m) => `${((m - lo) / span) * 100}%`;
+  const wrap = h("div", { class: "calh" });
+  body.append(wrap);
+  const rowH = Math.max(72, Math.min(200, Math.floor((freeHeight(wrap, 28) - 4) / n)));
+  const now = brusselsMinutes();
+  const axis = h("div", { class: "calh-axis" });
+  const step = span > 10 * 60 ? 120 : 60;
+  for (let t = lo; t <= hi; t += step) axis.append(h("span", { style: { left: pct(t) } }, `${t / 60}u`));
+  wrap.append(h("div", { class: "calh-row head" }, h("span"), axis));
+  const rows = [];
+  data.days.forEach((d) => {
+    const isToday = d.day === data.today;
+    const head = dayHead(d, data.today);
+    const track = h("div", { class: "calh-track", style: { height: `${rowH}px` } });
+    for (let t = lo + 60; t < hi; t += 60) track.append(h("i", { class: "vr", style: { left: pct(t) } }));
+    for (const l of d.lessons) {
+      const narrow = ((l.end - l.start) / span) * window.innerWidth < 70;
+      track.append(lessonBlock(l, { left: pct(l.start), width: `calc(${((l.end - l.start) / span) * 100}% - 2px)` }, flash, isToday, now, narrow));
+    }
+    if (!d.lessons.length) track.append(h("span", { class: "no-class-h" }, isToday ? "Geen les vandaag" : "Geen les"));
+    if (isToday && now > lo && now < hi) track.append(h("b", { class: "now-line-v", style: { left: pct(now) } }));
+    const row = h("div", { class: `calh-row ${isToday ? "today" : ""}` }, h("span", { class: "calh-label" }, h("b", null, head.main), h("span", null, head.sub)), track);
+    rows.push(row);
+    wrap.append(row);
+  });
+  let i = startIndex(data);
+  if (n === 5) i = weekStart(data.days, i);
+  requestAnimationFrame(() => {
+    if (i > 0 && rows[i]) window.scrollTo({ top: rows[i].getBoundingClientRect().top + window.scrollY - 72 });
+  });
 }
 
 // Naar beneden trekken bovenaan de pagina = vernieuwen

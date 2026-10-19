@@ -38,6 +38,27 @@ def visible_days(person_ids, extra=2):
     return [t] + [r["day"] for r in rows]
 
 
+# Soort les (voor de kleuren): eerst in de titel, dan in de extra tekst van Untis/agenda
+KIND_WORDS = [
+    ("examen", ("examen", "exam", "toets", "test ")),
+    ("labo", ("labo", "lab ", "laboratorium", "lab-")),
+    ("practicum", ("practicum", "prakti", "pract")),
+    ("hoorcollege", ("hoorcollege", "hc ", "hc-", "lecture")),
+    ("werkcollege", ("werkcollege", "wc ", "oefenzitting", "oefening", "seminarie", "werksessie", "tutorial")),
+    ("theorie", ("theorie", "theory", "th ")),
+]
+
+
+def lesson_kind(title, info, extra=None):
+    extra = extra or {}
+    for text in (title, info, extra.get("groep") if isinstance(extra, dict) else None):
+        t = f" {(text or '').lower()} "
+        for kind, words in KIND_WORDS:
+            if any(w in t for w in words):
+                return kind
+    return "les"
+
+
 def hidden_for(pid):
     return {r["course"] for r in db.rows("SELECT course FROM hidden_courses WHERE person_id=%s", (pid,))}
 
@@ -70,6 +91,7 @@ def lessons_for(pid, days, with_titles=True):
             prev["changed"] = prev["changed"] or changed
             continue
         item = {"id": r["id"], "start": r["start_min"], "end": r["end_min"], "state": r["state"], "changed": changed,
+                "kind": lesson_kind(r["title"], r["info"], db.unjs(r["extra"], {})),
                 "_k": (r["title"], r["location"], r["teacher"], r["state"])}
         if with_titles:
             item.update({"title": r["title"], "location": r["location"]})
@@ -93,12 +115,30 @@ def name_of(pid):
     return r["name"]
 
 
+def week_days(pids, weeks=3):
+    """Maandag van deze week tot `weeks` weken verder: weekdagen, en weekenddagen met les."""
+    t = today()
+    begin = t - dt.timedelta(days=t.weekday())
+    end = begin + dt.timedelta(weeks=weeks)
+    marks = ",".join(["%s"] * len(pids))
+    with_lessons = {r["day"] for r in db.rows(
+        f"SELECT DISTINCT l.day FROM lessons l JOIN sources s ON s.id=l.source_id AND s.deleted_at IS NULL "
+        f"WHERE l.person_id IN ({marks}) AND l.day >= %s AND l.day < %s AND l.state <> 'removed'",
+        (*pids, begin, end))}
+    out, d = [], begin
+    while d < end:
+        if d.weekday() < 5 or d in with_lessons:
+            out.append(d)
+        d += dt.timedelta(days=1)
+    return out
+
+
 @router.get("/schedule/{pid}")
-def schedule(pid: int, request: Request):
+def schedule(pid: int, request: Request, weeks: int = 3):
     ctx = load_ctx(request)
     name = name_of(pid)
     access.need_read(ctx, f"probeerde het rooster van {name} te openen")
-    days = visible_days([pid])
+    days = week_days([pid], max(1, min(weeks, 6)))
     les = lessons_for(pid, days)
     srcs = sources_summary(pid)
     oks = [s["last_ok"] for s in srcs if s["last_ok"]]
@@ -160,8 +200,13 @@ def compare(ids: str, request: Request):
         raise HTTPException(400, {"code": "ids", "message": "Ongeldige selectie."})
     if not pids:
         raise HTTPException(400, {"code": "ids", "message": "Kies minstens één persoon."})
-    days = visible_days(pids)
     t = today()
+    days = visible_days(pids, extra=5)
+    now = now_min()
+    ends = [l["end"] for les in (lessons_for(pid, [t], with_titles=False).get(t, []) for pid in pids) for l in les
+            if l["state"] not in ("cancelled", "removed")]
+    if len(days) > 1 and (not ends or max(ends) <= now):
+        days = days[1:]  # vandaag is voorbij: begin bij de volgende lesdag
     out_days = []
     for d in days:
         people, infos, _ = load_day(d)

@@ -379,7 +379,7 @@ async function devicesCard(reload) {
 function startCard() {
   const cur = store.get("start", "home");
   const card = h("section", { class: "card" }, sectionTitle("Openen op"));
-  for (const [v, l] of [["home", "Home"], ["rooster", "Mijn rooster"]]) {
+  for (const [v, l] of [["home", "Home (of meteen je rooster als er niets nieuws is)"], ["rooster", "Altijd mijn rooster"]]) {
     const r = h("input", { type: "radio", name: "start", value: v, checked: cur === v });
     r.addEventListener("change", () => { store.set("start", v); toast("Onthouden"); });
     card.append(h("label", { class: "check-row" }, r, h("span", null, l)));

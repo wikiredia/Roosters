@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { state, go, myPerson } from "../app.js";
 import { h, clear, fmt, names, avatar, personColor, brusselsMinutes, store, icon } from "../util.js";
 import { dayScroller, lessonSheet, sortGroups, KIND_LABEL, sectionTitle } from "./common.js";
+import { prefs, viewControls, hourRange, freeHeight } from "./grid.js";
 
 export async function render(root, { query }) {
   const ids = (query.get("ids") || "").split(",").map(Number).filter(Boolean);
@@ -70,29 +71,47 @@ async function showPicker(root) {
 async function showCompare(root, ids, extra) {
   const data = await api.get(`/compare?ids=${ids.join(",")}`);
   const nameOf = new Map((state.me.people || []).map((p) => [p.id, p.name]));
-  root.append(h("div", { class: "toolbar" },
-    h("button", { class: "btn small ghost", onclick: () => { store.set("compareSel", ids); go("#/vergelijk"); } }, icon("back"), "Wijzig selectie"),
-    h("span", { class: "muted small" }, `${ids.length} roosters · tik een blok voor het vak`)));
-  if (extra.length) {
-    root.append(h("p", { class: "extra-names" }, `Kunnen ook mee: ${names(extra.map((id) => nameOf.get(id)).filter(Boolean))}`));
-  }
-  root.append(dayScroller(data.days, data.today, (d) => timeline(d, d.day === data.today)));
+  const holder = h("div");
+  const draw = () => {
+    clear(root);
+    root.append(h("div", { class: "toolbar" },
+      h("button", { class: "btn small ghost", onclick: () => { store.set("compareSel", ids); go("#/vergelijk"); } }, icon("back"), "Wijzig selectie"),
+      h("span", { class: "muted small" }, `${ids.length} roosters · tik een blok voor het vak`)),
+      viewControls(draw, { withDays: false }));
+    if (extra.length) {
+      root.append(h("p", { class: "extra-names" }, `Kunnen ook mee: ${names(extra.map((id) => nameOf.get(id)).filter(Boolean))}`));
+    }
+    clear(holder);
+    root.append(holder);
+    // Zoveel mogelijk van het scherm gebruiken: dag-kop en uitleg eronder eraf
+    const avail = freeHeight(holder, 110);
+    const vertical = prefs.orient === "v";
+    holder.append(dayScroller(data.days, data.today, (d) => (vertical ? columns(d, d.day === data.today, avail) : rows(d, d.day === data.today, avail))));
+  };
+  draw();
 }
 
-function timeline(d, isToday) {
-  const blocks = d.people.flatMap((p) => p.blocks);
-  let lo = Math.min(8 * 60, ...blocks.map((b) => b.start));
-  let hi = Math.max(17 * 60, ...blocks.map((b) => b.end));
-  lo = Math.floor(lo / 60) * 60;
-  hi = Math.ceil(hi / 60) * 60;
+function info(d) {
+  const box = h("div", { class: "tl-info" });
+  if (d.together.length) box.append(h("p", null, h("span", { class: "swatch" }), `Allemaal vrij: ${d.together.map(([s, e]) => `${fmt(s)}–${fmt(e)}`).join(", ")}`));
+  else if (d.people.filter((p) => p.present).length >= 2) box.append(h("p", { class: "muted" }, "Geen moment waarop iedereen samen pauze heeft."));
+  const absent = d.people.filter((p) => !p.blocks.length).map((p) => p.name);
+  if (absent.length) box.append(h("p", { class: "muted small" }, `Geen les: ${names(absent)}`));
+  return box;
+}
+
+// Horizontaal: één rij per persoon, rijen worden hoger als er weinig mensen zijn
+function rows(d, isToday, avail) {
+  const [lo, hi] = hourRange(d.people.flatMap((p) => p.blocks));
   const span = hi - lo;
   const pct = (m) => `${((m - lo) / span) * 100}%`;
   const width = (a, b) => `${((b - a) / span) * 100}%`;
+  const rowH = Math.max(36, Math.min(120, Math.floor((avail - 30) / Math.max(1, d.people.length)) - 6));
 
-  const wrap = h("div", { class: "tl" });
+  const wrap = h("div", { class: "tl", style: { "--row": `${rowH}px` } });
   const axis = h("div", { class: "tl-axis" });
   for (let t = lo; t <= hi; t += 60) {
-    if ((t - lo) % (span > 9 * 60 ? 120 : 60) === 0) axis.append(h("span", { style: { left: pct(t) } }, String(t / 60)));
+    if ((t - lo) % (span > 9 * 60 ? 120 : 60) === 0) axis.append(h("span", { style: { left: pct(t) } }, `${t / 60}u`));
   }
   wrap.append(h("div", { class: "tl-row head" }, h("span"), axis));
 
@@ -106,12 +125,11 @@ function timeline(d, isToday) {
         style: { left: pct(b.start), width: width(b.start, b.end), background: personColor(p.id) },
         "aria-label": `${p.name} les ${fmt(b.start)} tot ${fmt(b.end)}`,
         onclick: () => lessonSheet(b.id, b),
-      }));
+      }, rowH >= 56 && (b.end - b.start) >= 60 ? h("span", { class: "blk-time" }, fmt(b.start)) : null));
     }
     if (!p.blocks.length) track.append(h("span", { class: "tl-none" }, p.checkin === "absent" ? "is er niet" : "geen les"));
     area.append(h("div", { class: "tl-row" }, h("span", { class: "tl-name" }, avatar(p, "xs"), h("span", null, p.name)), track));
   }
-  // Samen vrij als gele band over alle rijen
   const bands = h("div", { class: "tl-bands" });
   for (const [s, e] of d.together) bands.append(h("i", { style: { left: pct(s), width: width(s, e) } }));
   if (isToday) {
@@ -119,13 +137,49 @@ function timeline(d, isToday) {
     if (now > lo && now < hi) bands.append(h("b", { class: "tl-now", style: { left: pct(now) } }));
   }
   area.append(h("div", { class: "tl-row overlay" }, h("span"), bands));
-  wrap.append(area);
-
-  const info = h("div", { class: "tl-info" });
-  if (d.together.length) info.append(h("p", null, h("span", { class: "swatch" }), `Allemaal vrij: ${d.together.map(([s, e]) => `${fmt(s)}–${fmt(e)}`).join(", ")}`));
-  else if (d.people.filter((p) => p.present).length >= 2) info.append(h("p", { class: "muted" }, "Geen moment waarop iedereen samen pauze heeft."));
-  const absent = d.people.filter((p) => !p.blocks.length).map((p) => p.name);
-  if (absent.length) info.append(h("p", { class: "muted small" }, `Geen les: ${names(absent)}`));
-  wrap.append(info);
+  wrap.append(area, info(d));
   return wrap;
+}
+
+// Verticaal: één kolom per persoon, de tijd van boven naar onder over de hele schermhoogte
+function columns(d, isToday, avail) {
+  const [lo, hi] = hourRange(d.people.flatMap((p) => p.blocks));
+  const span = hi - lo;
+  const ppm = Math.max(0.6, Math.min(2.4, (avail - 46) / span));
+  const height = Math.round(span * ppm);
+  const y = (m) => `${Math.round((m - lo) * ppm)}px`;
+  const many = d.people.length > 5;
+
+  const wrap = h("div", { class: "tlv" });
+  const gutter = h("div", { class: "tlv-gutter" }, h("div", { class: "tlv-head" }));
+  const gbody = h("div", { class: "tlv-gbody", style: { height: `${height}px` } });
+  for (let t = lo; t <= hi; t += 60) gbody.append(h("span", { style: { top: y(t) } }, `${t / 60}u`));
+  gutter.append(gbody);
+
+  const cols = h("div", { class: "tlv-cols" });
+  for (const p of d.people) {
+    const body = h("div", { class: "tlv-body", style: { height: `${height}px` } });
+    for (let t = lo + 60; t < hi; t += 60) body.append(h("i", { class: "hr", style: { top: y(t) } }));
+    for (const b of p.blocks) {
+      body.append(h("button", {
+        class: `blk-v s-${b.state}`, type: "button",
+        style: { top: y(b.start), height: `${Math.max(10, (b.end - b.start) * ppm - 2)}px`, background: personColor(p.id) },
+        "aria-label": `${p.name} les ${fmt(b.start)} tot ${fmt(b.end)}`,
+        onclick: () => lessonSheet(b.id, b),
+      }, !many && (b.end - b.start) * ppm >= 34 ? h("span", { class: "blk-time" }, `${fmt(b.start)}–${fmt(b.end)}`) : null));
+    }
+    if (!p.blocks.length) body.append(h("span", { class: "tlv-none" }, p.checkin === "absent" ? "is er niet" : "geen les"));
+    cols.append(h("div", { class: "tlv-col" },
+      h("div", { class: "tlv-head", title: p.name }, avatar(p, "xs"), many ? null : h("span", null, p.name)),
+      body));
+  }
+  const bands = h("div", { class: "tlv-bands", style: { height: `${height}px` } });
+  for (const [s, e] of d.together) bands.append(h("i", { style: { top: y(s), height: `${(e - s) * ppm}px` } }));
+  if (isToday) {
+    const now = brusselsMinutes();
+    if (now > lo && now < hi) bands.append(h("b", { class: "tlv-now", style: { top: y(now) } }));
+  }
+  cols.append(bands);
+  wrap.append(gutter, cols);
+  return h("div", { class: "tl tl-vertical" }, wrap, info(d));
 }

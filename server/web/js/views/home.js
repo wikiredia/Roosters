@@ -1,7 +1,7 @@
 // Home: check-in, jouw dag, samen pauze, nu-bord, meldingen, reizen, afspraken, iemand kiezen.
 import { api } from "../api.js";
-import { state, go, loadMe, myPerson, isPending, isApproved, isAdmin, toast, toastError, undoToast, sheet, closeSheet } from "../app.js";
-import { h, clear, fmt, dur, names, avatar, icon, personColor, ago } from "../util.js";
+import { state, go, replaceRoute, loadMe, myPerson, isPending, isApproved, isAdmin, toast, toastError, undoToast, sheet, closeSheet } from "../app.js";
+import { h, clear, fmt, dur, names, avatar, icon, personColor, ago, store } from "../util.js";
 import { sortGroups, sectionTitle, KIND_LABEL } from "./common.js";
 import { checkinSheet, CHECKIN_LABEL } from "./afspreken.js";
 
@@ -14,7 +14,15 @@ export async function render(root) {
       h("p", { class: "muted" }, "Dit toestel is admin, maar hangt nog aan niemand."), bigPicker(me.people, null, null, confirmClaim)));
     return;
   }
+  const auto = state.autoStart;
+  state.autoStart = false;
   const [data, groups] = await Promise.all([api.get("/home"), api.get("/groups").catch(() => null)]);
+  // Bij het openen van de app: niets nieuws op Home? Dan meteen naar je rooster.
+  if (auto && !somethingNew(data)) {
+    replaceRoute("#/rooster");
+    return;
+  }
+  store.set("feedSeen", Math.max(store.get("feedSeen", 0), ...data.feed.map((n) => n.id)));
   draw(root, data, groups);
   // Elke minuut het nu-bord bijwerken
   const timer = setInterval(async () => {
@@ -26,6 +34,17 @@ export async function render(root) {
     } catch { /* stil */ }
   }, 60000);
   return () => clearInterval(timer);
+}
+
+function somethingNew(d) {
+  const seen = store.get("feedSeen", 0);
+  return Boolean(
+    d.admin?.pending ||
+    d.feed.some((n) => n.id > seen) ||
+    d.plans.some((p) => !p.mine && !p.my_response) ||
+    d.travel.some((t) => !t.pref) ||
+    d.my_breaks.some((b) => b.now)
+  );
 }
 
 function compareLink(ids, extra = []) {

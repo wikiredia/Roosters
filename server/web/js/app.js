@@ -37,6 +37,11 @@ export const isPending = () => state.me?.device?.status === "pending";
 export const isAdmin = () => !!state.me?.device?.admin;
 
 // ---- Router ------------------------------------------------------------------
+export function replaceRoute(hash) {
+  history.replaceState(null, "", hash);
+  route();
+}
+
 export function go(hash) {
   if (location.hash === hash) route();
   else location.hash = hash;
@@ -56,6 +61,8 @@ async function route() {
   const { parts, query } = parseHash();
   let tab = parts[0];
   if (!tab || !loaders[tab]) {
+    // Vanzelf gekozen (niet aangetikt): Home mag doorschakelen naar je rooster als er niets nieuws is
+    state.autoStart = true;
     const start = store.get("start", "home");
     const target = start === "rooster" && myPerson() ? "#/rooster" : "#/home";
     history.replaceState(null, "", target);

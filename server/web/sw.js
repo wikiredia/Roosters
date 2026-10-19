@@ -1,7 +1,7 @@
 // Service worker: pushmeldingen tonen en de app-schil offline beschikbaar houden.
-const CACHE = "roosters-v1";
+const CACHE = "roosters-v2";
 const SHELL = ["/", "/index.html", "/app.css", "/js/app.js", "/js/api.js", "/js/util.js",
-  "/js/views/common.js", "/js/views/home.js", "/js/views/rooster.js", "/js/views/vergelijk.js",
+  "/js/views/common.js", "/js/views/grid.js", "/js/views/home.js", "/js/views/rooster.js", "/js/views/vergelijk.js",
   "/js/views/afspreken.js", "/js/views/opties.js", "/js/views/admin.js",
   "/fonts/bricolage-latin.woff2", "/icons/icon-192.png"];
 
