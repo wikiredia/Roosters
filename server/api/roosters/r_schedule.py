@@ -94,7 +94,7 @@ def lessons_for(pid, days, with_titles=True):
                 "kind": lesson_kind(r["title"], r["info"], db.unjs(r["extra"], {})),
                 "_k": (r["title"], r["location"], r["teacher"], r["state"])}
         if with_titles:
-            item.update({"title": r["title"], "location": r["location"]})
+            item.update({"title": r["title"], "location": r["location"], "teacher": r["teacher"]})
         day.append(item)
     for items in out.values():
         for item in items:
@@ -221,7 +221,7 @@ def compare(ids: str, request: Request):
             p = people.get(pid)
             if not p:
                 continue
-            les = lessons_for(pid, [d], with_titles=False).get(d, [])
+            les = lessons_for(pid, [d]).get(d, [])
             info = infos[pid]
             rows.append({"id": pid, "name": p.name, "blocks": les, "free": info.free, "present": info.present,
                          "checkin": p.checkin["status"] if p.checkin else None})

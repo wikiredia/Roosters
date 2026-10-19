@@ -522,6 +522,31 @@ textarea.prompt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; f
 .no-class-h { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-weight: 650; font-size: 14px; }
 .now-line-v { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--danger); z-index: 3; }
 
+/* Lescards bij vergelijken: tonen wat past (vak + uur, dan lokaal, dan docent) */
+.tl-track .cal-blk.cmp { top: 2px; bottom: 2px; }
+.tlv-body .cal-blk.cmp { left: 2px; right: 2px; }
+.cal-blk.cmp { container-type: size; padding: 0; border-left-width: 3px; }
+.cal-blk.cmp .c-in { display: flex; flex-direction: column; gap: 1px; padding: 3px 5px; min-width: 0; height: 100%; overflow: hidden; }
+.cal-blk.cmp .b-title { font-size: 12.5px; -webkit-line-clamp: 2; }
+.cal-blk.cmp .b-time, .cal-blk.cmp .b-loc, .cal-blk.cmp .b-teach { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@container (max-height: 82px) { .cal-blk.cmp .b-title { -webkit-line-clamp: 1; } }
+@container (max-height: 70px) { .cal-blk.cmp .b-teach { display: none; } }
+@container (max-height: 52px) { .cal-blk.cmp .b-loc { display: none; } }
+@container (max-height: 38px) {
+  .cal-blk.cmp .c-in { padding: 2px 4px; gap: 0; }
+  .cal-blk.cmp .b-title { font-size: 11.5px; }
+  .cal-blk.cmp .b-time { font-size: 10.5px; }
+}
+@container (max-height: 27px) { .cal-blk.cmp .b-time { display: none; } .cal-blk.cmp .c-in { justify-content: center; } }
+@container (max-height: 16px) { .cal-blk.cmp .c-in { display: none; } }
+@container (max-width: 72px) {
+  .cal-blk.cmp .b-loc, .cal-blk.cmp .b-teach { display: none; }
+  .cal-blk.cmp .c-in { padding: 3px 3px 3px 4px; }
+  .cal-blk.cmp .b-title { font-size: 11px; }
+  .cal-blk.cmp .b-time { font-size: 10px; }
+}
+@container (max-width: 40px) { .cal-blk.cmp .c-in { display: none; } }
+
 /* Vergelijken verticaal */
 .tl-vertical { padding: 8px 8px 10px; }
 .tlv { display: flex; }

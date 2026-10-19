@@ -1,4 +1,4 @@
-// Vergelijken: eerst mensen kiezen (mijn groepen eerst), dan een tijdlijn per dag zonder vaknamen.
+// Vergelijken: eerst mensen kiezen (mijn groepen eerst), dan een tijdlijn per dag.
 import { api } from "../api.js";
 import { state, go, myPerson } from "../app.js";
 import { h, clear, fmt, names, avatar, personColor, brusselsMinutes, store, icon } from "../util.js";
@@ -76,7 +76,7 @@ async function showCompare(root, ids, extra) {
     clear(root);
     root.append(h("div", { class: "toolbar" },
       h("button", { class: "btn small ghost", onclick: () => { store.set("compareSel", ids); go("#/vergelijk"); } }, icon("back"), "Wijzig selectie"),
-      h("span", { class: "muted small" }, `${ids.length} roosters · tik een blok voor het vak`)),
+      h("span", { class: "muted small" }, `${ids.length} roosters · tik een les voor alle details`)),
       viewControls(draw, { withDays: false }));
     if (extra.length) {
       root.append(h("p", { class: "extra-names" }, `Kunnen ook mee: ${names(extra.map((id) => nameOf.get(id)).filter(Boolean))}`));
@@ -89,6 +89,22 @@ async function showCompare(root, ids, extra) {
     holder.append(dayScroller(data.days, data.today, (d) => (vertical ? columns(d, d.day === data.today, avail) : rows(d, d.day === data.today, avail))));
   };
   draw();
+}
+
+// Lescard: hoeveel er op staat hangt af van de grootte (zie .cmp in app.css).
+// Volgorde: vaknaam en uur eerst, dan lokaal, dan docent.
+function lessonCard(p, b, pos) {
+  return h("button", {
+    class: `cal-blk cmp s-${b.state}`, type: "button",
+    style: { ...pos, "--k": personColor(p.id) },
+    "aria-label": `${p.name}: ${b.title}, ${fmt(b.start)} tot ${fmt(b.end)}${b.location ? ", " + b.location : ""}`,
+    onclick: () => lessonSheet(b.id, b),
+  },
+    h("span", { class: "c-in" },
+      h("span", { class: "b-title" }, b.title),
+      h("span", { class: "b-time" }, `${fmt(b.start)}–${fmt(b.end)}`),
+      b.location ? h("span", { class: "b-loc" }, b.location) : null,
+      b.teacher ? h("span", { class: "b-teach" }, b.teacher) : null));
 }
 
 function info(d) {
@@ -120,12 +136,7 @@ function rows(d, isToday, avail) {
     const track = h("div", { class: "tl-track" });
     for (let t = lo + 60; t < hi; t += 60) track.append(h("i", { class: "hr", style: { left: pct(t) } }));
     for (const b of p.blocks) {
-      track.append(h("button", {
-        class: `blk s-${b.state}`, type: "button",
-        style: { left: pct(b.start), width: width(b.start, b.end), background: personColor(p.id) },
-        "aria-label": `${p.name} les ${fmt(b.start)} tot ${fmt(b.end)}`,
-        onclick: () => lessonSheet(b.id, b),
-      }, rowH >= 56 && (b.end - b.start) >= 60 ? h("span", { class: "blk-time" }, fmt(b.start)) : null));
+      track.append(lessonCard(p, b, { left: pct(b.start), width: `calc(${width(b.start, b.end)} - 2px)` }));
     }
     if (!p.blocks.length) track.append(h("span", { class: "tl-none" }, p.checkin === "absent" ? "is er niet" : "geen les"));
     area.append(h("div", { class: "tl-row" }, h("span", { class: "tl-name" }, avatar(p, "xs"), h("span", null, p.name)), track));
@@ -161,12 +172,7 @@ function columns(d, isToday, avail) {
     const body = h("div", { class: "tlv-body", style: { height: `${height}px` } });
     for (let t = lo + 60; t < hi; t += 60) body.append(h("i", { class: "hr", style: { top: y(t) } }));
     for (const b of p.blocks) {
-      body.append(h("button", {
-        class: `blk-v s-${b.state}`, type: "button",
-        style: { top: y(b.start), height: `${Math.max(10, (b.end - b.start) * ppm - 2)}px`, background: personColor(p.id) },
-        "aria-label": `${p.name} les ${fmt(b.start)} tot ${fmt(b.end)}`,
-        onclick: () => lessonSheet(b.id, b),
-      }, !many && (b.end - b.start) * ppm >= 34 ? h("span", { class: "blk-time" }, `${fmt(b.start)}–${fmt(b.end)}`) : null));
+      body.append(lessonCard(p, b, { top: y(b.start), height: `${Math.max(10, (b.end - b.start) * ppm - 2)}px` }));
     }
     if (!p.blocks.length) body.append(h("span", { class: "tlv-none" }, p.checkin === "absent" ? "is er niet" : "geen les"));
     cols.append(h("div", { class: "tlv-col" },
