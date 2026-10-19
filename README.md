@@ -18,3 +18,9 @@ Weekoverzicht van de lessen van Reda en Kayra, over elkaar gelegd: wanneer heeft
 
 - iPhone: open de pagina in Safari, tik op Delen en kies **Zet op beginscherm**.
 - Android: open de pagina in Chrome, menu (⋮) en kies **Toevoegen aan startscherm**.
+
+## Server voor thuis
+
+In `server/` staat een uitgebreidere versie om zelf te hosten (Docker Compose, MySQL, Apache): iedereen
+voegt zijn eigen rooster toe (Untis, Google, iCloud, ...), met samen-pauze, afspreken en pushmeldingen.
+Die staat los van deze GitHub Pages-versie. Zie [server/README.md](server/README.md).
