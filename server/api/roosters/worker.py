@@ -157,6 +157,25 @@ def travel_notifications():
                            {"open": "home", "travel": {"other": oid, "kind": kind}}, tm)
 
 
+# ---- Testmelding vanuit Beheer --------------------------------------------------
+
+def push_test():
+    at = db.get_setting("push_test_at")
+    if not at or at > db.utcnow().strftime("%Y-%m-%d %H:%M:%S"):
+        return
+    db.run("DELETE FROM settings WHERE k='push_test_at'")
+    t = now_local().date()
+    people = {r["person_id"] for r in db.rows(
+        "SELECT DISTINCT d.person_id FROM push_subs s JOIN devices d ON d.id=s.device_id "
+        "WHERE d.status='approved' AND d.person_id IS NOT NULL")}
+    for pid in people:
+        notify.enqueue(pid, "test", f"test:{at}", "Testmelding",
+                       "Dit is een test van Reda. Als je dit ziet, werken je meldingen.", {"open": "home"}, t)
+    if db.one("SELECT 1 AS x FROM push_subs s JOIN devices d ON d.id=s.device_id WHERE d.is_admin=1 AND d.person_id IS NULL"):
+        notify.enqueue(notify.ADMIN, "test", f"test:{at}", "Testmelding", "Testmelding voor admin-toestellen.", {"open": "admin"}, t)
+    log.info("testmelding klaargezet voor %d personen", len(people))
+
+
 # ---- Certificaat ---------------------------------------------------------------
 
 def cert_check():
@@ -218,7 +237,7 @@ def main():
     last_hourly = 0.0
     while True:
         started = time.time()
-        for step in (run_syncs, day_notifications, travel_notifications, cert_check, notify.send_pending):
+        for step in (run_syncs, day_notifications, travel_notifications, cert_check, push_test, notify.send_pending):
             try:
                 step()
             except Exception:

@@ -223,6 +223,18 @@ def get_backup(request: Request):
                        headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store"})
 
 
+@router.post("/push-test")
+def push_test(request: Request):
+    """Over een minuut krijgt elk toestel met meldingen een testmelding (de worker verstuurt ze)."""
+    ctx = load_ctx(request)
+    access.need_admin(ctx)
+    access.rate_limit("pushtest-all", 3, 600)
+    at = db.utcnow() + dt.timedelta(minutes=1)
+    db.set_setting("push_test_at", at.strftime("%Y-%m-%d %H:%M:%S"))
+    n = db.one("SELECT COUNT(*) AS n FROM push_subs s JOIN devices d ON d.id=s.device_id WHERE d.status='approved'")["n"]
+    return {"ok": True, "devices": n, "at": at.isoformat() + "Z"}
+
+
 @router.get("/cert")
 def cert(request: Request):
     ctx = load_ctx(request)

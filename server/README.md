@@ -91,6 +91,7 @@ beginscherm en tikt daar het juiste getal aan (één poging, 5 minuten, enkel va
 | Status | `./roosters.sh status` |
 | Updaten | `./roosters.sh update` (git pull + opnieuw bouwen) |
 | Backup | Beheer → *Download backup* (zip, op elk toestel) |
+| Meldingen testen | Beheer → *Stuur iedereen een testmelding* (komt een minuut later aan) |
 | Terugzetten | `sudo ./roosters.sh restore backup.zip` (zelfde `SECRET_KEY` nodig voor de agenda-links) |
 | Poorten testen | `./roosters.sh check-ports`, of op je gsm via 4G `http://<jouw-ip>` |
 

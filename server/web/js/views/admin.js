@@ -84,6 +84,16 @@ export async function render(root) {
   }
   root.append(acts);
 
+  // Testmelding voor iedereen
+  root.append(h("section", { class: "card" }, sectionTitle("Meldingen testen"),
+    h("p", { class: "muted small" }, "Over een minuut krijgt elk toestel waarop meldingen aanstaan een testmelding."),
+    h("button", { class: "btn wide", onclick: async () => {
+      try {
+        const r = await api.post("/admin/push-test");
+        toast(r.devices ? `Over een minuut krijgen ${r.devices} ${r.devices === 1 ? "toestel" : "toestellen"} een testmelding` : "Nog niemand heeft meldingen aangezet");
+      } catch (e) { toastError(e); }
+    } }, icon("bell"), "Stuur iedereen een testmelding")));
+
   // Backup
   root.append(h("section", { class: "card" }, sectionTitle("Backup"),
     h("p", { class: "muted small" }, "Download alle gegevens als zip. Terugzetten op de server: sudo ./roosters.sh restore bestand.zip"),
