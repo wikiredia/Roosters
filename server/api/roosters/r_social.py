@@ -160,8 +160,11 @@ def home(request: Request):
     # 'Wie ken je?': zolang er mensen buiten je vriendengroep zijn waarover je nog niets zei
     known_new = sum(1 for p in _known_candidates(me.id) if p["known"] is None) if me else 0
 
+    me_status = logic.board_status(me, infos[me.id], now) if me else None
+
     return {
         "me": pname(me.id) if me else None,
+        "me_status": me_status,
         "known_new": known_new,
         "has_school_today": bool(me and infos[me.id].busy),
         "checkin": checkin,
@@ -475,8 +478,19 @@ def groups(request: Request, known: int = 0):
         "SELECT other_id FROM compare_picks WHERE person_id=%s"
         " ORDER BY n * POW(0.5, TIMESTAMPDIFF(DAY, last_at, UTC_TIMESTAMP()) / 30) DESC, last_at DESC LIMIT 20",
         (ctx.person_id or 0,)) if r["other_id"] in shown and r["other_id"] != ctx.person_id][:8]
+    # Per persoon: hoe vaak en wanneer laatst gekozen (Vergelijk toont 'laatst 2 uur geleden')
+    picks = {r["other_id"]: {"n": r["n"], "last": r["last_at"].isoformat() + "Z"} for r in db.rows(
+        "SELECT other_id, n, last_at FROM compare_picks WHERE person_id=%s", (ctx.person_id or 0,)) if r["other_id"] in shown}
+    # Recent: de laatste selecties (presets), enkel met mensen die je (nog) kan zien
+    recent = []
+    for r in db.rows("SELECT ids, n, last_at FROM compare_presets WHERE person_id=%s ORDER BY last_at DESC LIMIT 20",
+                     (ctx.person_id or 0,)):
+        ids = [int(x) for x in r["ids"].split(",") if x.isdigit()]
+        if ids and all(i in shown for i in ids):
+            recent.append({"ids": ids, "n": r["n"], "last": r["last_at"].isoformat() + "Z"})
     return {"groups": [{**g, "members": [m for m in members.get(g["id"], []) if m in shown]} for g in gs],
-            "people": people, "me": ctx.person_id, "usual": usual, "unknown": unknown}
+            "people": people, "me": ctx.person_id, "usual": usual, "unknown": unknown,
+            "picks": picks, "recent": recent[:8]}
 
 
 @router.post("/groups/{gid}/{action}")

@@ -1,10 +1,10 @@
 // Home: check-in, pauzes (verzoeken), jouw dag, samen pauze, nu-bord, reizen, meldingen, iemand kiezen.
 import { api } from "../api.js";
 import { state, go, replaceRoute, loadMe, myPerson, isPending, isApproved, isAdmin, toast, toastError, undoToast, sheet, closeSheet } from "../app.js";
-import { h, clear, fmt, dur, names, avatar, icon, personColor, ago, store } from "../util.js";
+import { h, clear, fmt, names, avatar, icon, personColor, ago, store, dayLabel } from "../util.js";
 import { sortGroups, sectionTitle, KIND_LABEL, knownSheet } from "./common.js";
 import { checkinSheet, CHECKIN_LABEL } from "./afspreken.js";
-import { plannedBreaksCard, breakRequestSheet } from "./social.js";
+import { plannedBreaksCard, breakRequestSheet, loadPlans, cachedPlans, planState, planPeople, planFor, PLAN_LABEL, CHANGED } from "./social.js";
 
 export async function render(root) {
   const me = state.me;
@@ -17,25 +17,34 @@ export async function render(root) {
   }
   const auto = state.autoStart;
   state.autoStart = false;
-  const load = () => Promise.all([api.get("/home"), api.get("/overview").catch(() => null), api.get("/breaks").catch(() => null)]);
-  const [[data, ov, breaks], groups] = await Promise.all([load(), api.get("/groups").catch(() => null)]);
+  const load = () => Promise.all([api.get("/home"), api.get("/breaks").catch(() => null)]);
+  const [[data, breaks], groups] = await Promise.all([load(), api.get("/groups").catch(() => null)]);
   // Bij het openen van de app: niets nieuws op Home? Dan meteen naar je rooster.
   if (auto && !somethingNew(data, breaks)) {
     replaceRoute("#/rooster");
     return;
   }
   store.set("feedSeen", Math.max(store.get("feedSeen", 0), ...data.feed.map((n) => n.id)));
-  draw(root, data, groups, ov);
+  await loadPlans().catch(() => {});
+  let last = data;
+  draw(root, data, groups);
+  const redraw = (d) => {
+    const y = window.scrollY;
+    draw(clear(root), d, groups);
+    window.scrollTo({ top: y });
+  };
   // Elke minuut het nu-bord bijwerken
   const timer = setInterval(async () => {
     try {
-      const [fresh, ov2] = await load();
-      const y = window.scrollY;
-      draw(clear(root), fresh, groups, ov2);
-      window.scrollTo({ top: y });
+      [last] = await load();
+      await loadPlans(true);
+      redraw(last);
     } catch { /* stil */ }
   }, 60000);
-  return () => clearInterval(timer);
+  // Iets gevraagd of beantwoord: de vakjes en pauzes bovenaan tonen meteen de nieuwe stand
+  const onPlans = () => loadPlans(true).then(() => { if (root.isConnected) redraw(last); }).catch(() => {});
+  window.addEventListener(CHANGED, onPlans);
+  return () => { clearInterval(timer); window.removeEventListener(CHANGED, onPlans); };
 }
 
 // Pauze-verzoeken waarop jij nog moet antwoorden (als die API er is)
@@ -64,13 +73,45 @@ function compareLink(ids, extra = []) {
   return `#/vergelijk?${q}`;
 }
 
-function draw(root, d, groups, ov) {
+// Bovenaan in één oogopslag: wat doe jij nu, je volgende pauze samen, je plannen, wie er op campus is.
+// Elk vakje springt naar het stuk eronder. Daarna vaste blokken, elk met een icoon en een titel.
+function draw(root, d, groups) {
   const me = d.me;
+  const plans = cachedPlans();
+  const live = plans.items.filter((it) => planState(it));
+  const asks = live.filter((it) => planState(it) === "ask");
+  const planned = live.filter((it) => planState(it) === "planned");
+  const waiting = live.filter((it) => planState(it) === "asked");
+  const nextBreak = d.my_breaks.find((b) => b.end > d.now_min);
+  const onCampus = d.board.filter((b) => !["geen", "absent", "home"].includes(b.code));
+
+  const lab = dayLabel(d.today, d.today);
+  root.append(h("header", { class: "home-head" },
+    h("h1", null, `Hoi ${me.name}`), h("p", { class: "muted" }, lab.sub)));
+
+  const st = d.me_status;
+  const tile = (target, ico, label, main, sub, kind = "") => h("button", { type: "button", class: `glance-tile ${kind}`, onclick: () => jump(target) },
+    h("span", { class: "gt-label" }, icon(ico), label), h("span", { class: "gt-main" }, main), sub ? h("span", { class: "gt-sub" }, sub) : null);
+  const planMain = asks.length ? `${asks.length} ${asks.length === 1 ? "vraag" : "vragen"} aan jou`
+    : planned.length ? `${planned.length} afgesproken` : waiting.length ? `Wacht op ${waiting.length}` : "Niets gepland";
+  const planSub = asks.length ? `van ${names(asks.map((it) => it.from.name))}`
+    : planned.length ? `${fmt(planned[0].start)} met ${names(planPeople(planned[0]).map((p) => p.name))}`
+      : waiting.length ? `${fmt(waiting[0].start)} · ${names(planPeople(waiting[0]).map((p) => p.name))}` : "Tik een pauze om te vragen";
+  root.append(h("nav", { class: "glance", "aria-label": "Vandaag in het kort" },
+    tile("sec-day", st?.code === "pauze" ? "pause" : st?.code === "les" ? "book" : "clock", "Nu",
+      st ? shortStatus(st) : (d.has_school_today ? "Vandaag les" : "Geen les"), st?.sub || null, st?.code === "pauze" ? "hot" : ""),
+    tile("sec-day", "users", "Pauze samen",
+      nextBreak ? `${fmt(nextBreak.start)}–${fmt(nextBreak.end)}` : "Geen meer",
+      nextBreak ? `met ${names(nextBreak.people.map((p) => p.name))}` : d.has_school_today ? "vandaag" : null, nextBreak?.now ? "hot" : ""),
+    tile("sec-plans", "pin", "Plannen", planMain, planSub, asks.length ? "ask" : planned.length ? "ok" : ""),
+    tile("sec-now", "home", "Op campus", onCampus.length ? `${onCampus.length} ${onCampus.length === 1 ? "persoon" : "mensen"}` : "Niemand",
+      onCampus.length ? names(onCampus.slice(0, 3).map((b) => b.name)) : "die je kent")));
+
+  // Te doen: enkel als er iets is
   if (d.admin?.pending) {
     root.append(h("button", { class: "card alert-card", onclick: () => go("#/opties/admin") },
       icon("shield"), h("span", null, `${d.admin.pending} ${d.admin.pending === 1 ? "toegangsverzoek" : "toegangsverzoeken"} wachten op jou`), icon("chevron", "ico chev")));
   }
-
   // Wie ken je? Blijft staan tot je iets zei over iedereen buiten je vriendengroep
   if (d.known_new) {
     root.append(h("button", { class: "card known-card", onclick: () => knownSheet(() => go("#/home")) },
@@ -79,51 +120,46 @@ function draw(root, d, groups, ov) {
         h("span", { class: "row-sub" }, `${d.known_new} ${d.known_new === 1 ? "iemand" : "mensen"} buiten je vriendengroep. Wie je kent, kan je vergelijken.`)),
       icon("chevron", "ico chev")));
   }
-
-  // Check-in: klein, niet in de weg
   root.append(checkinCard(d));
 
-  // Geplande pauzes en verzoeken die onderweg zijn (vult zichzelf in)
-  const planned = h("div", { class: "planned-slot" });
-  root.append(planned);
-  plannedBreaksCard({ title: "Pauzes" }).then((el) => { if (el) planned.replaceWith(el); else planned.remove(); }).catch(() => planned.remove());
+  // Plannen: vragen aan jou, wat afgesproken is, waar je op wacht (vult zichzelf in)
+  const planSlot = h("div", { class: "planned-slot", id: "sec-plans" });
+  root.append(planSlot);
+  plannedBreaksCard({ title: "Plannen" }).then((el) => {
+    if (el) { el.id = "sec-plans"; el.querySelector(".sec-title h2")?.prepend(secIcon("pin")); el.classList.add("home-sec"); planSlot.replaceWith(el); } else planSlot.remove();
+  }).catch(() => planSlot.remove());
 
-  // Jouw dag
-  const day = h("section", { class: "card" }, sectionTitle("Jouw dag", h("a", { class: "link", href: "#/rooster" }, "Rooster")));
-  if (!d.has_school_today) {
-    day.append(h("p", { class: "big-line" }, "Geen les vandaag"));
+  // Jouw pauzes vandaag: met wie, en of je al iets vroeg
+  const day = h("section", { class: "card home-sec", id: "sec-day" }, secHead("pause", "Jouw pauzes vandaag", h("a", { class: "link", href: "#/rooster" }, "Rooster")));
+  if (!d.has_school_today) day.append(h("p", { class: "big-line" }, "Geen les vandaag"));
+  for (const b of d.my_breaks) {
+    const who = names(b.people.map((p) => p.name));
+    const plan = planFor({ day: d.today, start: b.start, end: b.end, ids: b.people.map((p) => p.id) });
+    day.append(h("div", { class: `break-line ${b.now ? "now" : ""}` },
+      h("button", { class: "break-row", onclick: () => go(compareLink([me.id, ...b.people.map((p) => p.id)])) },
+        h("span", { class: "time" }, `${fmt(b.start)}–${fmt(b.end)}`),
+        h("span", { class: "who" }, b.now ? `Nu met ${who}` : who,
+          !b.same_campus ? h("span", { class: "tag" }, "andere campus") : null)),
+      plan
+        ? h("button", { class: `plan-chip k-${plan.state} home-ask`, type: "button", onclick: () => breakRequestSheet({ people: b.people, day: d.today, start: b.start, end: b.end }) },
+          PLAN_LABEL[plan.state])
+        : h("button", { class: "btn small ghost home-ask", type: "button", "aria-label": `Pauze samen vragen aan ${who}`,
+          onclick: () => breakRequestSheet({ people: b.people, day: d.today, start: b.start, end: b.end, onDone: () => go("#/home") }) }, "Vraag")));
   }
-  if (d.my_breaks.length) {
-    for (const b of d.my_breaks) {
-      const who = names(b.people.map((p) => p.name));
-      day.append(h("div", { class: `break-line ${b.now ? "now" : ""}` },
-        h("button", { class: "break-row", onclick: () => go(compareLink([me.id, ...b.people.map((p) => p.id)])) },
-          icon("pause", "ico f-ico"),
-          h("span", { class: "time" }, `${fmt(b.start)}–${fmt(b.end)}`),
-          h("span", { class: "who" }, b.now ? `Nu pauze met ${who}` : `Pauze met ${who}`,
-            !b.same_campus ? h("span", { class: "tag" }, "andere campus") : null),
-          icon("chevron", "ico chev")),
-        h("button", { class: "btn small ghost home-ask", type: "button", "aria-label": `Pauze samen vragen aan ${who}`,
-          onclick: () => breakRequestSheet({ people: b.people, day: d.today, start: b.start, end: b.end, onDone: () => go("#/home") }) },
-        "Vraag")));
+  if (!d.my_breaks.length && d.has_school_today) day.append(h("p", { class: "muted" }, "Vandaag (nog) geen pauze samen met iemand."));
+  // Alle samen-pauzes per campus: ingeklapt (meestal te veel om te lezen)
+  if (d.together.length) {
+    const fold = h("details", { class: "home-fold" }, h("summary", null, `Alle samen-pauzes vandaag · ${d.summary} mensen`, icon("chevron", "ico chev")));
+    for (const w of d.together) {
+      const ppl = names(w.people.map((p) => p.name));
+      fold.append(h("button", { class: `together-row ${w.mine ? "mine" : ""} ${w.now ? "now" : ""}`, onclick: () => go(compareLink(w.people.map((p) => p.id), w.extra.map((p) => p.id))) },
+        h("span", { class: "tw-head" }, h("span", { class: "campus" }, w.campus), h("span", { class: "time" }, `${w.now ? "nu · " : ""}${fmt(w.start)}–${fmt(w.end)}`)),
+        h("span", { class: "tw-who" }, ppl),
+        w.extra.length ? h("span", { class: "tw-extra" }, `Kunnen ook mee: ${names(w.extra.map((p) => p.name))}`) : null));
     }
-  } else if (d.has_school_today) {
-    day.append(h("p", { class: "muted" }, "Vandaag (nog) geen pauze samen met iemand."));
+    day.append(fold);
   }
   root.append(day);
-
-  // Samen pauze (iedereen)
-  const tog = h("section", { class: "card" });
-  tog.append(sectionTitle(d.summary ? `${d.summary} mensen hebben pauze samen` : "Samen pauze"));
-  if (!d.together.length) tog.append(h("p", { class: "muted" }, "Vandaag geen gezamenlijke pauzes meer."));
-  for (const w of d.together) {
-    const ppl = names(w.people.map((p) => p.name));
-    tog.append(h("button", { class: `together-row ${w.mine ? "mine" : ""} ${w.now ? "now" : ""}`, onclick: () => go(compareLink(w.people.map((p) => p.id), w.extra.map((p) => p.id))) },
-      h("span", { class: "tw-head" }, h("span", { class: "campus" }, w.campus), h("span", { class: "time" }, `${w.now ? "nu · " : ""}${fmt(w.start)}–${fmt(w.end)}`)),
-      h("span", { class: "tw-who" }, `${ppl} hebben pauze samen`),
-      w.extra.length ? h("span", { class: "tw-extra" }, `Kunnen ook mee: ${names(w.extra.map((p) => p.name))}`) : null));
-  }
-  root.append(tog);
 
   // Nu-bord: iedereen die je kent; tik = vergelijken, 'Chillen?' = vraag het met een melding
   if (d.board.length) root.append(nowCard(d));
@@ -132,27 +168,53 @@ function draw(root, d, groups, ov) {
   const travel = d.travel || [];
   if (travel.length) root.append(travelCard(d, travel));
 
-  // Meldingen van vandaag
+  // Meldingen: de laatste 3, de rest achter 'Toon alle'
   if (d.feed.length) {
-    const feed = h("section", { class: "card" }, sectionTitle("Meldingen"));
-    for (const n of d.feed) feed.append(feedItem(n, me));
+    const feed = h("section", { class: "card home-sec", id: "sec-feed" }, secHead("bell", "Meldingen", h("span", { class: "muted small" }, String(d.feed.length))));
+    d.feed.slice(0, 3).forEach((n) => feed.append(feedItem(n, me)));
+    if (d.feed.length > 3) {
+      const more = h("button", { type: "button", class: "link small feed-more", onclick: () => {
+        more.remove();
+        d.feed.slice(3).forEach((n) => feed.append(feedItem(n, me)));
+      } }, `Toon alle ${d.feed.length}`);
+      feed.append(more);
+    }
     root.append(feed);
   }
 
-  // Bekijk rooster van ...
+  // Bekijk rooster van ... (ingeklapt)
   if (groups) {
-    root.append(h("section", { class: "card" }, sectionTitle("Bekijk rooster van…"),
-      ov ? matchesNow(ov, me) : null, bigPicker(groups.people, groups, me.id)));
+    root.append(h("details", { class: "card home-sec home-fold-card" },
+      h("summary", null, secHead("rooster", "Rooster van iemand bekijken"), icon("chevron", "ico chev")),
+      bigPicker(groups.people, groups, me.id)));
   }
 
   root.append(h("p", { class: "credit" }, "App is gemaakt en bijgehouden door Reda. Volledig gratis."));
+}
+
+const secIcon = (name) => h("span", { class: "sec-ico" }, icon(name));
+const secHead = (ico, text, extra) => h("div", { class: "sec-title" }, h("h2", null, secIcon(ico), text), extra || null);
+
+// "Heeft nog les tot 12:15" -> "Les tot 12:15" (het vakje is klein)
+function shortStatus(st) {
+  return st.text.replace(/^Heeft nog les/, "Les").replace(/^Heeft pauze/, "Pauze").replace(/ in Antwerpen/, "");
+}
+
+// Naar een blok springen en het even laten oplichten
+function jump(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  el.classList.remove("flash-sec");
+  void el.offsetWidth;
+  el.classList.add("flash-sec");
 }
 
 // ---- Nu-bord -------------------------------------------------------------------------
 function nowCard(d) {
   const me = d.me;
   const active = d.board.filter((b) => !["geen", "absent", "home"].includes(b.code));
-  const board = h("section", { class: "card now-card" }, sectionTitle("Nu",
+  const board = h("section", { class: "card now-card home-sec", id: "sec-now" }, secHead("home", "Op campus",
     active.length ? h("a", { class: "link", href: compareLink([me.id, ...active.slice(0, 7).map((b) => b.id)]) }, "Vergelijk") : null));
   const list = h("ul", { class: "board" });
   for (const b of d.board) {
@@ -180,7 +242,7 @@ function nowCard(d) {
 
 // ---- Samen reizen -----------------------------------------------------------------------
 function travelCard(d, travel) {
-  const tr = h("section", { class: "card" }, sectionTitle("Samen reizen"));
+  const tr = h("section", { class: "card home-sec" }, secHead("afspreken", "Samen reizen"));
   const text = (t) => {
     const when = t.day === d.today ? "Vandaag" : "Morgen";
     return t.kind === "heen"
@@ -201,28 +263,6 @@ function travelCard(d, travel) {
         h("button", { class: "link small muted-link", onclick: (e) => travelPref(e, t.other, "never") }, "Niet meer"))));
   }
   return tr;
-}
-
-// ---- Wie heeft pauze/klaar/chillen op hetzelfde moment als jij -------------------------
-function matchesNow(ov, me) {
-  const now = ov.day === ov.today ? ov.now_min : -1;
-  const box = h("div", { class: "match-now" });
-  const chip = (p) => h("button", { class: "name-chip", type: "button", onclick: () => go(`#/rooster/${p.id}`) }, avatar(p, "xs"), p.name);
-  const line = (ico, title, people, ids) => {
-    if (!people.length) return;
-    box.append(h("div", { class: "mn-line" },
-      h("button", { class: "mn-head", type: "button", onclick: () => go(compareLink([me.id, ...ids])), "aria-label": `${title}: vergelijk` },
-        icon(ico, "ico f-ico"), h("span", null, title), h("span", { class: "mn-cmp" }, "Vergelijk")),
-      h("div", { class: "mn-chips" }, people.map(chip))));
-  };
-  for (const sl of ov.slots.filter((x) => x.end > now && x.people.length)) {
-    line("pause", `Pauze ${fmt(sl.start)}–${fmt(sl.end)}`, sl.people, sl.people.map((p) => p.id));
-  }
-  if (ov.after) {
-    line("clock", `Ook klaar rond ${fmt(ov.after.start)}`, ov.after.done_same, ov.after.done_same.map((p) => p.id));
-    line("sun", "Wil chillen in Antwerpen", ov.after.chill, ov.after.chill.map((p) => p.id));
-  }
-  return box.children.length ? box : null;
 }
 
 function checkinCard(d) {

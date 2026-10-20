@@ -2,10 +2,10 @@
 // dan een tijdlijn per dag: wie samen pauze heeft eerst, de rest ingeklapt, en wie er ook nog pauze heeft.
 import { api } from "../api.js";
 import { state, go, myPerson, sheet, tiny } from "../app.js";
-import { h, append, clear, fmt, names, avatar, personColor, brusselsMinutes, store, icon, dayLabel } from "../util.js";
+import { h, append, clear, fmt, names, avatar, personColor, brusselsMinutes, brusselsDate, store, icon, dayLabel, ago } from "../util.js";
 import { dayScroller, lessonSheet, sortGroups, personToggle, knownSheet, emptyState } from "./common.js";
 import { prefs, viewControls, hourRange, freeHeight } from "./grid.js";
-import { breakRequestSheet, personSheet } from "./social.js";
+import { breakRequestSheet, personSheet, loadPlans, planFor, PLAN_LABEL, CHANGED } from "./social.js";
 
 export async function render(root, { query }) {
   const ids = (query.get("ids") || "").split(",").map(Number).filter(Boolean);
@@ -20,42 +20,74 @@ const compareHash = (ids, extra = []) => {
   return `#/vergelijk?${q}`;
 };
 
-// Kiezen: bovenaan met wie je pauze kan nemen, dan wie je vaak vergelijkt, je vrienden en je campus,
-// de andere groepen ingeklapt. Elke persoon = een rondje met de naam ernaast; aangevinkt wordt het rondje een vinkje.
-// Een groepsnaam aantikken = meteen de hele groep vergelijken.
-// Het tabblad openen begint leeg; 'Wijzig selectie' (?edit) houdt de vorige keuze.
+// Kiezen: wie je koos staat altijd bovenaan (chips met ×), daaronder je recente selecties (presets: één tik
+// = meteen vergelijken), wie vandaag samen pauze heeft en wie je vaak kiest als grote rondjes, dan zoeken
+// en alle groepen ingeklapt. Het tabblad openen begint leeg; 'Wijzig selectie' (?edit) houdt de vorige keuze.
 async function showPicker(root, keep) {
   const me = myPerson();
   const [data, sugg] = await Promise.all([api.get("/groups?known=1"), me ? api.get("/compare/suggest").catch(() => null) : null]);
   const people = new Map(data.people.map((p) => [p.id, p]));
   const sel = new Set(keep ? (store.get("compareSel") || []).filter((id) => people.has(id) && id !== me?.id) : []);
   let withMe = !!me && (!keep || (store.get("compareSel") || []).includes(me.id));
+  let shown = new Set(sel);
 
   const rowsById = new Map();
   const groupBtns = [];
   const meBtn = h("button", { type: "button", class: "link small", onclick: () => { withMe = !withMe; sync(); } });
   const goBtn = h("button", { class: "btn primary wide" });
+  const tray = h("div", { class: "pick-tray", "aria-live": "polite" });
   const chosen = () => (withMe ? [me.id, ...sel] : [...sel]);
+  const toggle = (id, on) => { on ? sel.add(id) : sel.delete(id); if (on) navigator.vibrate?.(6); sync(); };
   const sync = () => {
     for (const [id, list] of rowsById) for (const r of list) r.setAttribute("aria-checked", String(sel.has(id)));
     for (const g of groupBtns) g.btn.textContent = g.members.every((id) => sel.has(id)) ? "Geen" : "Allemaal";
     meBtn.textContent = withMe ? "Zonder mij" : "Met mij";
+    // Bovenaan: wie gekozen is, de nieuwste 'popt' erbij
+    clear(tray);
+    if (withMe) tray.append(h("span", { class: "tray-chip me" }, avatar(me, "xs"), "Jij"));
+    for (const id of sel) {
+      const p = people.get(id);
+      tray.append(h("button", { type: "button", class: `tray-chip${shown.has(id) ? "" : " pop"}`, "aria-label": `${p.name} weghalen`,
+        style: { "--k": personColor(id) }, onclick: () => toggle(id, false) }, avatar(p, "xs"), p.name, icon("close")));
+    }
+    if (!sel.size) tray.append(h("span", { class: "tray-empty" }, "Tik op mensen om ze te kiezen"));
+    else tray.append(h("button", { type: "button", class: "link small tray-clear", onclick: () => { sel.clear(); sync(); } }, "Wis"));
+    shown = new Set(sel);
     const n = names([...sel].slice(0, 2).map((id) => people.get(id).name).concat(sel.size > 2 ? [`${sel.size - 2} anderen`] : []));
     goBtn.textContent = !sel.size ? "Kies met wie" : withMe ? `Vergelijk met ${n}` : sel.size < 2 ? "Kies nog iemand" : `Vergelijk ${n}`;
     goBtn.disabled = chosen().length < 2;
     store.set("compareSel", chosen());
   };
+  const track = (id, el) => {
+    if (!rowsById.has(id)) rowsById.set(id, []);
+    rowsById.get(id).push(el);
+    return el;
+  };
   const personRow = (p, cls = "", sub = null) => {
-    const row = personToggle(p, sel.has(p.id), (on) => { on ? sel.add(p.id) : sel.delete(p.id); sync(); }, cls);
+    const row = personToggle(p, sel.has(p.id), (on) => toggle(p.id, on), cls);
     if (sub) {
       const name = row.querySelector(".pick-name");
       const text = h("span", { class: "pick-text" });
       name.replaceWith(text);
       text.append(name, h("span", { class: "pick-sub" }, sub));
     }
-    if (!rowsById.has(p.id)) rowsById.set(p.id, []);
-    rowsById.get(p.id).push(row);
-    return row;
+    return track(p.id, row);
+  };
+  // Groot rondje met de naam eronder (geen lange lijst): aangetikt wordt het een vinkje
+  const tile = (p, sub = null, tag = null) => {
+    const el = h("button", { type: "button", class: "pick-tile", role: "checkbox", "aria-checked": String(sel.has(p.id)),
+      onclick: () => {
+        const on = el.getAttribute("aria-checked") !== "true";
+        el.classList.remove("bump");
+        void el.offsetWidth;
+        el.classList.add("bump");
+        toggle(p.id, on);
+      } },
+    h("span", { class: "pick-av" }, avatar(p), h("span", { class: "pick-check" }, icon("check"))),
+    h("span", { class: "pt-name" }, p.name),
+    sub ? h("span", { class: "pt-sub" }, sub) : null,
+    tag ? h("span", { class: "pt-tag" }, tag) : null);
+    return track(p.id, el);
   };
   const allBtn = (ids) => {
     const btn = h("button", { type: "button", class: "link small", onclick: () => {
@@ -66,24 +98,47 @@ async function showPicker(root, keep) {
     groupBtns.push({ btn, members: ids });
     return btn;
   };
-  // Hele groep in één keer vergelijken (met jou erbij)
+  // Hele groep of preset in één keer vergelijken (met jou erbij)
   const compareAll = (ids) => go(compareHash(me ? [me.id, ...ids] : ids));
-  const groupTitle = (title, ids) => (ids.length
-    ? h("button", { type: "button", class: "pick-title", title: `Vergelijk ${title}`, onclick: () => compareAll(ids) },
-      h("h2", null, title), icon("chevron", "ico chev"))
-    : h("h2", null, title));
   const others = (ids) => [...new Set(ids)].filter((id) => id !== me?.id && people.has(id));
-  // Bovenaan staat iedereen maar één keer (in het eerste vak waar hij/zij past); 'Allemaal' geldt wel voor de hele groep
-  const listed = new Set();
-  const section = (title, ids, subOf = null) => {
-    const all = others(ids);
-    const list = all.filter((id) => !listed.has(id));
-    if (!list.length) return null;
-    list.forEach((id) => listed.add(id));
-    return h("section", { class: "card pick-card" },
-      h("div", { class: "pick-head" }, groupTitle(title, all), all.length > 1 ? allBtn(all) : null),
-      list.map((id) => personRow(people.get(id), "", subOf ? subOf(id) : null)));
-  };
+
+  if (!data.people.some((p) => p.id !== me?.id)) {
+    root.append(emptyState("Nog niemand om mee te vergelijken", "Je ziet hier je vriendengroep en wie je aanduidt dat je kent.",
+      me ? h("button", { class: "btn primary", onclick: () => knownSheet(() => go("#/vergelijk?edit=1")) }, "Wie ken je?") : null));
+    return;
+  }
+
+  // Recent: de laatste selecties als kaartjes, één tik = vergelijken
+  const recent = (data.recent || []).map((r) => ({ ...r, ids: others(r.ids) })).filter((r) => r.ids.length);
+  const recentCard = recent.length ? h("section", { class: "pick-sec" },
+    h("div", { class: "pick-head" }, h("h2", null, "Recent")),
+    h("div", { class: "preset-row" }, recent.map((r) => {
+      const ppl = r.ids.map((id) => people.get(id));
+      return h("button", { type: "button", class: "preset", onclick: () => compareAll(r.ids),
+        "aria-label": `Vergelijk opnieuw met ${names(ppl.map((p) => p.name))}` },
+      h("span", { class: "fold-avs" }, ppl.slice(0, 4).map((p) => avatar(p, "sm"))),
+      h("span", { class: "preset-names" }, ppl.length > 3 ? `${names(ppl.slice(0, 2).map((p) => p.name))} +${ppl.length - 2}` : names(ppl.map((p) => p.name))),
+      h("span", { class: "preset-when" }, whenAgo(r.last), r.n > 1 ? ` · ${r.n}×` : ""));
+    }))) : null;
+
+  // Vandaag samen pauze (of de volgende lesdag)
+  const mates = (sugg?.mates || []).filter((m) => people.has(m.id));
+  const same = new Set((sugg?.same_breaks || []).filter((id) => people.has(id)));
+  let breakTitle = "Samen pauze";
+  if (sugg?.day) {
+    const lab = dayLabel(sugg.day, sugg.today);
+    breakTitle = `${lab.main} samen pauze`;
+  }
+  const breakSec = mates.length ? h("section", { class: "pick-sec" },
+    h("div", { class: "pick-head" }, h("h2", null, breakTitle), mates.length > 1 ? allBtn(mates.map((m) => m.id)) : null),
+    h("div", { class: "tile-grid" }, mates.map((m) => tile(people.get(m.id), times(m.times.slice(0, 1)), same.has(m.id) ? "alle pauzes" : null)))) : null;
+
+  // Vaak gekozen: wie je het meest kiest, met wanneer laatst
+  const picks = data.picks || {};
+  const usual = (data.usual || []).filter((id) => people.has(id) && id !== me?.id);
+  const usualSec = usual.length ? h("section", { class: "pick-sec" },
+    h("div", { class: "pick-head" }, h("h2", null, "Vaak gekozen")),
+    h("div", { class: "tile-grid" }, usual.map((id) => tile(people.get(id), picks[id] ? whenAgo(picks[id].last) : null)))) : null;
 
   // Zoeken: een platte lijst zolang je typt
   const results = h("section", { class: "card pick-card", hidden: true });
@@ -102,35 +157,8 @@ async function showPicker(root, keep) {
       sync();
     } });
 
-  // Met wie kan je pauze nemen? (vandaag, of de volgende lesdag)
-  const mates = (sugg?.mates || []).filter((m) => people.has(m.id));
-  const mateTimes = new Map(mates.map((m) => [m.id, m.times]));
-  let breakTitle = "Samen pauze";
-  if (sugg?.day) {
-    const lab = dayLabel(sugg.day, sugg.today);
-    breakTitle = lab.main === "Vandaag" ? "Vandaag samen pauze" : `${lab.main} samen pauze`;
-  }
-  const same = (sugg?.same_breaks || []).filter((id) => people.has(id));
-  const sameCard = same.length
-    ? h("button", { type: "button", class: "card same-card", onclick: () => compareAll(same) },
-      icon("pause"), h("span", { class: "row-text" },
-        h("span", { class: "row-main" }, `${names(same.map((id) => people.get(id).name))} ${same.length === 1 ? "heeft" : "hebben"} dezelfde pauzes als jij`),
-        h("span", { class: "row-sub" }, "Tik om te vergelijken")), icon("chevron", "ico chev"))
-    : null;
-
+  // Alle groepen ingeklapt (je vriendengroep en campus eerst), dan wie in geen enkele groep zit
   const groups = sortGroups(data.groups, me?.id);
-  const mine = (kind) => groups.filter((g) => g.kind === kind && g.members.includes(me?.id)).flatMap((g) => g.members);
-  const mineNamed = (kind) => groups.filter((g) => g.kind === kind && g.members.includes(me?.id));
-  const usual = data.usual || [];
-  // Volgorde telt: wie bovenaan staat, komt verder niet meer terug. Je vriendengroep(en) en campus
-  // met hun echte naam, zodat je de groep kan aantikken.
-  const breakSub = (id) => (mateTimes.has(id) ? `pauze ${times(mateTimes.get(id))}` : null);
-  const secs = [section(breakTitle, mates.map((m) => m.id), breakSub), section("Vaak vergeleken", usual)];
-  for (const g of [...mineNamed("friends"), ...mineNamed("campus")]) secs.push(section(g.name, g.members, breakSub));
-  sections.append(...secs.filter(Boolean));
-
-  // De rest ingeklapt: andere groepen (je woonplaats eerst), dan wie in geen enkele groep zit
-  const top = others([...mates.map((m) => m.id), ...usual, ...mine("friends"), ...mine("campus")]);
   const inGroup = new Set(data.groups.flatMap((g) => g.members));
   const fold = (title, ids, groupCompare) => {
     const list = others(ids);
@@ -144,19 +172,18 @@ async function showPicker(root, keep) {
       if (!box.open || filled) return;
       filled = true;
       box.append(h("div", { class: "pick-fold-body" }, list.length > 1 ? h("div", { class: "pick-fold-all" }, allBtn(list)) : null,
-        list.map((id) => personRow(people.get(id), "", breakSub(id)))));
+        list.map((id) => personRow(people.get(id)))));
       sync();
     });
     return box;
   };
   const folds = [
-    ...groups.filter((g) => g.kind === "home" || !g.members.includes(me?.id)).map((g) => fold(g.name, g.members, true)),
+    ...groups.map((g) => fold(g.name, g.members, true)),
     fold(data.groups.length ? "Zonder groep" : "Iedereen", data.people.filter((p) => !inGroup.has(p.id)).map((p) => p.id), false),
   ].filter(Boolean);
   if (folds.length) {
-    // Niets bovenaan (nieuw, geen groepen): de eerste groep staat al open
-    if (!top.length) folds[0].open = true;
-    sections.append(h("section", { class: "card pick-card" }, h("div", { class: "pick-head" }, h("h2", null, top.length ? "Andere groepen" : "Groepen")), folds));
+    if (!recentCard && !breakSec && !usualSec) folds[0].open = true;
+    sections.append(h("section", { class: "card pick-card" }, h("div", { class: "pick-head" }, h("h2", null, "Groepen")), folds));
   }
 
   // Wie je niet kent staat er niet tussen; aanpassen kan hier ook (niet enkel op Home)
@@ -164,19 +191,27 @@ async function showPicker(root, keep) {
     ? h("p", { class: "pick-more" }, h("button", { type: "button", class: "link", onclick: () => knownSheet(() => go("#/vergelijk?edit=1")) },
       `Mis je iemand? Duid aan wie je kent (${data.unknown})`))
     : null;
-  if (!data.people.some((p) => p.id !== me?.id)) {
-    root.append(emptyState("Nog niemand om mee te vergelijken", "Je ziet hier je vriendengroep en wie je aanduidt dat je kent.",
-      me ? h("button", { class: "btn primary", onclick: () => knownSheet(() => go("#/vergelijk?edit=1")) }, "Wie ken je?") : null));
-    return;
-  }
-  append(root, [h("div", { class: "pick-top" }, h("h1", null, "Vergelijk"), me ? meBtn : null), sameCard, search, results, sections, knownLink,
+  append(root, [h("div", { class: "pick-top" }, h("h1", null, "Vergelijk"), me ? meBtn : null), tray,
+    recentCard, breakSec, usualSec, search, results, sections, knownLink,
     h("div", { class: "sticky-bottom" }, goBtn)]);
   goBtn.addEventListener("click", () => go(`#/vergelijk?ids=${chosen().join(",")}`));
   sync();
 }
 
+// "vandaag 10:40", "gisteren 14:00" of "3 dagen geleden"
+function whenAgo(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const day = brusselsDate(d), today = brusselsDate();
+  const time = new Intl.DateTimeFormat("nl-BE", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" }).format(d);
+  if (day === today) return `vandaag ${time}`;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (day === brusselsDate(y)) return `gisteren ${time}`;
+  return ago(iso);
+}
+
 async function showCompare(root, ids, extra) {
-  const data = await api.get(`/compare?ids=${ids.join(",")}`);
+  const [data] = await Promise.all([api.get(`/compare?ids=${ids.join(",")}`), loadPlans().catch(() => null)]);
   const nameOf = new Map((state.me.people || []).map((p) => [p.id, p.name]));
   const me = myPerson()?.id ?? data.me;
   const holder = h("div");
@@ -186,18 +221,12 @@ async function showCompare(root, ids, extra) {
   const draw = () => {
     const keepX = holder.querySelector(".days")?.scrollLeft;
     clear(root);
-    root.append(h("div", { class: "toolbar" },
-      h("button", { class: "btn small ghost", onclick: () => { store.set("compareSel", ids); go("#/vergelijk?edit=1"); } }, icon("back"), "Wijzig selectie"),
-      h("span", { class: "muted small" }, `${ids.length} roosters · tik een les voor alle details, een gele pauze om samen te plannen`)),
-      viewControls(draw, { withDays: false, equalWidth: true }));
-    // Wie ook mee kan: met één tik hun rooster erbij zetten
-    const more = extra.filter((id) => nameOf.has(id) && !ids.includes(id));
-    if (more.length) {
-      root.append(h("div", { class: "extra-names" },
-        h("span", null, more.length === 1 ? "Kan ook mee:" : "Kunnen ook mee:"),
-        more.map((id) => h("span", { class: "extra-person" }, h("b", null, nameOf.get(id)),
-          h("button", { type: "button", class: "btn small extra-add", onclick: () => addPerson(ctx, id) }, icon("plus"), "voeg rooster toe")))));
-    }
+    // Bovenaan enkel wie je vergelijkt (en terug naar kiezen); de rest staat onder het rooster
+    const who = ids.map((id) => ({ id, name: nameOf.get(id) || "?" }));
+    root.append(h("div", { class: "cmp-top" },
+      h("button", { class: "btn small ghost", onclick: () => { store.set("compareSel", ids); go("#/vergelijk?edit=1"); } }, icon("back"), "Wijzig"),
+      h("span", { class: "cmp-who" }, h("span", { class: "fold-avs" }, who.slice(0, 5).map((p) => avatar(p, "xs"))),
+        h("span", null, names(who.map((p) => (p.id === me ? "jij" : p.name)))))));
     clear(holder);
     root.append(holder);
     // Zoveel mogelijk van het scherm gebruiken: dag-kop en uitleg eronder eraf
@@ -210,6 +239,15 @@ async function showCompare(root, ids, extra) {
         vertical ? columns(d, plan, isToday, avail, ctx) : rows(d, plan, isToday, avail, ctx),
         side(d, ctx));
     }));
+    // Onder het rooster: weergave en wie er ook mee kan
+    const more = extra.filter((id) => nameOf.has(id) && !ids.includes(id));
+    root.append(h("div", { class: "cmp-below" },
+      viewControls(draw, { withDays: false, equalWidth: true }),
+      more.length ? h("div", { class: "extra-names" },
+        h("span", null, more.length === 1 ? "Kan ook mee:" : "Kunnen ook mee:"),
+        more.map((id) => h("span", { class: "extra-person" }, h("b", null, nameOf.get(id)),
+          h("button", { type: "button", class: "btn small extra-add", onclick: () => addPerson(ctx, id) }, icon("plus"), "voeg toe")))) : null,
+      h("p", { class: "muted small" }, "Tik een les voor alle details, een gele pauze om samen te plannen.")));
     fitNames(holder);
     if (keepX) {
       const track = holder.querySelector(".days");
@@ -220,9 +258,19 @@ async function showCompare(root, ids, extra) {
   };
   draw();
   let t = 0;
-  const onResize = () => { clearTimeout(t); t = setTimeout(() => fitNames(holder), 120); };
+  // Planbalk erbij of weg: opnieuw passend tekenen; anders enkel de namen passen
+  let plan = document.body.classList.contains("has-plan");
+  const onResize = () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const now = document.body.classList.contains("has-plan");
+      if (now !== plan) { plan = now; draw(); } else fitNames(holder);
+    }, 120);
+  };
   window.addEventListener("resize", onResize);
-  return () => { clearTimeout(t); window.removeEventListener("resize", onResize); };
+  const onPlans = () => loadPlans(true).then(() => { if (holder.isConnected) draw(); }).catch(() => {});
+  window.addEventListener(CHANGED, onPlans);
+  return () => { clearTimeout(t); window.removeEventListener("resize", onResize); window.removeEventListener(CHANGED, onPlans); };
 }
 
 function addPerson(ctx, id, more = []) {
@@ -315,9 +363,11 @@ function matchSheet(d, list, ctx) {
       h("p", { class: "ms-when" }, h("span", { class: "swatch" }), h("b", null, `${fmt(m.start)}–${fmt(m.end)}`),
         names(m.ids.map((id) => (id === ctx.me ? "jij" : nameOf.get(id))))));
     if (mine && others.length) {
-      box.append(h("button", { class: "btn primary wide", type: "button",
+      const plan = planFor({ day: d.day, start: m.start, end: m.end, ids: others.map((p) => p.id) });
+      box.append(h("button", { class: `btn ${plan ? "" : "primary "}wide`, type: "button",
         onclick: () => breakRequestSheet({ people: others, day: d.day, start: m.start, end: m.end }) },
-      icon("pause"), others.length === 1 ? `Pauze samen vragen aan ${others[0].name}` : "Pauze samen vragen"));
+      icon(plan ? "check" : "pause"), plan ? `${PLAN_LABEL[plan.state]} · ${names(plan.who.map((p) => p.name))}`
+        : others.length === 1 ? `Pauze samen vragen aan ${others[0].name}` : "Pauze samen vragen"));
     }
     const ppl = h("div", { class: "ms-people" }, others.map((p) => h("button", { type: "button", class: "ms-person",
       onclick: () => personSheet(p, { day: d.day, start: m.start, end: m.end }) }, avatar(p, "sm"), h("span", null, p.name), icon("chevron", "ico chev"))));
@@ -354,9 +404,13 @@ function side(d, ctx) {
     const next = d.matches.find((m) => m.ids.includes(ctx.me) && m.ids.length > 1 && m.end > now);
     if (next) {
       const others = next.ids.filter((id) => id !== ctx.me).map((id) => ({ id, name: nameOf.get(id) }));
-      box.append(h("button", { type: "button", class: "btn small primary ask-btn",
+      // Al gevraagd of afgesproken? Dan de stand tonen, niet nog eens voorstellen om te vragen
+      const plan = planFor({ day: d.day, start: next.start, end: next.end, ids: others.map((p) => p.id) });
+      box.append(h("button", { type: "button", class: `btn small ${plan ? `plan-btn k-${plan.state}` : "primary"} ask-btn`,
         onclick: () => breakRequestSheet({ people: others, day: d.day, start: next.start, end: next.end }) },
-      icon("pause"), `Pauze samen vragen · ${fmt(next.start)} met ${names(others.map((p) => p.name))}`));
+      icon(plan ? "check" : "pause"), plan
+        ? `${PLAN_LABEL[plan.state]} · ${fmt(plan.item.start)} met ${names(plan.who.map((p) => p.name))}`
+        : `Pauze samen vragen · ${fmt(next.start)} met ${names(others.map((p) => p.name))}`));
     }
   } else if (d.people.filter((p) => p.present).length >= 2) {
     box.append(h("p", { class: "muted" }, "Niemand heeft samen pauze."));

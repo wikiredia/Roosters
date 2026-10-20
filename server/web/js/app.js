@@ -1,6 +1,6 @@
 // Opstart, router, tabbalk, meldingen onderaan (toasts), onderblad (sheet) en push.
 import { api, ApiError } from "./api.js";
-import { h, clear, icon, isIOS, isStandalone, store } from "./util.js";
+import { h, clear, icon, isIOS, isStandalone, store, fmt, names } from "./util.js";
 
 export const state = { me: null, view: null };
 
@@ -98,6 +98,7 @@ async function route() {
     showError(root, e);
   }
   if (token === routeToken) window.scrollTo({ top: 0 });
+  refreshPlanbar();
 }
 
 // ---- Fouten en wachten op toegang -----------------------------------------------
@@ -309,6 +310,62 @@ export async function refreshBadge() {
   } catch { /* stil */ }
 }
 
+// ---- Planbalk: jouw plan (en dat van anderen), op elk scherm zichtbaar -----------------
+// Eén regel boven de tabbalk: eerst een vraag aan jou, dan wat nu of straks doorgaat, dan waar je op wacht.
+// Tik = alle plannen (social.js planSheet). Niets gepland? Dan is de balk weg.
+let social = null;
+const PLANBAR_HIDDEN = ["afspreken", "opties", "admin"];
+
+function planWhen(it) {
+  if (!it.day || it.day === state.me?.today) return "";
+  const d = new Date(it.day + "T12:00:00Z");
+  const t = new Date((state.me?.today || it.day) + "T12:00:00Z");
+  if (Math.round((d - t) / 86400000) === 1) return "morgen ";
+  return new Intl.DateTimeFormat("nl-BE", { weekday: "short", timeZone: "UTC" }).format(d) + " ";
+}
+
+export async function refreshPlanbar(force = false) {
+  const bar = document.getElementById("planbar");
+  if (!bar) return;
+  const had = document.body.classList.contains("has-plan");
+  // Balk erbij of weg: schermen die de hoogte invullen (rooster) opnieuw laten passen
+  const settle = () => { if (had !== document.body.classList.contains("has-plan")) window.dispatchEvent(new Event("resize")); };
+  const hide = () => { bar.hidden = true; document.body.classList.remove("has-plan"); settle(); };
+  if (tiny || !isApproved() || !myPerson() || PLANBAR_HIDDEN.includes(state.view)) return hide();
+  try { social ||= await import("./views/social.js"); } catch { return hide(); }
+  const { items, others } = await social.loadPlans(force);
+  if (PLANBAR_HIDDEN.includes(state.view)) return hide();
+  const rank = { ask: 0, planned: 1, asked: 2 };
+  const live = items.map((it) => ({ it, st: social.planState(it) })).filter((x) => x.st)
+    .sort((a, b) => (a.st === "ask" ? 0 : 1) - (b.st === "ask" ? 0 : 1) || (b.it.now ? 1 : 0) - (a.it.now ? 1 : 0)
+      || a.it.day.localeCompare(b.it.day) || a.it.start - b.it.start || rank[a.st] - rank[b.st]);
+  let text, kind, ico = "pause";
+  if (live.length) {
+    const { it, st } = live[0];
+    const who = names(social.planPeople(it).map((p) => p.name));
+    const when = `${planWhen(it)}${fmt(it.start)}`;
+    kind = st;
+    if (st === "ask") text = [h("b", null, it.from.name), `: pauze ${when}?`];
+    else if (st === "planned") text = it.now ? [h("b", null, "Nu"), ` pauze met ${who} tot ${fmt(it.end)}`] : [h("b", null, when), ` pauze met ${who}`];
+    else text = [h("b", null, when), ` wacht op ${who}`];
+  } else if (others.length) {
+    const o = others.find((x) => x.now) || others[0];
+    kind = "others";
+    ico = "users";
+    text = [h("b", null, o.now ? "Nu" : fmt(o.start)), ` ${names(o.people.map((p) => p.name))} samen pauze`];
+  } else return hide();
+  const extra = live.length > 1 ? live.length - 1 : 0;
+  clear(bar).append(h("button", { type: "button", class: `planbar k-${kind}`, onclick: () => social.planSheet(),
+    "aria-label": "Je plannen bekijken" },
+  h("span", { class: "pb-ico" }, icon(kind === "planned" ? "check" : ico)),
+  h("span", { class: "pb-text" }, text),
+  extra ? h("span", { class: "pb-more" }, `+${extra}`) : null,
+  kind === "ask" ? h("span", { class: "pb-cta" }, "Antwoord") : icon("chevron", "ico chev")));
+  bar.hidden = false;
+  document.body.classList.add("has-plan");
+  settle();
+}
+
 // ---- Opstart -----------------------------------------------------------------------
 function buildTabs() {
   const nav = document.querySelector(".tabs");
@@ -376,6 +433,8 @@ async function boot() {
   route();
   refreshBadge();
   setInterval(() => { if (!document.hidden) refreshBadge(); }, 30000);
+  setInterval(() => { if (!document.hidden) refreshPlanbar(true); }, 60000);
+  window.addEventListener("roosters:breaks", () => refreshPlanbar(true));
   // In de menubalk-/systeemvak-app (desktop/): sneltoetsen, links, tekst naast het icoon
   if (compact && window.__TAURI__) import("./desktop.js").then((m) => m.init()).catch(() => {});
   // Terug naar de app (bv. na een tijdje op de achtergrond): gegevens opfrissen

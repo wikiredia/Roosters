@@ -6,7 +6,7 @@ import os
 import time
 import traceback
 
-from . import certstatus, config, db, events, geoip, logic, notify, sync
+from . import certstatus, config, db, events, geoip, logic, notify, r_breaks, sync
 from .daydata import load as load_day, now_local, relevant
 from .netfetch import fetch
 
@@ -81,20 +81,37 @@ def day_notifications():
             notify.enqueue(pid, "ochtend", f"ochtend:{t}", "Goeiemorgen", text,
                            {"open": "vergelijk", "people": sorted({pid, *[x["id"] for x in parts]})}, t)
 
+        # Wat er al gevraagd of afgesproken is: geen voorstel meer om te vragen wat al loopt
+        plans = r_breaks.planned_with(pid, t)
+
+        def plan_for(x):
+            return next((pl for pl in plans if x["id"] in pl["ids"] and pl["start"] < x["end"] and pl["end"] > x["start"]), None)
+
         # b) Pauze begint nu (zelfde campus)
         starting = {}
         for x in parts:
             if x["same_campus"] and x["start"] <= now < x["start"] + 10:
                 starting.setdefault(x["start"], []).append(x)
         for s, xs in starting.items():
-            nm = logic.names(sorted(people[x["id"]].name for x in xs))
+            nm = lambda lst: logic.names(sorted(people[x["id"]].name for x in lst))  # noqa: E731
             end = max(x["end"] for x in xs)
-            notify.enqueue(pid, "pauze_nu", f"pauze:{t}:{s}", "Pauze", f"Je kan nu met {nm} op pauze (tot {logic.fmt(end)}).",
+            planned = [x for x in xs if (plan_for(x) or {}).get("state") == "planned"]
+            asked = [x for x in xs if (plan_for(x) or {}).get("state") == "pending"]
+            free = [x for x in xs if not plan_for(x)]
+            if planned:
+                text = f"Je afgesproken pauze met {nm(planned)} begint nu."
+                if free:
+                    text += f" {nm(free)} {'heeft' if len(free) == 1 else 'hebben'} ook pauze."
+            else:
+                text = f"Je kan nu met {nm(free or xs)} op pauze (tot {logic.fmt(end)})."
+            if asked:
+                text += f" Nog geen antwoord van/aan {nm(asked)}."
+            notify.enqueue(pid, "pauze_nu", f"pauze:{t}:{s}", "Pauze samen" if planned else "Pauze", text,
                            {"open": "vergelijk", "people": [pid, *[x["id"] for x in xs]], "start": s, "end": end}, t)
 
-        # c) Andere campus: melden zodra het mogelijk is (nog niet voorbij)
+        # c) Andere campus: melden zodra het mogelijk is (nog niet voorbij, nog niet gevraagd)
         for x in parts:
-            if x["same_campus"] or x["end"] <= now:
+            if x["same_campus"] or x["end"] <= now or plan_for(x):
                 continue
             o = people[x["id"]]
             notify.enqueue(pid, "andere_campus", f"cross:{t}:{o.id}:{x['start']}", "Pauze met andere campus",

@@ -83,3 +83,53 @@
   .break-line .break-row .time { min-width: 0; }
   .break-line .break-row .chev { display: none; }
 }
+
+/* ---- Bovenaan: hoi + vandaag in één oogopslag (4 vakjes, elk springt naar zijn blok) ---- */
+.home-head { margin: 4px 4px 12px; }
+.home-head p { margin: 2px 0 0; text-transform: capitalize; }
+.glance { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
+.glance-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; min-height: 86px;
+  padding: 10px 12px 11px; border: 0; border-radius: 18px; background: var(--card); box-shadow: var(--shadow);
+  cursor: pointer; text-align: left; color: inherit;
+}
+.glance-tile:active { transform: scale(.98); }
+.gt-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.gt-label .ico { width: 15px; height: 15px; }
+.gt-main { font-size: 18px; font-weight: 760; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gt-sub { font-size: 13px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.glance-tile.hot { background: var(--together-soft); }
+.glance-tile.hot .gt-label { color: var(--together-ink); }
+.glance-tile.ok .gt-label .ico { color: var(--ok); }
+.glance-tile.ask { box-shadow: inset 0 0 0 2px var(--accent), var(--shadow); }
+.glance-tile.ask .gt-label { color: var(--accent); }
+@media (prefers-color-scheme: dark) { .glance-tile.hot .gt-label { color: var(--together); } }
+@media (min-width: 700px) { .glance { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---- Elk blok: icoon + titel ---- */
+.home-sec .sec-title h2, .brq-card .sec-title h2 { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: 16px; font-weight: 740; }
+.sec-ico { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 10px; background: var(--card-2); color: var(--muted); flex: none; }
+.sec-ico .ico { width: 16px; height: 16px; }
+#sec-plans .sec-ico { background: var(--accent-soft); color: var(--accent); }
+#sec-day .sec-ico { background: var(--together-soft); color: var(--together-ink); }
+@media (prefers-color-scheme: dark) { #sec-day .sec-ico { color: var(--together); } }
+.home-sec, #sec-plans { scroll-margin-top: 14px; }
+.flash-sec { animation: sec-flash 1.2s ease; }
+@keyframes sec-flash { 0%, 100% { box-shadow: var(--shadow); } 30% { box-shadow: 0 0 0 3px var(--accent), var(--shadow); } }
+.break-line .plan-chip.home-ask { border: 0; cursor: pointer; padding: 5px 10px; font-size: 12.5px; }
+.feed-more { display: block; margin: 6px auto 0; }
+
+/* Ingeklapt: alle samen-pauzes, rooster van iemand bekijken */
+.home-fold { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 4px; }
+.home-fold summary, .home-fold-card summary { display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; min-height: 40px; color: var(--muted); font-weight: 650; font-size: 14.5px; }
+.home-fold summary::-webkit-details-marker, .home-fold-card summary::-webkit-details-marker { display: none; }
+.home-fold-card summary .sec-title { margin: 0; flex: 1; }
+.home-fold .chev, .home-fold-card summary > .chev { transition: transform .15s; }
+.home-fold[open] .chev, .home-fold-card[open] summary > .chev { transform: rotate(90deg); }
+.home-fold-card[open] summary { margin-bottom: 8px; }
+.home-fold .tw-who { font-size: 16px; }
+/* Check-in: klein, niet in de weg */
+.checkin .ci-q { font-size: 15px; margin-bottom: 8px; }
+.checkin .chips { gap: 6px; }
+.checkin .chip { min-height: 34px; padding: 6px 12px; font-size: 14px; }
+.checkin .ci-hint { font-size: 12.5px; margin-top: 6px; }

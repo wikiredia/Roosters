@@ -42,3 +42,49 @@
 .brq-all { margin-top: 6px; }
 .brq-all .ico { width: 18px; height: 18px; }
 .brq-person .row-btn .ico:first-child { color: var(--accent); }
+
+/* ---- Planbalk: één regel boven de tabbalk, op elk scherm (app.js refreshPlanbar) ---- */
+:root { --planbar: 0px; }
+body.has-plan { --planbar: 46px; }
+body.has-plan .view { padding-bottom: calc(var(--tabbar) + var(--planbar) + 28px + env(safe-area-inset-bottom)); }
+body.has-plan #toasts { bottom: calc(var(--tabbar) + var(--planbar) + 14px + env(safe-area-inset-bottom)); }
+body.has-plan .sticky-bottom { bottom: calc(var(--tabbar) + var(--planbar) + 12px + env(safe-area-inset-bottom)); }
+#planbar {
+  position: fixed; z-index: 19; left: 0; right: 0; bottom: calc(var(--tabbar) + env(safe-area-inset-bottom));
+  padding: 0 max(10px, env(safe-area-inset-right)) 6px max(10px, env(safe-area-inset-left));
+  display: flex; justify-content: center; pointer-events: none;
+}
+.planbar {
+  pointer-events: auto; display: flex; align-items: center; gap: 10px; width: 100%; max-width: 560px; height: 40px;
+  padding: 0 8px 0 6px; border: 0; border-radius: 999px; cursor: pointer; text-align: left; color: var(--ink);
+  background: color-mix(in srgb, var(--card) 92%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 16px rgba(22, 32, 43, .14), inset 0 0 0 1px var(--line); font-size: 14.5px;
+  animation: pb-in .3s cubic-bezier(.2, .8, .2, 1);
+}
+@keyframes pb-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.pb-ico { flex: none; width: 28px; height: 28px; border-radius: 99px; display: inline-flex; align-items: center; justify-content: center; background: var(--card-2); color: var(--muted); }
+.pb-ico .ico { width: 16px; height: 16px; stroke-width: 2.4; }
+.pb-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-text b { font-weight: 760; }
+.pb-more { flex: none; font-size: 12px; font-weight: 750; color: var(--muted); background: var(--card-2); border-radius: 99px; padding: 2px 7px; }
+.pb-cta { flex: none; font-size: 13px; font-weight: 750; background: var(--accent); color: var(--accent-ink); border-radius: 99px; padding: 5px 11px; }
+.planbar .ico.chev { margin-left: 0; width: 16px; height: 16px; }
+.planbar.k-planned .pb-ico { background: var(--together); color: var(--together-ink); }
+.planbar.k-ask { box-shadow: 0 4px 16px rgba(46, 91, 255, .25), inset 0 0 0 1.5px var(--accent); }
+.planbar.k-ask .pb-ico { background: var(--accent-soft); color: var(--accent); }
+@media (min-width: 900px) {
+  body.has-plan { --planbar: 0px; }
+  #planbar { bottom: 18px; }
+  body.has-plan .view { padding-bottom: 80px; }
+}
+body.compact #planbar { bottom: 8px; }
+body.compact.has-plan .view { padding-bottom: 58px; }
+
+/* Onderblad 'Plannen' */
+.plan-sheet .brq-card { padding: 0; box-shadow: none; background: none; }
+.plan-sheet > .btn { margin-top: 12px; }
+.plan-others { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.plan-other { display: flex; align-items: center; gap: 10px; padding: 8px 2px; }
+.plan-other + .plan-other { border-top: 1px solid var(--line); }
+.plan-other.now { background: var(--together-soft); border-radius: 12px; padding-left: 8px; padding-right: 8px; }
+.plan-existing .brq-row { padding-top: 4px; }

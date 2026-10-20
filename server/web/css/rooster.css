@@ -1,0 +1,113 @@
+/* rooster: eerst het rooster (vult het scherm), daaronder weergave, 'zelfde pauze' (+ = in je rooster), iemand anders */
+
+/* Iemand anders z'n rooster: één smalle regel bovenaan */
+.rooster-who { display: flex; align-items: center; gap: 8px; margin: 0 4px 8px; font-size: 15px; }
+.rooster-who .link { margin-left: auto; }
+
+/* ---- Onder het rooster ---- */
+.rooster-below { margin-top: 14px; }
+.rooster-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+.rooster-tools .view-controls { margin: 0; flex: 1; }
+.rooster-tools .orient-btn { margin-left: 0; }
+.tools-refresh { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.tools-refresh .refresh { width: 38px; height: 38px; }
+.rooster-other { margin: 4px 0 6px; }
+.rooster-other select { background-color: var(--card); font-weight: 650; }
+
+/* ---- Zelfde pauze: rij per persoon met een + ---- */
+.same-sec { padding: 12px 12px 8px 14px; }
+.same-sec .sec-title { margin-bottom: 4px; }
+.same-row { display: flex; align-items: center; gap: 6px; border-radius: 14px; transition: background .2s; }
+.same-row + .same-row { border-top: 1px solid var(--line); }
+.same-row.on { background: var(--together-soft); border-top-color: transparent; }
+.same-row.on + .same-row { border-top-color: transparent; }
+.same-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; border: 0; background: none; padding: 9px 4px; cursor: pointer; text-align: left; color: inherit; }
+.same-main .row-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.same-add {
+  flex: none; width: 40px; height: 40px; border-radius: 99px; border: 0; cursor: pointer; margin-right: 2px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent); transition: background .2s, color .2s, transform .15s;
+}
+.same-add .ico { width: 20px; height: 20px; stroke-width: 2.6; }
+.same-add:active { transform: scale(.88); }
+.same-add[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.same-add.adding { animation: add-pop .45s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes add-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.plan-chip { font-size: 11.5px; font-weight: 750; padding: 1px 8px; border-radius: 99px; background: var(--card-2); color: var(--muted); }
+.plan-chip.k-planned { background: var(--together); color: var(--together-ink); }
+.plan-chip.k-ask { background: var(--accent); color: var(--accent-ink); }
+.plan-chip.k-asked { box-shadow: inset 0 0 0 1px var(--line); }
+
+/* Wie in je rooster staat: chips met × */
+.with-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 8px; }
+.with-chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 99px; padding: 3px 8px 3px 3px; min-height: 30px;
+  background: var(--card-2); box-shadow: inset 0 0 0 1.5px var(--k); font-weight: 650; font-size: 14px; cursor: pointer; color: inherit;
+}
+.with-chip .ico { width: 14px; height: 14px; color: var(--muted); }
+.with-chip.pop { animation: add-pop .5s cubic-bezier(.3, 1.6, .5, 1); }
+
+/* Het rondje dat naar je rooster vliegt */
+.fly-ghost {
+  position: fixed; z-index: 70; margin: 0; pointer-events: none;
+  transition: transform .5s cubic-bezier(.5, -0.2, .3, 1), opacity .5s ease-in;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .25);
+}
+
+/* ---- Meer mensen in je rooster: een strook per persoon ---- */
+.lane { position: absolute; }
+.calv-body .lane { top: 0; bottom: 0; }
+.calv-body .lane + .lane { border-left: 1px dashed var(--line); }
+.calv.lanes .calv-body .cal-blk, .calv.lanes .calv-body .slot { left: 1px; right: 1px; }
+.calh-track .lane { left: 0; right: 0; }
+.calh-track .lane + .lane { border-top: 1px dashed var(--line); }
+.calh.lanes .calh-track .cal-blk, .calh.lanes .calh-track .slot { top: 2px; bottom: 2px; }
+.lane.lane-in { animation: lane-in .55s cubic-bezier(.2, .8, .2, 1); }
+.calv-body .lane.lane-in { transform-origin: left center; }
+.calh-track .lane.lane-in { transform-origin: center top; }
+@keyframes lane-in { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
+.lane-match { position: absolute; background: var(--together-soft); border-radius: 6px; z-index: 0; }
+.calv-body .lane-match { left: 0; right: 0; box-shadow: inset 0 2px 0 var(--together), inset 0 -2px 0 var(--together); }
+.calh-track .lane-match { top: 0; bottom: 0; box-shadow: inset 2px 0 0 var(--together), inset -2px 0 0 var(--together); }
+.cal-blk.lane-les { background: color-mix(in srgb, var(--k) 13%, var(--card)); }
+.calv.lanes .cal-blk { padding: 3px 3px 3px 5px; border-left-width: 3px; }
+.calv.lanes .cal-blk .b-title { font-size: 12px; }
+.calv.lanes .cal-blk .b-loc, .calv.lanes .cal-blk .b-badge { display: none; }
+.calv.lanes .cal-blk .b-time { font-size: 10.5px; }
+.calv.lanes .calv-head { height: 70px; }
+.lane-heads { display: flex; gap: 2px; margin-top: 4px; }
+.lane-heads i {
+  flex: 1; min-width: 0; height: 18px; border-radius: 99px; color: #fff; font-style: normal; font-size: 10px; font-weight: 800;
+  display: block; text-align: center; line-height: 18px; padding: 0 4px; overflow: hidden; white-space: nowrap; text-overflow: clip;
+}
+.lane-heads.col { flex-direction: column; margin-top: 3px; }
+.lane-heads.col i { flex: none; height: 14px; line-height: 14px; font-size: 9px; }
+
+/* ---- Horizontaal: lage rijen, smalle lessen met verticale tekst ---- */
+.calh { position: relative; padding: 0 8px 8px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.calh-row { grid-template-columns: 44px 1fr; gap: 6px; }
+.calh-row + .calh-row { margin-top: 4px; }
+.calh-row.head { padding: 6px 0 4px; }
+.calh-label { align-items: flex-start; line-height: 1.15; }
+.calh-label b { font-size: 14px; white-space: nowrap; }
+.calh-label span { font-size: 11px; }
+.calh-track .cal-blk { padding: 3px 5px 3px 6px; gap: 0; }
+.calh-track .cal-blk .b-title { font-size: 12.5px; line-height: 1.15; }
+.calh-track .cal-blk .b-time, .calh-track .cal-blk .b-loc { font-size: 11px; }
+.calh-track .cal-blk.vtext { padding: 4px 1px 4px 3px; border-left-width: 3px; align-items: center; }
+.calh-track .cal-blk.vtext .b-title {
+  writing-mode: vertical-rl; display: block; -webkit-line-clamp: unset; height: 100%; max-width: 100%;
+  overflow: hidden; white-space: normal; font-size: 12px; line-height: 1.1; word-break: break-word;
+}
+.calh-track .cal-blk.vtext .b-time, .calh-track .cal-blk.vtext .b-loc, .calh-track .cal-blk.vtext .b-badge:not(.new) { display: none; }
+.calh-track .cal-blk.vtext .b-badge.new { font-size: 0; width: 8px; height: 8px; padding: 0; border-radius: 9px; background: var(--together); box-shadow: none; top: 3px; right: 2px; bottom: auto; }
+.calh.lanes .calh-track .cal-blk .b-loc, .calh.lanes .calh-track .cal-blk .b-time { display: none; }
+.calh.lanes .calh-track .cal-blk { padding: 2px 3px 2px 5px; justify-content: center; }
+.calh.lanes .calh-track .cal-blk .b-title { -webkit-line-clamp: 2; font-size: 11px; line-height: 1.1; word-break: break-word; }
+
+/* ---- Pauzes die al gevraagd of afgesproken zijn ---- */
+.brk-slot.plan-planned { background: color-mix(in srgb, var(--together) 55%, transparent); color: var(--together-ink); box-shadow: inset 0 0 0 2px var(--together); }
+.brk-slot.plan-asked { background: var(--together-soft); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--together) 75%, transparent); outline: 1.5px dashed color-mix(in srgb, var(--ink) 30%, transparent); outline-offset: -4px; }
+.brk-slot.plan-ask { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+.brk-slot.plan-planned .s-who .ico, .brk-slot.plan-ask .s-who .ico { stroke-width: 2.8; }
+@media (prefers-color-scheme: dark) { .brk-slot.plan-planned { color: var(--together-ink); } }

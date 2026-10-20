@@ -1,9 +1,9 @@
 // Service worker: pushmeldingen tonen en de app-schil offline beschikbaar houden.
-const CACHE = "roosters-v4";
+const CACHE = "roosters-v5";
 const SHELL = ["/", "/index.html", "/app.css", "/js/app.js", "/js/api.js", "/js/util.js",
   "/js/views/common.js", "/js/views/grid.js", "/js/views/home.js", "/js/views/rooster.js", "/js/views/vergelijk.js",
   "/js/views/afspreken.js", "/js/views/opties.js", "/js/views/admin.js", "/js/views/chat.js", "/js/views/social.js",
-  "/css/compact.css", "/css/home.css", "/css/vergelijk.css", "/css/pauzes.css", "/css/chat.css", "/css/admin.css",
+  "/css/compact.css", "/css/rooster.css", "/css/home.css", "/css/vergelijk.css", "/css/pauzes.css", "/css/chat.css", "/css/admin.css",
   "/fonts/bricolage-latin.woff2", "/icons/icon-192.png"];
 
 self.addEventListener("install", (e) => {
