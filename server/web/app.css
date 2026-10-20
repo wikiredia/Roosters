@@ -144,6 +144,8 @@ textarea.prompt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; f
 .warn { background: var(--together-soft); color: var(--ink); padding: 10px 12px; border-radius: 12px; font-size: 14px; }
 .steps { margin: 0; padding-left: 20px; font-size: 15px; }
 .steps li { margin: 4px 0; }
+.desktop-steps { margin-top: 14px; }
+.desktop-steps .copy-row { margin-top: 6px; }
 .copy-row { display: flex; gap: 6px; align-items: center; }
 .big-number { font-size: 88px; font-weight: 800; line-height: 1; margin: 10px 0; letter-spacing: -.03em; }
 
