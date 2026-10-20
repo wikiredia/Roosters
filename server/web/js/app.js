@@ -309,6 +309,8 @@ async function boot() {
   }
   window.addEventListener("hashchange", route);
   route();
+  // In de menubalk-/systeemvak-app (desktop/): sneltoetsen, links, tekst naast het icoon
+  if (compact && window.__TAURI__) import("./desktop.js").then((m) => m.init()).catch(() => {});
   // Terug naar de app (bv. na een tijdje op de achtergrond): gegevens opfrissen
   let hidden = 0;
   document.addEventListener("visibilitychange", async () => {

@@ -1,0 +1,57 @@
+name: Desktop-app bouwen
+
+# Bouwt de menubalk-app (Mac, .dmg) en de systeemvak-app (Windows, installer).
+# Download ze onderaan de run bij 'Artifacts'. Niet ondertekend: zie desktop/README.md.
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+  pull_request:
+    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            name: mac
+            args: --target universal-apple-darwin
+            bundle: desktop/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          - os: windows-latest
+            name: windows
+            args: ""
+            bundle: desktop/src-tauri/target/release/bundle/nsis/*.exe
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.name == 'mac' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - name: Testen
+        working-directory: desktop/src-tauri
+        run: cargo test
+      - run: npm ci
+      - name: Bouwen
+        run: npx tauri build ${{ matrix.args }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: roosters-${{ matrix.name }}
+          path: ${{ matrix.bundle }}
+          if-no-files-found: error
