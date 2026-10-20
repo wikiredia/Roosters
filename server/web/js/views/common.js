@@ -1,7 +1,7 @@
 // Gedeelde stukken: dagen-scroller, lesdetails, groepen sorteren.
 import { api } from "../api.js";
-import { sheet, toastError } from "../app.js";
-import { h, fmt, dayLabel, icon } from "../util.js";
+import { sheet, closeSheet, toast, toastError } from "../app.js";
+import { h, fmt, dayLabel, icon, avatar } from "../util.js";
 
 // Horizontale scroller die per dag 'snapt'; geen pijlen, wel bolletjes
 export function dayScroller(days, today, renderDay) {
@@ -92,4 +92,56 @@ export function chevronRow(main, sub, onclick, left) {
     left || null,
     h("span", { class: "row-text" }, h("span", { class: "row-main" }, main), sub ? h("span", { class: "row-sub" }, sub) : null),
     icon("chevron", "ico chev"));
+}
+
+// Persoon aan/uit: een rondje met de naam ernaast, aangevinkt wordt het rondje een vinkje
+export function personToggle(p, on, onToggle, cls = "") {
+  const row = h("button", { type: "button", class: `pick-row ${cls}`, role: "checkbox", "aria-checked": String(!!on),
+    onclick: () => {
+      const next = row.getAttribute("aria-checked") !== "true";
+      row.setAttribute("aria-checked", String(next));
+      onToggle(next);
+    } },
+    h("span", { class: "pick-av" }, avatar(p), h("span", { class: "pick-check" }, icon("check"))),
+    h("span", { class: "pick-name" }, p.name));
+  return row;
+}
+
+// 'Wie ken je?': je vriendengroep ken je al; vink aan wie je buiten je vriendengroep kent.
+// Enkel wie je kent, kan je kiezen bij Vergelijk.
+export async function knownSheet(onDone) {
+  let data;
+  try {
+    data = await api.get("/known");
+  } catch (e) {
+    toastError(e);
+    return;
+  }
+  // Nieuwe mensen (nog niets over gezegd) bovenaan
+  const isNew = (p) => (p.known === null ? 0 : 1);
+  const people = [...data.people].sort((a, b) => isNew(a) - isNew(b) || a.name.localeCompare(b.name));
+  if (!people.length) {
+    sheet("Wie ken je?", h("p", { class: "muted" }, "Iedereen zit al in je vriendengroep."));
+    return;
+  }
+  const sel = new Set(people.filter((p) => p.known).map((p) => p.id));
+  const list = h("div", { class: "known-list" }, people.map((p) =>
+    personToggle(p, sel.has(p.id), (on) => (on ? sel.add(p.id) : sel.delete(p.id)))));
+  const search = people.length > 10 ? h("input", { type: "search", class: "pick-search", placeholder: "Zoek iemand", "aria-label": "Zoek iemand",
+    oninput: () => { const q = search.value.trim().toLowerCase(); people.forEach((p, i) => { list.children[i].hidden = !!q && !p.name.toLowerCase().includes(q); }); } }) : null;
+  const save = h("button", { class: "btn primary wide", onclick: async () => {
+    save.disabled = true;
+    try {
+      await api.post("/known", { seen: people.map((p) => p.id), known: [...sel] });
+      closeSheet();
+      toast(sel.size ? `Je kent ${sel.size} ${sel.size === 1 ? "iemand" : "mensen"} buiten je vriendengroep` : "Opgeslagen");
+      if (onDone) onDone();
+    } catch (e) {
+      toastError(e);
+      save.disabled = false;
+    }
+  } }, "Opslaan");
+  sheet("Wie ken je?", h("div", null,
+    h("p", { class: "muted" }, "Je vriendengroep ken je al. Vink aan wie je verder nog kent: enkel die kan je kiezen bij Vergelijk."),
+    search, list, h("div", { class: "sheet-actions" }, save)));
 }

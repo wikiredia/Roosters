@@ -12,6 +12,11 @@ const TABS = [
   { id: "opties", label: "Opties", icon: "opties" },
 ];
 
+// Klein venster (menubalk-app op Mac, systeemvak op Windows): /?compact=1.
+// Geen tabbalk onderaan maar bovenaan Rooster, Vergelijk en Afspreken; de rest zit onder ⋯.
+export const compact = new URLSearchParams(location.search).get("compact") === "1";
+const COMPACT_TABS = ["rooster", "vergelijk", "afspreken"];
+
 const loaders = {
   home: () => import("./views/home.js"),
   rooster: () => import("./views/rooster.js"),
@@ -63,13 +68,14 @@ async function route() {
   if (!tab || !loaders[tab]) {
     // Vanzelf gekozen (niet aangetikt): Home mag doorschakelen naar je rooster als er niets nieuws is
     state.autoStart = true;
-    const start = store.get("start", "home");
+    const start = compact ? "rooster" : store.get("start", "home");
     const target = start === "rooster" && myPerson() ? "#/rooster" : "#/home";
     history.replaceState(null, "", target);
     return route();
   }
   const view = tab === "opties" && parts[1] === "admin" ? "admin" : tab;
-  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
+  const current = compact && !COMPACT_TABS.includes(tab) ? "more" : tab;
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === current ? "page" : "false"));
   const token = ++routeToken;
   if (cleanup) { try { cleanup(); } catch { /* */ } cleanup = null; }
   const root = clear(document.getElementById("view"));
@@ -264,10 +270,29 @@ export async function disablePush() {
 // ---- Opstart -----------------------------------------------------------------------
 function buildTabs() {
   const nav = document.querySelector(".tabs");
+  if (compact) document.body.classList.add("compact");
   for (const t of TABS) {
+    if (compact && !COMPACT_TABS.includes(t.id)) continue;
     nav.append(h("button", { type: "button", "data-tab": t.id, "aria-current": "false", onclick: () => go(`#/${t.id}`) },
       icon(t.icon), h("span", null, t.label)));
   }
+  if (compact) {
+    nav.append(h("button", { type: "button", class: "more", "data-tab": "more", "aria-current": "false", "aria-label": "Meer", onclick: moreSheet },
+      icon("more")));
+  }
+}
+
+// Alles wat niet in de kleine tabbalk past
+function moreSheet() {
+  const item = (label, ico, onclick) => h("button", { class: "row-btn", type: "button", onclick: () => { closeSheet(); onclick(); } },
+    icon(ico), h("span", { class: "row-text" }, h("span", { class: "row-main" }, label)));
+  sheet("Meer", h("div", null,
+    item("Home", "home", () => go("#/home")),
+    item("Opties", "opties", () => go("#/opties")),
+    isAdmin() ? item("Beheer", "shield", () => go("#/opties/admin")) : null,
+    item("Vernieuwen", "refresh", () => location.reload()),
+    h("a", { class: "row-btn", href: `${location.origin}/${location.hash}`, target: "_blank", rel: "noopener" },
+      icon("chevron"), h("span", { class: "row-text" }, h("span", { class: "row-main" }, "Openen in je browser")))));
 }
 
 async function boot() {
@@ -284,6 +309,8 @@ async function boot() {
   }
   window.addEventListener("hashchange", route);
   route();
+  // In de menubalk-/systeemvak-app (desktop/): sneltoetsen, links, tekst naast het icoon
+  if (compact && window.__TAURI__) import("./desktop.js").then((m) => m.init()).catch(() => {});
   // Terug naar de app (bv. na een tijdje op de achtergrond): gegevens opfrissen
   let hidden = 0;
   document.addEventListener("visibilitychange", async () => {

@@ -150,8 +150,12 @@ def home(request: Request):
     if ctx.admin:
         admin = {"pending": db.one("SELECT COUNT(*) AS n FROM devices WHERE status='pending' AND person_id IS NOT NULL")["n"]}
 
+    # 'Wie ken je?': zolang er mensen buiten je vriendengroep zijn waarover je nog niets zei
+    known_new = sum(1 for p in _known_candidates(me.id) if p["known"] is None) if me else 0
+
     return {
         "me": pname(me.id) if me else None,
+        "known_new": known_new,
         "has_school_today": bool(me and infos[me.id].busy),
         "checkin": checkin,
         "summary": n_people,
@@ -335,10 +339,55 @@ def travel_pref(body: TravelPrefIn, request: Request):
         "person_id": ctx.person_id, "other_id": body.other_id, "before": before["pref"] if before else None})}
 
 
+# ---- Wie ken je ---------------------------------------------------------------
+
+def friend_mates(pid) -> set:
+    """Wie samen met jou in een vriendengroep zit: die ken je sowieso."""
+    return {r["person_id"] for r in db.rows(
+        "SELECT DISTINCT gm2.person_id FROM group_members gm JOIN user_groups g ON g.id=gm.group_id AND g.kind='friends'"
+        " AND g.deleted_at IS NULL JOIN group_members gm2 ON gm2.group_id=gm.group_id WHERE gm.person_id=%s", (pid,))}
+
+
+def _known_candidates(pid):
+    """Iedereen buiten je vriendengroep(en), met wat je al antwoordde: True, False of None (nog niet gevraagd)."""
+    mates = friend_mates(pid)
+    answers = {r["other_id"]: bool(r["known"]) for r in db.rows("SELECT other_id, known FROM known_people WHERE person_id=%s", (pid,))}
+    return [{**p, "known": answers.get(p["id"])} for p in visible_people(pid) if p["id"] != pid and p["id"] not in mates]
+
+
+def known_ids(pid) -> set:
+    return {pid} | friend_mates(pid) | {r["other_id"] for r in db.rows(
+        "SELECT other_id FROM known_people WHERE person_id=%s AND known=1", (pid,))}
+
+
+@router.get("/known")
+def known_list(request: Request):
+    ctx = load_ctx(request)
+    access.need_person(ctx)
+    return {"people": _known_candidates(ctx.person_id)}
+
+
+class KnownIn(BaseModel):
+    seen: list[int] = Field(max_length=1000)
+    known: list[int] = Field(default_factory=list, max_length=1000)
+
+
+@router.post("/known")
+def known_save(body: KnownIn, request: Request):
+    ctx = load_ctx(request)
+    access.need_person(ctx)
+    allowed = {p["id"] for p in _known_candidates(ctx.person_id)}
+    rows = [(ctx.person_id, oid, int(oid in body.known)) for oid in set(body.seen) if oid in allowed]
+    if rows:
+        db.run("INSERT INTO known_people (person_id, other_id, known) VALUES " + ", ".join(["(%s,%s,%s)"] * len(rows))
+               + " ON DUPLICATE KEY UPDATE known=VALUES(known)", tuple(v for r in rows for v in r))
+    return {"ok": True}
+
+
 # ---- Groepen -----------------------------------------------------------------
 
 @router.get("/groups")
-def groups(request: Request):
+def groups(request: Request, known: int = 0):
     ctx = load_ctx(request)
     access.need_read(ctx, "probeerde de groepen te bekijken")
     gs = db.rows("SELECT id, name, kind FROM user_groups WHERE deleted_at IS NULL ORDER BY kind, name")
@@ -346,9 +395,20 @@ def groups(request: Request):
     for r in db.rows("SELECT gm.group_id, gm.person_id FROM group_members gm JOIN people p ON p.id=gm.person_id AND p.deleted_at IS NULL"):
         members.setdefault(r["group_id"], []).append(r["person_id"])
     people = visible_people(ctx.person_id)
+    # Vergelijk (?known=1): enkel wie je kent (je vriendengroep en wie je aanduidde bij 'Wie ken je?')
+    unknown = 0
+    if known and ctx.person_id:
+        mine = known_ids(ctx.person_id)
+        unknown = sum(1 for p in people if p["id"] not in mine)
+        people = [p for p in people if p["id"] in mine]
     shown = {p["id"] for p in people}
+    # Vaak vergeleken: meest gekozen eerst, wat lang geleden is telt minder (halveert per maand)
+    usual = [r["other_id"] for r in db.rows(
+        "SELECT other_id FROM compare_picks WHERE person_id=%s"
+        " ORDER BY n * POW(0.5, TIMESTAMPDIFF(DAY, last_at, UTC_TIMESTAMP()) / 30) DESC, last_at DESC LIMIT 20",
+        (ctx.person_id or 0,)) if r["other_id"] in shown and r["other_id"] != ctx.person_id][:8]
     return {"groups": [{**g, "members": [m for m in members.get(g["id"], []) if m in shown]} for g in gs],
-            "people": people, "me": ctx.person_id}
+            "people": people, "me": ctx.person_id, "usual": usual, "unknown": unknown}
 
 
 @router.post("/groups/{gid}/{action}")

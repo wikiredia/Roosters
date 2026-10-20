@@ -168,6 +168,51 @@ def campus_windows(people: dict, infos: dict, campus_names: dict):
     return result
 
 
+def compare_matches(people: list, infos: dict):
+    """Vergelijken: elke groep van 2+ mensen die samen pauze heeft, niet enkel 'iedereen tegelijk'.
+    -> [{ids, start, end}] (ids in de volgorde van `people`). Een groep die volledig binnen een
+    grotere groep met hetzelfde of een langer moment valt, laten we weg."""
+    present = [p for p in people if infos[p.id].present and infos[p.id].free]
+    points = sorted({t for p in present for iv in infos[p.id].free for t in iv})
+    segs = []
+    for s, e in zip(points, points[1:]):
+        who = frozenset(p.id for p in present if any(fs <= s and e <= fe for fs, fe in infos[p.id].free))
+        if len(who) >= 2:
+            segs.append((s, e, who))
+    # Kandidaten: wie samen vrij is in een stuk, en wat twee zulke groepen gemeen hebben
+    # (A en C kunnen samen langer vrij zijn dan elk groepje waarin ze zitten)
+    cands = {who for _, _, who in segs}
+    grew = True
+    while grew and len(cands) < 400:
+        grew = False
+        for a in list(cands):
+            for b in list(cands):
+                c = a & b
+                if len(c) >= 2 and c not in cands:
+                    cands.add(c)
+                    grew = True
+    by_id = {p.id: p for p in present}
+    found = []
+    for group in cands:
+        ids = sorted(group)
+        need = max(min_break(by_id[a], by_id[b]) for i, a in enumerate(ids) for b in ids[i + 1:])
+        runs = []
+        for s, e, who in segs:
+            if not group <= who:
+                continue
+            if runs and runs[-1][1] == s:
+                runs[-1][1] = e
+            else:
+                runs.append([s, e])
+        found += [(group, (s, e)) for s, e in runs if e - s >= need]
+    keep = [(g, s, e) for g, (s, e) in found
+            if not any(g < g2 and s2 <= s and e <= e2 for g2, (s2, e2) in found)]
+    order = {p.id: i for i, p in enumerate(people)}
+    out = [{"ids": sorted(g, key=order.get), "start": s, "end": e} for g, s, e in keep]
+    out.sort(key=lambda m: (m["start"], -len(m["ids"]), m["end"]))
+    return out
+
+
 def now_status(p: PersonDay, info: DayInfo, now: int) -> dict:
     """Eén regel voor het nu-bord."""
     ci = p.checkin or {}

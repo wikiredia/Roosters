@@ -190,6 +190,18 @@ def refresh(pid: int, request: Request):
             "cooldown": config.REFRESH_COOLDOWN}
 
 
+def _remember_picks(me, pids):
+    """Voor 'Vaak vergeleken': telt elke gekozen persoon, hoogstens één keer per uur.
+    'Iedereen' aanvinken telt niet mee (dan zegt de keuze niets)."""
+    others = [pid for pid in pids if pid != me]
+    if not me or not others or len(others) > 12:
+        return
+    db.run("INSERT INTO compare_picks (person_id, other_id) VALUES " + ", ".join(["(%s,%s)"] * len(others))
+           + " ON DUPLICATE KEY UPDATE n = n + IF(last_at < UTC_TIMESTAMP() - INTERVAL 1 HOUR, 1, 0),"
+           " last_at = UTC_TIMESTAMP()",
+           tuple(v for oid in others for v in (me, oid)))
+
+
 @router.get("/compare")
 def compare(ids: str, request: Request):
     ctx = load_ctx(request)
@@ -200,6 +212,7 @@ def compare(ids: str, request: Request):
         raise HTTPException(400, {"code": "ids", "message": "Ongeldige selectie."})
     if not pids:
         raise HTTPException(400, {"code": "ids", "message": "Kies minstens één persoon."})
+    _remember_picks(ctx.person_id, pids)
     t = today()
     days = visible_days(pids, extra=5)
     now = now_min()
@@ -233,7 +246,8 @@ def compare(ids: str, request: Request):
             for fr in present[1:]:
                 cur = logic.overlaps(cur, fr)
             together = [(s, e) for s, e in cur if e - s >= logic.SAME_CAMPUS_MIN]
-        out_days.append({"day": d.isoformat(), "people": rows, "together": together})
+        matches = logic.compare_matches([people[pid] for pid in pids if pid in people], infos)
+        out_days.append({"day": d.isoformat(), "people": rows, "together": together, "matches": matches})
     return {"days": out_days, "now_min": now_min(), "today": t.isoformat()}
 
 

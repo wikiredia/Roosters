@@ -53,6 +53,7 @@ const ICONS = {
   shield: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
   trash: "M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3",
   copy: "M8 8h12v12H8zM4 16V4h12",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
 };
 
 export function icon(name, cls = "ico") {

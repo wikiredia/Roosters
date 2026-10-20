@@ -17,10 +17,12 @@ export const prefs = {
   set orient(v) { store.set("view.orient", v); },
   get days() { return store.get("view.days", 2); },
   set days(v) { store.set("view.days", v); },
+  get equal() { return store.get("view.equal", false); },
+  set equal(v) { store.set("view.equal", v); },
 };
 
-// [1] [2] [3] [Week]  en een knop verticaal/horizontaal
-export function viewControls(onChange, { withDays = true } = {}) {
+// [1] [2] [3] [Week], een knop verticaal/horizontaal en bij vergelijken 'gelijke breedte'
+export function viewControls(onChange, { withDays = true, equalWidth = false } = {}) {
   const bar = h("div", { class: "view-controls" });
   if (withDays) {
     const seg = h("div", { class: "seg", role: "group", "aria-label": "Aantal dagen" });
@@ -39,6 +41,12 @@ export function viewControls(onChange, { withDays = true } = {}) {
     onclick: () => { prefs.orient = vertical ? "h" : "v"; onChange(); },
   }, h("span", { class: `orient-ico ${vertical ? "v" : "h"}`, "aria-hidden": "true" }, h("i"), h("i"), h("i")),
   vertical ? "Verticaal" : "Horizontaal"));
+  // Vergelijken: wie samen pauze heeft is breder, tenzij je dit aanvinkt
+  if (equalWidth) {
+    bar.append(h("label", { class: "equal-check" },
+      h("input", { type: "checkbox", checked: prefs.equal, onchange: (e) => { prefs.equal = e.target.checked; onChange(); } }),
+      "Gelijke breedte voor iedereen"));
+  }
   return bar;
 }
 
@@ -54,7 +62,7 @@ export function hourRange(blocks) {
 // Hoeveel scherm er nog vrij is onder `el` (tabbalk en marge eraf)
 export function freeHeight(el, extra = 0) {
   const top = el.getBoundingClientRect().top;
-  const tabbar = window.matchMedia("(min-width: 900px)").matches ? 24 : 96;
+  const tabbar = document.body.classList.contains("compact") || window.matchMedia("(min-width: 900px)").matches ? 24 : 96;
   return Math.max(320, window.innerHeight - top - tabbar - extra);
 }
 

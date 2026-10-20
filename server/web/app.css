@@ -51,6 +51,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
@@ -152,6 +153,7 @@ textarea.prompt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; f
   padding: 12px 2px; border: 0; background: none; text-align: left; cursor: pointer; min-height: 52px;
 }
 .who-row, .source { cursor: default; }
+a.row-btn { color: inherit; text-decoration: none; }
 .row-btn + .row-btn, .who-row + .who-row, .source + .source { border-top: 1px solid var(--line); }
 .row-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .row-text.plain { background: none; border: 0; text-align: left; padding: 0; cursor: pointer; }
@@ -313,19 +315,56 @@ textarea.prompt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; f
 .details dd { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
 
 /* ---- Vergelijk ---- */
-.group-head { display: flex; align-items: center; gap: 12px; padding: 4px 2px 8px; cursor: pointer; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
-.group-head.plain { cursor: default; font-weight: 700; }
-.g-name { font-weight: 750; flex: 1; }
+/* Kiezen: rondje + naam, aangevinkt = rondje wordt een vinkje */
+.pick-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 2px 2px 12px; }
+.pick-search { margin: 0 0 14px; }
+.pick-card { padding: 12px 14px; }
+.pick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 2px 4px; }
+.pick-head h2 { font-size: 14px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.pick-head .link, .pick-top .link, .pick-fold-all .link { font-size: 14px; }
+.pick-row {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 56px; padding: 7px 8px; margin: 2px 0;
+  border: 0; border-radius: 16px; background: none; cursor: pointer; text-align: left;
+}
+.pick-row:hover { background: var(--card-2); }
+.pick-row[aria-checked="true"] { background: var(--accent-soft); }
+.pick-av { position: relative; flex: none; display: inline-flex; }
+.pick-av .avatar { width: 42px; height: 42px; font-size: 16px; }
+.pick-check {
+  position: absolute; inset: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink);
+  display: flex; align-items: center; justify-content: center; opacity: 0; transform: scale(.6); transition: opacity .15s, transform .15s;
+}
+.pick-check .ico { width: 24px; height: 24px; stroke-width: 3; }
+.pick-row[aria-checked="true"] .pick-check { opacity: 1; transform: none; }
+.pick-name { font-size: 19px; font-weight: 720; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-fold + .pick-fold { border-top: 1px solid var(--line); }
+.pick-fold summary { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 4px 8px; cursor: pointer; list-style: none; }
+.pick-fold summary::-webkit-details-marker { display: none; }
+.pick-fold-name { font-weight: 680; font-size: 17px; }
+.pick-fold .chev { transition: transform .15s; }
+.pick-fold[open] .chev { transform: rotate(90deg); }
+.pick-fold-body { padding: 0 0 8px; }
+.pick-fold-all { text-align: right; padding: 0 8px; }
+.pick-more { text-align: center; margin: 4px 0 10px; }
+.known-list { margin: 10px 0 0; }
+.sheet-actions { position: sticky; bottom: 0; padding: 12px 0 2px; background: var(--card); }
+.known-card { display: flex; align-items: center; gap: 12px; cursor: pointer; box-shadow: inset 4px 0 0 var(--together), var(--shadow); }
+.known-card .row-text { flex: 1; }
 .sticky-bottom { position: sticky; bottom: calc(var(--tabbar) + 12px + env(safe-area-inset-bottom)); padding-top: 6px; }
 .sticky-bottom .btn { box-shadow: 0 6px 20px rgba(0, 0, 0, .18); }
-.extra-names { background: var(--together-soft); border-radius: 14px; padding: 10px 14px; font-weight: 600; }
+.extra-names { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; background: var(--together-soft); border-radius: 14px; padding: 8px 10px 8px 14px; font-weight: 600; margin: 0 0 12px; }
+.extra-person { display: inline-flex; align-items: center; gap: 8px; }
+.extra-add { min-height: 32px; padding: 4px 11px 4px 8px; gap: 4px; background: var(--card); box-shadow: none; font-size: 13px; }
+.extra-add .ico { width: 16px; height: 16px; }
 .tl { background: var(--card); border-radius: 18px; padding: 12px 12px 10px; box-shadow: var(--shadow); }
 .tl-area { position: relative; }
-.tl-row { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 8px; min-height: 40px; }
+.tl-row { display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 8px; min-height: 40px; }
 .tl-row.head { min-height: 20px; }
 .tl-row.overlay { position: absolute; inset: 0; pointer-events: none; }
-.tl-name { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 650; min-width: 0; }
-.tl-name span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Naam bij een rij: een rondje zo hoog als de rij, de naam groot ernaast */
+.tl-name { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 760; min-width: 0; line-height: 1.15; }
+.tl-name .avatar { width: var(--av, 32px); height: var(--av, 32px); font-size: calc(var(--av, 32px) * .38); }
+.tl-name span:last-child { overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .tl-axis { position: relative; height: 18px; }
 .tl-axis span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--muted); }
 .tl-track { position: relative; height: var(--row, 30px); background: var(--card-2); border-radius: 8px; }
@@ -339,6 +378,18 @@ textarea.prompt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; f
 .tl-bands i { position: absolute; top: 0; bottom: 0; background: var(--together-soft); border-left: 2px solid var(--together); border-right: 2px solid var(--together); border-radius: 6px; }
 .tl-now { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); border-radius: 2px; z-index: 3; }
 .tl-info { margin-top: 8px; font-size: 15px; }
+/* Samen pauze: geel op de rij/kolom van wie meedoet, die krijgt ook meer ruimte (zie weights in vergelijk.js) */
+.match-band { position: absolute; background: var(--together-soft); border-radius: 6px; z-index: 1; pointer-events: none; }
+.tl-track .match-band { top: 0; bottom: 0; box-shadow: inset 2px 0 0 var(--together), inset -2px 0 0 var(--together); }
+.tlv-body .match-band { left: 0; right: 0; box-shadow: inset 0 2px 0 var(--together), inset 0 -2px 0 var(--together); }
+.is-match .fit-name span:last-child { color: var(--ink); }
+.tl-row.is-match .tl-track, .tlv-col.is-match .tlv-body { box-shadow: inset 0 0 0 2px var(--together); }
+.tlv-col.is-match .tlv-head { background: var(--together-soft); border-radius: 12px 12px 0 0; }
+.match-line { display: flex; align-items: baseline; gap: 8px; margin: 4px 0; }
+.match-line .swatch { margin-right: 0; flex: none; }
+.match-line b { font-weight: 750; white-space: nowrap; }
+.equal-check { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; min-height: 36px; }
+.equal-check input { width: 18px; height: 18px; }
 .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--together); margin-right: 6px; vertical-align: -1px; }
 
 /* ---- Afspreken ---- */
@@ -432,6 +483,32 @@ textarea.prompt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; f
 @media (min-width: 900px) and (max-width: 1100px) {
   .days { grid-auto-columns: calc((100% - 12px) / 2); }
 }
+/* ---- Klein venster (menubalk / systeemvak): tabbalk bovenaan, geen ruimte onderaan ---- */
+body.compact { --tabbar: 0px; }
+body.compact .view { padding: 62px 12px 20px; }
+body.compact .tabs {
+  top: 0; bottom: auto; left: 0; right: 0; width: auto; transform: none; border-radius: 0; box-shadow: none;
+  grid-template-columns: repeat(3, 1fr) 44px; gap: 4px; padding: 7px 8px;
+  border-top: 0; border-bottom: 1px solid var(--line);
+}
+body.compact .tabs button { flex-direction: row; justify-content: center; gap: 6px; font-size: 14px; min-height: 38px; padding: 0 4px; }
+body.compact .tabs button .ico { width: 18px; height: 18px; }
+body.compact .tabs button[aria-current="page"] { background: var(--accent-soft); }
+body.compact .tabs .more .ico { width: 22px; height: 22px; stroke-width: 3.4; }
+body.compact #banner .banner { margin-top: 54px; }
+body.compact #toasts { bottom: 14px; }
+body.compact .sticky-bottom { bottom: 12px; }
+body.compact h1 { font-size: 26px; }
+body.compact .days-wrap { margin: 0 -12px; }
+body.compact .days { grid-auto-columns: 100%; scroll-snap-type: x mandatory; gap: 0; }
+body.compact .day { padding: 0 12px; }
+body.compact .day-main { font-size: 22px; }
+
+/* Mac-menubalk: het venster heeft echt glas (vibrancy), laat het een beetje doorschijnen */
+body.compact.desktop.mac { background: color-mix(in srgb, var(--paper) 72%, transparent); }
+body.compact.desktop { -webkit-user-select: none; user-select: none; }
+body.compact.desktop input, body.compact.desktop textarea { -webkit-user-select: text; user-select: text; }
+
 /* ---- Weergavekeuze ---- */
 .view-controls { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; flex-wrap: wrap; }
 .seg { display: inline-flex; background: var(--card); border-radius: 999px; padding: 3px; box-shadow: var(--shadow); }
@@ -551,8 +628,10 @@ textarea.prompt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; f
 .tl-vertical { padding: 8px 8px 10px; }
 .tlv { display: flex; }
 .tlv-gutter { flex: 0 0 32px; }
-.tlv-head { height: 40px; display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 13px; font-weight: 650; overflow: hidden; }
-.tlv-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tlv-head { height: 46px; display: flex; align-items: center; justify-content: center; gap: 7px; font-size: 15px; font-weight: 760; overflow: hidden; padding: 0 2px; }
+.tlv-head span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.fit-name.no-av .avatar { display: none; }
+.fit-name.no-av span:last-child { box-shadow: inset 0 -3px 0 var(--k); padding-bottom: 2px; }
 .tlv-gbody { position: relative; }
 .tlv-gbody span { position: absolute; right: 4px; transform: translateY(-50%); font-size: 11px; color: var(--muted); }
 .tlv-gbody span:first-child { transform: none; }
