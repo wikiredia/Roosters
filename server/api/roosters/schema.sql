@@ -234,3 +234,78 @@ CREATE TABLE IF NOT EXISTS link_codes (
   used_at DATETIME NULL,
   KEY k_ip (ip)
 );
+
+-- ---- Pauze-verzoeken: "Reda wil pauze met jou, kan jij?" ------------------------
+-- mode: i_come (ik kom naar jou), you_come (jij komt naar mij), meet (afspreken op `place`)
+-- Vervangt de oude 'plans' (Afspraken) in de app; die tabel blijft voor oude gegevens.
+CREATE TABLE IF NOT EXISTS break_requests (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  from_id INT NOT NULL,
+  day DATE NOT NULL,
+  start_min SMALLINT NOT NULL,
+  end_min SMALLINT NOT NULL,
+  mode ENUM('i_come','you_come','meet') NOT NULL DEFAULT 'meet',
+  place VARCHAR(120) NULL,
+  note VARCHAR(200) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  cancelled_at DATETIME NULL,
+  KEY k_day (day),
+  KEY k_from (from_id)
+);
+
+CREATE TABLE IF NOT EXISTS break_request_members (
+  request_id INT NOT NULL,
+  person_id INT NOT NULL,
+  response ENUM('pending','accepted','declined') NOT NULL DEFAULT 'pending',
+  responded_at DATETIME NULL,
+  PRIMARY KEY (request_id, person_id),
+  KEY k_person (person_id)
+);
+
+-- ---- Chat --------------------------------------------------------------------
+-- kind: group (hoort bij een vriendengroep of woonplaats, leden = group_members), dm (twee mensen)
+CREATE TABLE IF NOT EXISTS chats (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  kind ENUM('group','dm') NOT NULL,
+  group_id INT NULL,
+  dm_a INT NULL,
+  dm_b INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_group (group_id),
+  UNIQUE KEY uq_dm (dm_a, dm_b)
+);
+
+-- kind: text (getypt), event (klein blokje in het midden: "Reda stopt nu met de les").
+-- dedupe: zelfde gebeurtenis maar één keer per chat (NULL = geen controle)
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  chat_id INT NOT NULL,
+  person_id INT NULL,
+  kind ENUM('text','event') NOT NULL DEFAULT 'text',
+  body VARCHAR(2000) NOT NULL,
+  payload JSON NULL,
+  dedupe VARCHAR(190) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uq_dedupe (chat_id, dedupe),
+  KEY k_chat (chat_id, id)
+);
+
+-- Per persoon per chat: tot waar gelezen, en of er pushmeldingen komen (standaard uit)
+CREATE TABLE IF NOT EXISTS chat_reads (
+  person_id INT NOT NULL,
+  chat_id INT NOT NULL,
+  last_read BIGINT NOT NULL DEFAULT 0,
+  push TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (person_id, chat_id)
+);
+
+-- Vrije vragen tussen vrienden ("Wil je chillen?"), om spam te beperken
+CREATE TABLE IF NOT EXISTS pings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  from_id INT NOT NULL,
+  to_id INT NOT NULL,
+  kind VARCHAR(30) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY k_to (to_id, created_at)
+);

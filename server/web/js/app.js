@@ -8,6 +8,7 @@ const TABS = [
   { id: "home", label: "Home", icon: "home" },
   { id: "rooster", label: "Rooster", icon: "rooster" },
   { id: "vergelijk", label: "Vergelijk", icon: "vergelijk" },
+  { id: "chat", label: "Chat", icon: "chat", badge: "chat" },
   { id: "afspreken", label: "Afspreken", icon: "afspreken" },
   { id: "opties", label: "Opties", icon: "opties" },
 ];
@@ -22,6 +23,7 @@ const loaders = {
   rooster: () => import("./views/rooster.js"),
   vergelijk: () => import("./views/vergelijk.js"),
   afspreken: () => import("./views/afspreken.js"),
+  chat: () => import("./views/chat.js"),
   opties: () => import("./views/opties.js"),
   admin: () => import("./views/admin.js"),
 };
@@ -267,6 +269,41 @@ export async function disablePush() {
   }
 }
 
+// ---- Rood bolletje met een getal (ongelezen in Chat) ---------------------------------
+// Elk element met data-badge="chat" toont het aantal; wie zo'n icoon tekent, gebruikt badgeEl().
+// Gebeurtenissen in de chat ("Reda stopt nu met de les") zijn geen pushmelding, enkel dit bolletje.
+const badges = { chat: 0 };
+
+export function badgeEl(name) {
+  const n = badges[name] || 0;
+  return h("span", { class: "badge-dot", "data-badge": name, hidden: !n, "aria-label": `${n} ongelezen` }, n > 99 ? "99+" : String(n));
+}
+
+export function setBadge(name, n) {
+  badges[name] = Math.max(0, n | 0);
+  for (const el of document.querySelectorAll(`[data-badge="${name}"]`)) {
+    el.hidden = !badges[name];
+    el.textContent = badges[name] > 99 ? "99+" : String(badges[name]);
+    el.setAttribute("aria-label", `${badges[name]} ongelezen`);
+  }
+  // Ook op het app-icoon (beginscherm), waar dat kan
+  try {
+    if (badges.chat) navigator.setAppBadge?.(badges.chat).catch(() => {});
+    else navigator.clearAppBadge?.().catch(() => {});
+  } catch { /* niet ondersteund */ }
+}
+
+export const badgeCount = (name) => badges[name] || 0;
+
+// GET /api/chat/unread -> {total, chats: {id: n}}
+export async function refreshBadge() {
+  if (!isApproved() || !myPerson()) return;
+  try {
+    const r = await api.get("/chat/unread");
+    setBadge("chat", r.total);
+  } catch { /* stil */ }
+}
+
 // ---- Opstart -----------------------------------------------------------------------
 function buildTabs() {
   const nav = document.querySelector(".tabs");
@@ -274,7 +311,7 @@ function buildTabs() {
   for (const t of TABS) {
     if (compact && !COMPACT_TABS.includes(t.id)) continue;
     nav.append(h("button", { type: "button", "data-tab": t.id, "aria-current": "false", onclick: () => go(`#/${t.id}`) },
-      icon(t.icon), h("span", null, t.label)));
+      h("span", { class: "tab-ico" }, icon(t.icon), t.badge ? badgeEl(t.badge) : null), h("span", null, t.label)));
   }
   if (compact) {
     nav.append(h("button", { type: "button", class: "more", "data-tab": "more", "aria-current": "false", "aria-label": "Meer", onclick: moreSheet },
@@ -309,12 +346,15 @@ async function boot() {
   }
   window.addEventListener("hashchange", route);
   route();
+  refreshBadge();
+  setInterval(() => { if (!document.hidden) refreshBadge(); }, 30000);
   // In de menubalk-/systeemvak-app (desktop/): sneltoetsen, links, tekst naast het icoon
   if (compact && window.__TAURI__) import("./desktop.js").then((m) => m.init()).catch(() => {});
   // Terug naar de app (bv. na een tijdje op de achtergrond): gegevens opfrissen
   let hidden = 0;
   document.addEventListener("visibilitychange", async () => {
     if (document.hidden) { hidden = Date.now(); return; }
+    refreshBadge();
     if (Date.now() - hidden > 60000) {
       await loadMe().catch(() => {});
       if (state.view !== "opties" && state.view !== "admin") route();

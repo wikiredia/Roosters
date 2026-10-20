@@ -68,7 +68,7 @@ def lessons_for(pid, days, with_titles=True):
         return {}
     marks = ",".join(["%s"] * len(days))
     rows = db.rows(
-        f"SELECT l.* FROM lessons l JOIN sources s ON s.id=l.source_id AND s.deleted_at IS NULL "
+        f"SELECT l.*, s.label AS source_label FROM lessons l JOIN sources s ON s.id=l.source_id AND s.deleted_at IS NULL "
         f"WHERE l.person_id=%s AND l.day IN ({marks}) ORDER BY l.day, l.start_min, l.end_min", (pid, *days))
     hidden = hidden_for(pid)
     recent = db.utcnow() - dt.timedelta(hours=36)
@@ -89,8 +89,12 @@ def lessons_for(pid, days, with_titles=True):
                 and prev["end"] == r["start_min"]):
             prev["end"] = r["end_min"]
             prev["changed"] = prev["changed"] or changed
+            if changed and (not prev["changed_at"] or iso(r["changed_at"]) > prev["changed_at"]):
+                prev["changed_at"] = iso(r["changed_at"])
             continue
+        # changed_at + source: voor de 'Nieuw'-tag ("gewijzigd in <bron> om <tijd>")
         item = {"id": r["id"], "start": r["start_min"], "end": r["end_min"], "state": r["state"], "changed": changed,
+                "changed_at": iso(r["changed_at"]) if changed else None, "source": r["source_label"],
                 "kind": lesson_kind(r["title"], r["info"], db.unjs(r["extra"], {})),
                 "_k": (r["title"], r["location"], r["teacher"], r["state"])}
         if with_titles:

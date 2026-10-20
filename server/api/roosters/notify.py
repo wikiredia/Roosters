@@ -22,6 +22,9 @@ KINDS = {
     "reizen": "Samen naar school of naar huis (avond ervoor)",
     "wijziging": "Wijzigingen in je eigen rooster",
     "apparaat": "Er is een nieuw toestel aan jou gekoppeld",
+    "pauze_verzoek": "Iemand wil pauze met jou (en antwoorden op jouw verzoeken)",
+    "chill_vraag": "Een vriend vraagt of je wil chillen",
+    "chat": "Chatberichten (enkel in chats waar je de bel aanzette)",
 }
 SCOPES = {
     "vrienden": "Alleen mensen uit mijn vriendengroepen",
@@ -149,6 +152,10 @@ def _url(payload: dict) -> str:
     if target == "rooster":
         return "/#/rooster"
     if target == "afspreken":
+        return "/#/afspreken"
+    if target == "chat" and payload.get("chat"):
+        return f"/#/chat/{int(payload['chat'])}"
+    if target == "pauzes":
         return "/#/afspreken"
     return "/#/home"
 
