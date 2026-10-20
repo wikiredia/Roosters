@@ -216,6 +216,25 @@ def undo(ctx: Ctx, action_id: int):
                 db.run("DELETE FROM hidden_courses WHERE person_id=%s AND course=%s", (p["person_id"], p["course"]), c)
             else:
                 db.run("INSERT IGNORE INTO hidden_courses (person_id, course) VALUES (%s,%s)", (p["person_id"], p["course"]), c)
+        elif k == "batch":
+            # Beheer 'Opslaan': elke stap terugdraaien, laatste eerst
+            for r in reversed(p["reverse"]):
+                t = r["t"]
+                if t == "group_soft_delete":
+                    db.run("UPDATE user_groups SET deleted_at=UTC_TIMESTAMP() WHERE id=%s", (r["id"],), c)
+                elif t == "group_restore":
+                    db.run("UPDATE user_groups SET deleted_at=NULL WHERE id=%s", (r["id"],), c)
+                elif t == "group_name":
+                    db.run("UPDATE user_groups SET name=%s WHERE id=%s", (r["name"], r["id"]), c)
+                elif t == "person_name":
+                    db.run("UPDATE people SET name=%s WHERE id=%s", (r["name"], r["id"]), c)
+                elif t == "person_restore":
+                    db.run("UPDATE people SET deleted_at=NULL WHERE id=%s", (r["id"],), c)
+                elif t == "member":
+                    if r["member"]:
+                        db.run("INSERT IGNORE INTO group_members (group_id, person_id) VALUES (%s,%s)", (r["group_id"], r["person_id"]), c)
+                    else:
+                        db.run("DELETE FROM group_members WHERE group_id=%s AND person_id=%s", (r["group_id"], r["person_id"]), c)
         elif k == "travel_pref":
             db.run("DELETE FROM travel_prefs WHERE person_id=%s AND other_id=%s", (p["person_id"], p["other_id"]), c)
             if p.get("before"):
