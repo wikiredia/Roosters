@@ -3,5 +3,5 @@
   "identifier": "local",
   "description": "Het instelscherm (serveradres) dat in de app zit.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "allow-get-server", "allow-set-server", "allow-hide-popover"]
 }

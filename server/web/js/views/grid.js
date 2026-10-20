@@ -19,6 +19,9 @@ export const prefs = {
   set days(v) { store.set("view.days", v); },
   get equal() { return store.get("view.equal", false); },
   set equal(v) { store.set("view.equal", v); },
+  // Kleine app: hoeveel dagen je rooster toont bij het openen (Opties), standaard 1
+  get tinyDays() { return Math.max(1, Math.min(5, Number(store.get("tiny.days", 1)) || 1)); },
+  set tinyDays(v) { store.set("tiny.days", v); },
 };
 
 // [1] [2] [3] [Week], een knop verticaal/horizontaal en bij vergelijken 'gelijke breedte'
@@ -59,11 +62,13 @@ export function hourRange(blocks) {
   return [lo, hi];
 }
 
-// Hoeveel scherm er nog vrij is onder `el` (tabbalk en marge eraf)
+// Hoeveel scherm er nog vrij is onder `el` (tabbalk en marge eraf).
+// Kleine app: precies tot de onderrand (niets scrollt), ook als het venster laag is.
 export function freeHeight(el, extra = 0) {
-  const top = el.getBoundingClientRect().top;
-  const tabbar = document.body.classList.contains("compact") || window.matchMedia("(min-width: 900px)").matches ? 24 : 96;
-  return Math.max(320, window.innerHeight - top - tabbar - extra);
+  const top = el.getBoundingClientRect().top + window.scrollY;
+  const tiny = document.body.classList.contains("tiny");
+  const tabbar = tiny ? 10 : document.body.classList.contains("compact") || window.matchMedia("(min-width: 900px)").matches ? 24 : 96;
+  return Math.max(tiny ? 160 : 320, window.innerHeight - top - tabbar - extra);
 }
 
 export function legend(kindsSeen) {

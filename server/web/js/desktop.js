@@ -4,7 +4,21 @@ import { api } from "./api.js";
 import { myPerson } from "./app.js";
 import { fmt, brusselsMinutes } from "./util.js";
 
-const invoke = (cmd, args) => window.__TAURI__.core.invoke(cmd, args).catch(() => {});
+const call = (cmd, args) => window.__TAURI__.core.invoke(cmd, args);
+const invoke = (cmd, args) => call(cmd, args).catch(() => {});
+
+// In je gewone browser openen. Lukt het commando niet (oude app, of de pagina mag geen commando's
+// aanroepen), dan zelf navigeren: lib.rs vangt ?roosters-browser=1 (eigen server) en andere adressen
+// op en opent ze in je browser i.p.v. in het venster.
+export async function openInBrowser(href) {
+  const url = new URL(href, location.href);
+  try {
+    await call("open_external", { url: url.href });
+  } catch {
+    if (url.origin === location.origin) url.searchParams.set("roosters-browser", "1");
+    location.href = url.href;
+  }
+}
 
 export function init() {
   document.body.classList.add("desktop");
@@ -22,7 +36,7 @@ export function init() {
     const url = new URL(a.href, location.href);
     if (a.target === "_blank" || url.origin !== location.origin) {
       e.preventDefault();
-      invoke("open_external", { url: url.href });
+      openInBrowser(url.href);
     }
   }, true);
 

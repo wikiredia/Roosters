@@ -19,6 +19,7 @@ use tauri::{
     menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder, PredefinedMenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     window::{Effect, EffectState, EffectsBuilder},
+    webview::NewWindowResponse,
     AppHandle, Manager, State, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt as _};
@@ -29,6 +30,11 @@ use tauri_plugin_positioner::{Position, WindowExt};
 const TRAY: &str = "roosters";
 const WIDTH: f64 = 390.0;
 const HEIGHT: f64 = 640.0;
+/// Hoekstraal van het venster op Mac (zelfde als --win-radius in server/web/css/compact.css)
+const RADIUS: f64 = 12.0;
+/// `?roosters-browser=1` op een adres van je server: niet in het venster openen maar in je
+/// gewone browser (zonder dat stukje). Werkt ook als de pagina geen commando's mag aanroepen.
+const BROWSER_MARK: &str = "roosters-browser";
 
 #[derive(Default)]
 struct AppState {
@@ -82,6 +88,28 @@ fn setup_url() -> Url {
 
 fn is_local(url: &Url) -> bool {
     url.scheme() == "tauri" || url.host_str() == Some("tauri.localhost")
+}
+
+/// Adres met `?roosters-browser=1` -> hetzelfde adres zonder dat stukje (anders None)
+fn browser_target(url: &Url) -> Option<Url> {
+    if !url.query_pairs().any(|(k, _)| k == BROWSER_MARK) {
+        return None;
+    }
+    let rest: Vec<(String, String)> =
+        url.query_pairs().filter(|(k, _)| k != BROWSER_MARK).map(|(k, v)| (k.into_owned(), v.into_owned())).collect();
+    let mut out = url.clone();
+    if rest.is_empty() {
+        out.set_query(None);
+    } else {
+        out.query_pairs_mut().clear().extend_pairs(rest);
+    }
+    Some(out)
+}
+
+fn open_in_browser(app: &AppHandle, url: &Url) {
+    if matches!(url.scheme(), "https" | "http") {
+        let _ = app.opener().open_url(url.as_str(), None::<&str>);
+    }
 }
 
 fn same_origin(a: &Url, b: &Url) -> bool {
@@ -171,6 +199,7 @@ fn create_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         None => WebviewUrl::App("index.html".into()),
     };
     let handle = app.clone();
+    let popup_handle = app.clone();
     let mut b = WebviewWindowBuilder::new(app, "main", start)
         .title("Roosters")
         .inner_size(WIDTH, HEIGHT)
@@ -179,26 +208,36 @@ fn create_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
         .skip_taskbar(true)
         .always_on_top(true)
         .visible(false)
-        .transparent(true)
         // Enkel het instelscherm en je eigen server in het venster; de rest in je browser
         .on_navigation(move |url| {
             if is_local(url) || url.scheme() == "about" {
                 return true;
             }
+            if let Some(target) = browser_target(url) {
+                open_in_browser(&handle, &target);
+                return false;
+            }
             let ok = handle.state::<AppState>().server.lock().unwrap().as_ref().is_some_and(|s| same_origin(s, url));
-            if !ok && matches!(url.scheme(), "https" | "http") {
-                let _ = handle.opener().open_url(url.as_str(), None::<&str>);
+            if !ok {
+                open_in_browser(&handle, url);
             }
             ok
+        })
+        // Nieuwe vensters (target="_blank", window.open) bestaan hier niet: in je browser openen
+        .on_new_window(move |url, _| {
+            open_in_browser(&popup_handle, browser_target(&url).as_ref().unwrap_or(&url));
+            NewWindowResponse::Deny
         });
-    // Echte vensterachtergrond van het systeem: wazig glas op Mac, Mica op Windows 11
-    b = b.effects(
-        EffectsBuilder::new()
-            .effect(if cfg!(target_os = "macos") { Effect::Popover } else { Effect::Mica })
-            .state(EffectState::Active)
-            .radius(14.0)
-            .build(),
-    );
+    // Afgeronde hoeken. Mac: doorzichtig venster met echt wazig glas (afgerond), de pagina rondt
+    // zichzelf ook af (compact.css). Windows 11: een randloos venster mét schaduw krijgt van het
+    // systeem zelf afgeronde hoeken; een doorzichtig venster zou rechthoekig blijven.
+    if cfg!(target_os = "macos") {
+        b = b.transparent(true).effects(
+            EffectsBuilder::new().effect(Effect::Popover).state(EffectState::Active).radius(RADIUS).build(),
+        );
+    } else {
+        b = b.shadow(true);
+    }
     let w = b.build()?;
     let handle = app.clone();
     w.on_window_event(move |event| {
@@ -364,5 +403,13 @@ mod tests {
         assert!(same_origin(&s, &Url::parse("https://1.2.3.4/api/me").unwrap()));
         assert!(!same_origin(&s, &Url::parse("https://evil.example/").unwrap()));
         assert!(is_local(&setup_url()));
+    }
+
+    #[test]
+    fn open_in_browser_marker() {
+        let u = |s: &str| Url::parse(s).unwrap();
+        assert_eq!(browser_target(&u("https://1.2.3.4/?roosters-browser=1#/rooster")).unwrap().as_str(), "https://1.2.3.4/#/rooster");
+        assert_eq!(browser_target(&u("https://1.2.3.4/?a=b&roosters-browser=1")).unwrap().as_str(), "https://1.2.3.4/?a=b");
+        assert!(browser_target(&u("https://1.2.3.4/?compact=1")).is_none());
     }
 }

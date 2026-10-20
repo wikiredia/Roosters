@@ -57,10 +57,61 @@ def post(actor_ids, text: str, *, kind: str = "event", scope: str = "friends", p
     payload.setdefault("actors", list(actor_ids))
     if day:
         payload.setdefault("day", day.isoformat())
-    n = 0
-    for gid in sorted(groups_of(actor_ids, scope)):
-        cid = group_chat(gid)
-        n += bool(db.run(
-            "INSERT IGNORE INTO chat_messages (chat_id, person_id, kind, body, payload, dedupe) VALUES (%s,%s,%s,%s,%s,%s)",
-            (cid, None, kind, text[:2000], db.js(payload), dedupe[:190] if dedupe else None)))
-    return n
+    return sum(post_group(gid, text, kind=kind, payload=payload, dedupe=dedupe) for gid in sorted(groups_of(actor_ids, scope)))
+
+
+def post_group(group_id: int, text: str, *, kind: str = "event", payload: dict | None = None, dedupe: str | None = None) -> bool:
+    """Eén gebeurtenis in de chat van één groep. True als ze erbij kwam (niet al eerder gemeld)."""
+    cid = group_chat(group_id)
+    return bool(db.run(
+        "INSERT IGNORE INTO chat_messages (chat_id, person_id, kind, body, payload, dedupe) VALUES (%s,%s,%s,%s,%s,%s)",
+        (cid, None, kind, text[:2000], db.js(payload or {}), dedupe[:190] if dedupe else None)))
+
+
+# ---- Wat de worker elke minuut in de groepschat zet (pure functies, zonder database) ----
+
+# Hoe lang na het moment zelf mag de worker het nog melden (hij kan een minuut of wat te laat zijn)
+WINDOW = 10
+
+
+def done_now(member_ids, people, infos, now: int, window: int = WINDOW):
+    """Wie van `member_ids` stopt nu met de les? -> [(einde, [ids])], per einduur samengenomen.
+    Wie al naar huis ging of er niet is, telt niet."""
+    by_end = {}
+    for pid in member_ids:
+        p, info = people.get(pid), infos.get(pid)
+        if not p or not info or not info.present or not info.busy or info.left_at is not None:
+            continue
+        end = info.busy[-1][1]
+        if end <= now < end + window:
+            by_end.setdefault(end, []).append(pid)
+    return sorted((end, sorted(ids, key=lambda i: people[i].name.lower())) for end, ids in by_end.items())
+
+
+def breaks_starting(member_ids, people, infos, now: int, window: int = WINDOW):
+    """Pauzes die nu beginnen met 2+ mensen uit dezelfde groep -> [{ids, start, end}].
+    Enkel echte pauzes tussen lessen (wie na school blijft chillen, meldt dat zelf al)."""
+    from .logic import compare_matches
+
+    members = [people[pid] for pid in member_ids if pid in people]
+    out = []
+    for m in compare_matches(members, infos):
+        if not m["start"] <= now < m["start"] + window:
+            continue
+        # Na de laatste les van iedereen is het geen pauze meer
+        if all(infos[i].busy and m["start"] >= infos[i].busy[-1][1] for i in m["ids"]):
+            continue
+        out.append(m)
+    return out
+
+
+def done_text(names_: list) -> str:
+    from .logic import names
+
+    return f"{names(names_)} {'stopt' if len(names_) == 1 else 'stoppen'} nu met de les"
+
+
+def break_text(names_: list, end: int) -> str:
+    from .logic import fmt, names
+
+    return f"{names(names_)} hebben nu samen pauze (tot {fmt(end)})"

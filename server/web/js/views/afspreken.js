@@ -1,9 +1,9 @@
-// Afspreken: blijf je in Antwerpen (check-in), afspraken maken, samen reizen.
+// Afspreken: blijf je in Antwerpen (check-in), pauzes samen plannen (vroeger 'Afspraken'), samen reizen.
 import { api } from "../api.js";
-import { state, go, myPerson, toast, toastError, undoToast, sheet, closeSheet } from "../app.js";
-import { h, fmt, names, avatar, icon } from "../util.js";
+import { state, go, myPerson, toastError, undoToast, sheet, closeSheet } from "../app.js";
+import { h, fmt, names, avatar } from "../util.js";
 import { sectionTitle } from "./common.js";
-import { planRow } from "./home.js";
+import { breaksCard, planBreakSheet } from "./social.js";
 
 export const CHECKIN_LABEL = {
   chilling: "Al aant chillen",
@@ -96,17 +96,11 @@ export async function render(root) {
   }
   root.append(who);
 
-  // Afspraken
-  const pl = h("section", { class: "card" }, sectionTitle("Afspraken", me ? h("button", { class: "link", onclick: () => planSheet(reload) }, "+ Nieuw") : null));
-  if (!data.plans.length) pl.append(h("p", { class: "muted" }, "Nog geen afspraken. Ga je ergens heen tijdens je pauze? Laat het weten."));
-  for (const p of data.plans) {
-    const row = planRow(p, data.today);
-    if (p.mine) row.append(h("button", { class: "icon-btn", "aria-label": "Afspraak annuleren", onclick: async () => {
-      try { const r = await api.del(`/plans/${p.id}`); undoToast(r, null, reload); reload(); } catch (e) { toastError(e); }
-    } }, icon("trash")));
-    pl.append(row);
+  // Pauzes samen: verzoeken en wat gepland is (dit vervangt de oude 'Afspraken')
+  if (me) {
+    root.append(await breaksCard({ always: true, title: "Pauzes samen",
+      action: h("button", { class: "link", onclick: () => planBreakSheet() }, "+ Pauze plannen") }));
   }
-  root.append(pl);
 
   // Samen reizen
   if (me) {
@@ -130,28 +124,3 @@ export async function render(root) {
     root.append(tr);
   }
 }
-
-function planSheet(done) {
-  const time = h("input", { type: "time", step: "300", required: true, value: "12:00", "aria-label": "Hoe laat" });
-  const place = h("input", { type: "text", required: true, maxlength: "120", placeholder: "Bv. cafetaria Spoor Noord", "aria-label": "Waar" });
-  const note = h("input", { type: "text", maxlength: "200", placeholder: "Optioneel: iets erbij zeggen", "aria-label": "Opmerking" });
-  const tomorrow = h("input", { type: "checkbox" });
-  const form = h("form", { class: "stack" },
-    h("label", { class: "field" }, h("span", null, "Waar?"), place),
-    h("label", { class: "field" }, h("span", null, "Hoe laat?"), time),
-    h("label", { class: "check-row" }, tomorrow, h("span", null, "Morgen (niet vandaag)")),
-    h("label", { class: "field" }, h("span", null, "Opmerking"), note),
-    h("button", { class: "btn primary wide", type: "submit" }, "Laat het weten"));
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    try {
-      await api.post("/plans", { start_min: toMin(time.value), place: place.value, note: note.value || null, tomorrow: tomorrow.checked });
-      closeSheet();
-      toast("Je vrienden krijgen een melding");
-      done();
-    } catch (err) { toastError(err); }
-  });
-  sheet("Nieuwe afspraak", form);
-  setTimeout(() => place.focus(), 250);
-}
-

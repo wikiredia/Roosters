@@ -17,6 +17,10 @@ const TABS = [
 // Geen tabbalk onderaan maar bovenaan Rooster, Vergelijk en Afspreken; de rest zit onder ⋯.
 export const compact = new URLSearchParams(location.search).get("compact") === "1";
 const COMPACT_TABS = ["rooster", "vergelijk", "afspreken"];
+// Kleine app standaard: het hele venster is je rooster, met enkel ☰ en Vergelijk bovenaan.
+// 'Klassieke weergave' (Opties) geeft de tabs bovenaan terug.
+export const tiny = compact && !store.get("tiny.classic", false);
+const VIEW_TITLE = { home: "Home", chat: "Chat", afspreken: "Afspreken", opties: "Opties", admin: "Beheer", vergelijk: "Vergelijk" };
 
 const loaders = {
   home: () => import("./views/home.js"),
@@ -76,7 +80,11 @@ async function route() {
     return route();
   }
   const view = tab === "opties" && parts[1] === "admin" ? "admin" : tab;
-  const current = compact && !COMPACT_TABS.includes(tab) ? "more" : tab;
+  const current = tiny ? (["rooster", "vergelijk"].includes(view) ? view : "more")
+    : compact && !COMPACT_TABS.includes(tab) ? "more" : tab;
+  document.body.dataset.view = view;
+  const title = document.querySelector(".tiny-title span");
+  if (title) title.textContent = view === "rooster" ? "" : VIEW_TITLE[view] || "";
   document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === current ? "page" : "false"));
   const token = ++routeToken;
   if (cleanup) { try { cleanup(); } catch { /* */ } cleanup = null; }
@@ -308,6 +316,18 @@ export async function refreshBadge() {
 function buildTabs() {
   const nav = document.querySelector(".tabs");
   if (compact) document.body.classList.add("compact");
+  if (tiny) {
+    document.body.classList.add("tiny");
+    nav.append(
+      h("button", { type: "button", class: "tiny-menu", "data-tab": "more", "aria-current": "false", "aria-label": "Menu", onclick: moreSheet },
+        h("span", { class: "tab-ico" }, icon("menu"), badgeEl("chat"))),
+      // Buiten je rooster: terug naar je rooster, met de naam van waar je bent
+      h("button", { type: "button", class: "tiny-title", "data-tab": "rooster", "aria-label": "Terug naar je rooster", onclick: () => go("#/rooster") },
+        icon("back"), h("span")),
+      h("button", { type: "button", class: "tiny-cmp", "data-tab": "vergelijk", "aria-current": "false", onclick: () => go("#/vergelijk") },
+        icon("vergelijk"), h("span", null, "Vergelijk")));
+    return;
+  }
   for (const t of TABS) {
     if (compact && !COMPACT_TABS.includes(t.id)) continue;
     nav.append(h("button", { type: "button", "data-tab": t.id, "aria-current": "false", onclick: () => go(`#/${t.id}`) },
@@ -315,21 +335,32 @@ function buildTabs() {
   }
   if (compact) {
     nav.append(h("button", { type: "button", class: "more", "data-tab": "more", "aria-current": "false", "aria-label": "Meer", onclick: moreSheet },
-      icon("more")));
+      h("span", { class: "tab-ico" }, icon("more"), badgeEl("chat"))));
   }
 }
 
-// Alles wat niet in de kleine tabbalk past
+// Alles wat niet in de kleine tabbalk past (kleine app: alles behalve je rooster en Vergelijk)
 function moreSheet() {
-  const item = (label, ico, onclick) => h("button", { class: "row-btn", type: "button", onclick: () => { closeSheet(); onclick(); } },
-    icon(ico), h("span", { class: "row-text" }, h("span", { class: "row-main" }, label)));
-  sheet("Meer", h("div", null,
+  const item = (label, ico, onclick, extra) => h("button", { class: "row-btn", type: "button", onclick: () => { closeSheet(); onclick(); } },
+    icon(ico), h("span", { class: "row-text" }, h("span", { class: "row-main" }, label)), extra || null);
+  sheet(tiny ? "Menu" : "Meer", h("div", { class: "more-list" },
+    tiny ? item("Mijn rooster", "rooster", () => go("#/rooster")) : null,
     item("Home", "home", () => go("#/home")),
+    item("Chat", "chat", () => go("#/chat"), h("span", { class: "row-badge" }, badgeEl("chat"))),
+    tiny ? item("Afspreken", "afspreken", () => go("#/afspreken")) : null,
     item("Opties", "opties", () => go("#/opties")),
     isAdmin() ? item("Beheer", "shield", () => go("#/opties/admin")) : null,
-    item("Vernieuwen", "refresh", () => location.reload()),
-    h("a", { class: "row-btn", href: `${location.origin}/${location.hash}`, target: "_blank", rel: "noopener" },
-      icon("chevron"), h("span", { class: "row-text" }, h("span", { class: "row-main" }, "Openen in je browser")))));
+    // Op je rooster: enkel het rooster opnieuw ophalen; elders de hele app
+    item("Vernieuwen", "refresh", () => (state.refresh ? state.refresh() : location.reload())),
+    item("Openen in je browser", "external", () => openInBrowser(`${location.origin}/${location.hash}`))));
+}
+
+// Menubalk-app: via de app zelf (desktop.js); in een gewone browser gewoon een nieuw tabblad
+async function openInBrowser(href) {
+  if (compact && window.__TAURI__) {
+    try { return (await import("./desktop.js")).openInBrowser(href); } catch { /* valt terug op hieronder */ }
+  }
+  window.open(href, "_blank", "noopener");
 }
 
 async function boot() {

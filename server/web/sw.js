@@ -30,23 +30,49 @@ self.addEventListener("fetch", (e) => {
   );
 });
 
+// "Reda wil pauze met jou, kan jij?" krijgt Ja/Nee-knoppen (waar de browser dat kan).
+// Zo'n vraag heeft als titel ASK_TITLE (zie api/roosters/r_breaks.py); met data.request weten we welke.
+const ASK_TITLE = "Pauze samen?";
+
 self.addEventListener("push", (e) => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch { data = { title: "Roosters", body: e.data?.text() || "" }; }
+  const ask = data.title === ASK_TITLE;
   e.waitUntil(self.registration.showNotification(data.title || "Roosters", {
     body: data.body || "",
     tag: data.tag || "roosters",
     renotify: true,
     icon: "/icons/icon-192.png",
     badge: "/icons/icon-192.png",
-    data: { url: data.url || "/#/home" },
+    data: { url: data.url || "/#/home", ask, request: data.request || null },
+    actions: ask ? [{ action: "ja", title: "Ja, ik kom" }, { action: "nee", title: "Nee" }] : [],
   }));
 });
+
+// Ja/Nee meteen versturen; lukt dat niet (bv. meerdere vragen open), dan de app openen
+async function answer(data, action) {
+  try {
+    const res = await fetch("/api/breaks/quick", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Roosters": "1" },
+      body: JSON.stringify({ response: action === "ja" ? "accepted" : "declined", request_id: data.request || null }),
+    });
+    if (res.ok) {
+      await self.registration.showNotification("Roosters", {
+        body: action === "ja" ? "Top, ze weten dat je komt." : "Oké, ze weten dat je niet kan.",
+        tag: "roosters-antwoord", icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", data: { url: "/#/afspreken" },
+      });
+      return true;
+    }
+  } catch { /* offline */ }
+  return false;
+}
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const url = e.notification.data?.url || "/#/home";
   e.waitUntil((async () => {
+    if (e.notification.data?.ask && (e.action === "ja" || e.action === "nee") && await answer(e.notification.data, e.action)) return;
     const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const c of all) {
       if (new URL(c.url).origin === location.origin) {
