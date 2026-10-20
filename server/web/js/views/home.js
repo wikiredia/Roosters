@@ -258,28 +258,6 @@ async function travelPref(e, other, pref) {
   } catch (err) { toastError(err); }
 }
 
-export function planRow(p, today) {
-  const when = p.day === today ? "" : "morgen ";
-  const coming = p.coming.map((c) => c.name);
-  const row = h("div", { class: "plan" },
-    h("div", { class: "plan-main" },
-      h("span", { class: "time" }, `${when}${fmt(p.start)}`),
-      h("span", { class: "place" }, p.place),
-      h("span", { class: "muted small" }, `${p.creator.name}${p.note ? " · " + p.note : ""}`),
-      h("span", { class: "small" }, coming.length ? `Komen: ${names(coming)}` : "")));
-  if (!p.mine) {
-    const going = p.my_response === "coming";
-    row.append(h("button", { class: `btn small ${going ? "" : "primary"}`, onclick: async () => {
-      try {
-        await api.post(`/plans/${p.id}/respond`, { response: going ? "none" : "coming" });
-        toast(going ? "Je komt niet meer" : "Leuk! De anderen weten dat je komt.");
-        go(location.hash);
-      } catch (e) { toastError(e); }
-    } }, going ? "Toch niet" : "Ik kom"));
-  }
-  return row;
-}
-
 // ---- Meldingen ---------------------------------------------------------------------
 // Icoontje per soort: schild = toegang/toestellen, potlood = roosterwijziging, pauze = samen pauze
 const FEED_ICON = {

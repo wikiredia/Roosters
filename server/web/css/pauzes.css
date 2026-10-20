@@ -28,8 +28,8 @@
 /* Onderblad: pauze vragen */
 .brq-one { display: flex; align-items: center; gap: 10px; font-size: 18px; margin: 0; }
 .brq-people { display: flex; flex-direction: column; }
-.brq-modes { display: flex; flex-wrap: wrap; width: 100%; border-radius: 18px; }
-.brq-modes button { flex: 1 1 auto; white-space: nowrap; }
+.brq-modes { display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; border-radius: 16px; gap: 2px; }
+.brq-modes button { white-space: normal; line-height: 1.2; border-radius: 13px; padding: 8px 6px; min-height: 48px; }
 .brq-times { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
 /* Onderblad: pauze plannen */
