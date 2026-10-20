@@ -159,6 +159,16 @@ CREATE TABLE IF NOT EXISTS compare_picks (
   PRIMARY KEY (person_id, other_id)
 );
 
+-- Vergelijk: welke selecties (presets) iemand opende, voor 'Recent' bovenaan bij kiezen.
+-- ids = de anderen (zonder jezelf), gesorteerd en met komma's.
+CREATE TABLE IF NOT EXISTS compare_presets (
+  person_id INT NOT NULL,
+  ids VARCHAR(255) NOT NULL,
+  n INT NOT NULL DEFAULT 1,
+  last_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (person_id, ids)
+);
+
 CREATE TABLE IF NOT EXISTS push_subs (
   id INT AUTO_INCREMENT PRIMARY KEY,
   device_id INT NOT NULL,

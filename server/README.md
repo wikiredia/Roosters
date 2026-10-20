@@ -63,6 +63,10 @@ beginscherm en tikt daar het juiste getal aan (één poging, 5 minuten, enkel va
 - **Pauzes samen**: tik een pauze die je met iemand deelt (Rooster, Vergelijk, Home) en vraag om ze samen
   te nemen: ik kom naar jou, jij komt naar mij of afspreken op een plek, van/tot. De ander antwoordt Ja, Nee
   of Ander uur (ook vanuit de pushmelding); het antwoord komt als melding terug. Vervangt de oude Afspraken.
+  Wat al gevraagd of afgesproken is, ziet iedereen overal (planbalk onderaan, pauzes in je rooster, Home);
+  hetzelfde nog eens vragen kan niet, en de meldingen stellen niet meer voor om te vragen wat al loopt.
+- **Rooster**: eerst je rooster, schermvullend; weergave, *Zelfde pauze* (met + zet je iemand naast je in je
+  rooster, hoogstens 3) en andere roosters staan eronder. **Vergelijk** onthoudt je recente selecties (presets).
 - **Chat**: je vriendengroep (vastgepind), je woonplaats, en losse gesprekken (enkel als je er zelf een
   begint). Wat de groep aangaat ("Reda stopt nu met de les", "… wil chillen in Antwerpen", "… gaan samen
   pauze pakken") staat als klein blokje in de groepschat: geen pushmelding, enkel het rode bolletje op het

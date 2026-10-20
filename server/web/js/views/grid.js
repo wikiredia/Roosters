@@ -68,7 +68,9 @@ export function freeHeight(el, extra = 0) {
   const top = el.getBoundingClientRect().top + window.scrollY;
   const tiny = document.body.classList.contains("tiny");
   const tabbar = tiny ? 10 : document.body.classList.contains("compact") || window.matchMedia("(min-width: 900px)").matches ? 24 : 96;
-  return Math.max(tiny ? 160 : 320, window.innerHeight - top - tabbar - extra);
+  // Planbalk boven de tabbalk (gsm) neemt ook ruimte in
+  const plan = parseFloat(getComputedStyle(document.body).getPropertyValue("--planbar")) || 0;
+  return Math.max(tiny ? 160 : 320, window.innerHeight - top - tabbar - plan - extra);
 }
 
 export function legend(kindsSeen) {

@@ -206,6 +206,15 @@ def _remember_picks(me, pids):
            + " ON DUPLICATE KEY UPDATE n = n + IF(last_at < UTC_TIMESTAMP() - INTERVAL 1 HOUR, 1, 0),"
            " last_at = UTC_TIMESTAMP()",
            tuple(v for oid in others for v in (me, oid)))
+    # De hele selectie als preset ('Recent'): elke keer bijwerken wanneer, het aantal hoogstens één keer per uur
+    db.run("INSERT INTO compare_presets (person_id, ids) VALUES (%s,%s)"
+           " ON DUPLICATE KEY UPDATE n = n + IF(last_at < UTC_TIMESTAMP() - INTERVAL 1 HOUR, 1, 0),"
+           " last_at = UTC_TIMESTAMP()", (me, preset_key(others)))
+
+
+def preset_key(ids) -> str:
+    """Zelfde mensen = zelfde preset, in welke volgorde ook gekozen."""
+    return ",".join(str(i) for i in sorted(set(ids)))
 
 
 def school_breaks(info):

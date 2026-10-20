@@ -1,7 +1,7 @@
 import datetime as dt
 
 from roosters.logic import PersonDay, day_info
-from roosters.r_breaks import conflict, flip, mode_text, summarize, when_word
+from roosters.r_breaks import already_asked, conflict, dup_message, flip, mode_text, summarize, when_word
 
 H = 60
 
@@ -65,3 +65,30 @@ def test_when_word():
     assert when_word(t, t) == "vandaag"
     assert when_word(t + dt.timedelta(days=1), t) == "morgen"
     assert when_word(t + dt.timedelta(days=2), t) == "donderdag"
+
+
+# ---- Geen dubbele vraag ---------------------------------------------------------
+
+def E(rid, frm, s, e, members):
+    return {"id": rid, "from_id": frm, "start": s * H, "end": e * H, "members": members}
+
+
+def test_already_asked_by_me_waiting():
+    hit = already_asked([E(1, 1, 12, 13, {2: "pending"})], 1, [2], 12 * H + 30, 13 * H)
+    assert hit["kind"] == "mine" and hit["state"] == "pending" and hit["who"] == [2]
+    assert "wacht op een antwoord" in dup_message(hit, {2: "Kayra"}.get).lower()
+
+
+def test_already_planned_or_asked_by_them():
+    hit = already_asked([E(1, 2, 12, 13, {1: "accepted"})], 1, [2], 12 * H, 13 * H)
+    assert hit["kind"] == "theirs" and hit["state"] == "accepted"
+    assert dup_message(hit, {2: "Kayra"}.get) == "Je hebt al pauze met Kayra (12:00–13:00)."
+    hit = already_asked([E(1, 2, 12, 13, {1: "pending"})], 1, [2, 3], 12 * H, 13 * H)
+    assert hit["kind"] == "theirs" and "antwoord op die vraag" in dup_message(hit, {2: "Kayra"}.get).lower()
+
+
+def test_not_asked_when_declined_other_time_or_other_people():
+    assert already_asked([E(1, 1, 12, 13, {2: "declined"})], 1, [2], 12 * H, 13 * H) is None
+    assert already_asked([E(1, 1, 10, 11, {2: "pending"})], 1, [2], 12 * H, 13 * H) is None
+    assert already_asked([E(1, 1, 12, 13, {3: "pending"})], 1, [2], 12 * H, 13 * H) is None
+    assert already_asked([E(1, 2, 12, 13, {1: "declined"})], 1, [2], 12 * H, 13 * H) is None

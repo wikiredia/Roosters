@@ -10,6 +10,10 @@
 //   personSheet(person, { day, start, end } = {})
 //       Onderblad voor één persoon: Vergelijk, Pauze vragen (als er een moment is), Stuur bericht
 //       (#/chat/dm/<id>), Vraag om te chillen (POST /api/ping {to_id, kind: "chill"}).
+//   loadPlans(force) -> Promise<{items, others}> en planFor({ day, start, end, ids }) -> {item, state, who} | null
+//       Wat er al gevraagd of gepland is (gedeeld, één keer opgehaald). Zo stelt geen enkel scherm nog voor
+//       om iets te vragen dat al loopt: state = planned (gaat door), asked (wacht op antwoord), ask (vraag aan jou).
+//   planSheet() : onderblad met al je plannen en wat anderen gepland hebben (de planbalk opent dit).
 // Extra voor Afspreken: breaksCard({ always, title }) en planBreakSheet().
 // Na elke wijziging komt er een 'roosters:breaks'-event op window; elke kaart ververst zich dan zelf.
 import { api } from "../api.js";
@@ -17,8 +21,64 @@ import { state, go, myPerson, toast, toastError, sheet, closeSheet } from "../ap
 import { h, clear, fmt, names, avatar, icon, dayLabel } from "../util.js";
 import { sectionTitle, chevronRow, personToggle } from "./common.js";
 
-const CHANGED = "roosters:breaks";
-const changed = () => window.dispatchEvent(new Event(CHANGED));
+export const CHANGED = "roosters:breaks";
+const changed = () => { plans = null; window.dispatchEvent(new Event(CHANGED)); };
+
+// ---- Gedeelde stand: wat is er al gevraagd/gepland? ------------------------------
+let plans = null;      // {items, others, at}
+let loading = null;
+
+export async function loadPlans(force = false) {
+  if (!myPerson()) return { items: [], others: [] };
+  if (plans && !force && Date.now() - plans.at < 30000) return plans;
+  if (!loading) {
+    loading = api.get("/breaks")
+      .then((r) => { plans = { items: r.items || [], others: r.others || [], at: Date.now() }; return plans; })
+      .catch(() => plans || { items: [], others: [] })
+      .finally(() => { loading = null; });
+  }
+  return loading;
+}
+
+export const cachedPlans = () => plans || { items: [], others: [] };
+
+// Hoe staat een verzoek er voor jou voor? null = gaat niet door (geweigerd)
+export function planState(it) {
+  if (it.mine) {
+    if (it.members.some((m) => m.response === "accepted")) return "planned";
+    return it.members.some((m) => m.response === "pending") ? "asked" : null;
+  }
+  if (it.my_response === "pending") return "ask";
+  return it.my_response === "accepted" ? "planned" : null;
+}
+
+// Met wie (behalve jij) loopt dit verzoek nog?
+export function planPeople(it) {
+  const me = myPerson()?.id;
+  if (it.mine) return it.members.filter((m) => m.response !== "declined");
+  return [it.from, ...it.members.filter((m) => m.id !== me && m.response === "accepted")];
+}
+
+// Alles wat al loopt op (een stuk van) dit moment met (een van) deze mensen, het 'sterkste' eerst
+// (een vraag aan jou, dan wat afgesproken is, dan waar je op wacht).
+export function plansFor({ day, start = null, end = null, ids = null }) {
+  const rank = { ask: 0, planned: 1, asked: 2 };
+  const out = [];
+  for (const it of cachedPlans().items) {
+    if (day && it.day !== day) continue;
+    if (start != null && !(it.start < end && it.end > start)) continue;
+    const state = planState(it);
+    if (!state) continue;
+    const who = planPeople(it);
+    if (ids && !who.some((p) => ids.includes(p.id))) continue;
+    out.push({ item: it, state, who });
+  }
+  return out.sort((a, b) => rank[a.state] - rank[b.state] || a.item.start - b.item.start);
+}
+
+export const planFor = (q) => plansFor(q)[0] || null;
+
+export const PLAN_LABEL = { planned: "Afgesproken", asked: "Gevraagd", ask: "Vraagt jou" };
 
 const toMin = (v) => { const [hh, mm] = (v || "").split(":").map(Number); return hh * 60 + mm; };
 const toTime = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -43,8 +103,19 @@ function howText(it) {
 }
 
 // ---- Pauze samen vragen ---------------------------------------------------------
-export function breakRequestSheet({ people = [], day = null, start = null, end = null, onDone = null } = {}) {
+export function breakRequestSheet({ people = [], day = null, start = null, end = null, onDone = null, force = false } = {}) {
   if (!people.length) return;
+  // Al gevraagd of afgesproken met (een van) hen? Dan eerst dat tonen in plaats van opnieuw vragen.
+  const running = !force && start != null ? plansFor({ day: day || today(), start, end, ids: people.map((p) => p.id) }) : [];
+  if (running.length) {
+    const busy = new Set(running.flatMap((r) => r.who.map((p) => p.id)));
+    const rest = people.filter((p) => !busy.has(p.id));
+    const body = h("div", { class: "stack" }, h("div", { class: "plan-existing" }, running.map((r) => breakRow(r.item))),
+      rest.length ? h("button", { class: "btn wide", type: "button", onclick: () => breakRequestSheet({ people: rest, day, start, end, onDone, force: true }) },
+        icon("plus"), `Ook ${names(rest.map((p) => p.name))} vragen`) : null);
+    sheet(PLAN_LABEL[running[0].state], body);
+    return;
+  }
   const sel = new Set(people.map((p) => p.id));
   const n = () => sel.size;
   let mode = "meet";
@@ -139,7 +210,7 @@ function memberChips(it) {
       `${mark[m.response]} ${m.name}`)));
 }
 
-function breakRow(it) {
+export function breakRow(it) {
   const accepted = it.members.filter((m) => m.response === "accepted").map((m) => m.name);
   const respond = (response, ok) => act(() => api.post(`/breaks/${it.id}/respond`, { response }), ok);
   const cancel = () => act(() => api.post(`/breaks/${it.id}/cancel`), "Geannuleerd");
@@ -293,4 +364,26 @@ export function personSheet(person, { day = null, start = null, end = null } = {
       } catch (e) { toastError(e); }
     }, icon("sun")) : null);
   return sheet(person.name, rows);
+}
+
+// ---- Al je plannen in één onderblad (planbalk onderaan) --------------------------------
+// Jouw verzoeken en afspraken, en wat anderen die je kent vandaag samen gepland hebben.
+export async function planSheet() {
+  const body = h("div", { class: "plan-sheet" });
+  const mine = await breaksCard({ always: true, title: "Jouw plannen",
+    action: h("button", { class: "link", onclick: () => { closeSheet(); planBreakSheet(); } }, "+ Plannen") });
+  mine.classList.remove("card");
+  body.append(mine);
+  const { others } = await loadPlans();
+  if (others.length) {
+    body.append(h("div", { class: "plan-others" }, sectionTitle("Plannen van anderen"),
+      others.map((o) => h("div", { class: `plan-other${o.now ? " now" : ""}` },
+        h("span", { class: "brq-time" }, h("b", null, fmt(o.start)), h("span", null, fmt(o.end))),
+        h("span", { class: "fold-avs" }, o.people.slice(0, 3).map((p) => avatar(p, "xs"))),
+        h("span", { class: "row-text" },
+          h("span", { class: "row-main" }, `${o.now ? "Nu: " : ""}${names(o.people.map((p) => p.name))}`),
+          h("span", { class: "row-sub" }, o.place ? `pauze samen · ${o.place}` : "pauze samen"))))));
+  }
+  body.append(h("a", { class: "btn ghost wide", href: "#/afspreken", onclick: () => closeSheet() }, "Alles bij Afspreken"));
+  sheet("Plannen", body);
 }

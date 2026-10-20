@@ -74,6 +74,36 @@ def summarize(members: list[dict]) -> str:
     return "pending"
 
 
+def already_asked(existing: list[dict], sender: int, to_ids: list[int], start: int, end: int) -> dict | None:
+    """Loopt er al een verzoek op (een stuk van) dit moment met (een van) dezelfde mensen?
+    existing: [{id, from_id, start, end, members: {pid: response}}] (niet geannuleerd).
+    -> {"kind": "mine"|"theirs", "state": "pending"|"accepted", "who": [ids], "item": e} of None.
+    'mine' = jij vroeg het al, 'theirs' = zij vroegen het jou al. Geweigerd telt niet meer."""
+    for e in existing:
+        if not (e["start"] < end and e["end"] > start):
+            continue
+        ms = e["members"]
+        if e["from_id"] == sender:
+            who = [i for i in to_ids if ms.get(i) in ("pending", "accepted")]
+            if who:
+                state = "accepted" if any(ms[i] == "accepted" for i in who) else "pending"
+                return {"kind": "mine", "state": state, "who": who, "item": e}
+        elif e["from_id"] in to_ids and ms.get(sender) in ("pending", "accepted"):
+            return {"kind": "theirs", "state": ms[sender], "who": [e["from_id"]], "item": e}
+    return None
+
+
+def dup_message(hit: dict, name_of) -> str:
+    e = hit["item"]
+    span = f"{logic.fmt(e['start'])}–{logic.fmt(e['end'])}"
+    who = logic.names([name_of(i) for i in hit["who"]])
+    if hit["state"] == "accepted":
+        return f"Je hebt al pauze met {who} ({span})."
+    if hit["kind"] == "mine":
+        return f"Je vroeg {who} al pauze ({span}). Wacht op een antwoord of trek het eerst in."
+    return f"{who} vroeg jou al pauze ({span}). Antwoord op die vraag bij Pauzes."
+
+
 def flip(mode: str) -> str:
     """Tegenvoorstel: 'ik kom naar jou' van de ander is 'jij komt naar mij' van jou."""
     return {"i_come": "you_come", "you_come": "i_come"}.get(mode, mode)
@@ -138,8 +168,25 @@ def _name(pid: int) -> str:
     return r["name"] if r else "?"
 
 
-def _create(sender: int, to_ids: list[int], day: dt.date, start: int, end: int, mode: str, place, note) -> int:
-    """Controleert iedereen en maakt het verzoek; meldt het aan wie gevraagd wordt."""
+def _existing(pid: int, day: dt.date, ignore: int | None = None) -> list[dict]:
+    """Verzoeken op `day` van of aan `pid` (niet geannuleerd), voor already_asked."""
+    rows = db.rows(
+        "SELECT DISTINCT b.id, b.from_id, b.start_min, b.end_min FROM break_requests b "
+        "LEFT JOIN break_request_members m ON m.request_id=b.id "
+        "WHERE b.cancelled_at IS NULL AND b.day=%s AND (b.from_id=%s OR m.person_id=%s)", (day, pid, pid))
+    out = []
+    for r in rows:
+        if r["id"] == ignore:
+            continue
+        ms = {m["person_id"]: m["response"] for m in _members(r["id"])}
+        out.append({"id": r["id"], "from_id": r["from_id"], "start": r["start_min"], "end": r["end_min"], "members": ms})
+    return out
+
+
+def _create(sender: int, to_ids: list[int], day: dt.date, start: int, end: int, mode: str, place, note,
+            ignore: int | None = None) -> int:
+    """Controleert iedereen en maakt het verzoek; meldt het aan wie gevraagd wordt.
+    Liep er al een verzoek met dezelfde mensen op dat moment: 409 (geen dubbele vraag)."""
     _check_time(day, start, end)
     to_ids = sorted({i for i in to_ids if i != sender})
     if not to_ids:
@@ -158,6 +205,10 @@ def _create(sender: int, to_ids: list[int], day: dt.date, start: int, end: int, 
     bad = [w for w in (conflict(people[i], infos[i], start, end, when) for i in to_ids) if w]
     if bad:
         raise HTTPException(400, {"code": "busy", "message": logic.names(bad) + "."})
+    hit = already_asked(_existing(sender, day, ignore), sender, to_ids, start, end)
+    if hit:
+        raise HTTPException(409, {"code": "dup", "message": dup_message(hit, lambda i: people[i].name),
+                                  "request": hit["item"]["id"]})
     place = (place or "").strip() or None
     if mode == "meet" and not place:
         place = None
@@ -252,6 +303,47 @@ def list_for(pid: int) -> list[dict]:
     return out
 
 
+def others_planned(viewer: int) -> list[dict]:
+    """Wat anderen (die jij kent) vandaag samen gepland hebben, zonder jou: 'Kayra en Yeno, 12:30–13:30'.
+    Dat staat ook als gebeurtenis in de groepschat; hier zie je het naast je eigen plannen."""
+    today, now = _today(), now_min()
+    known = known_ids(viewer)
+    rows = db.rows("SELECT b.*, p.name AS from_name FROM break_requests b JOIN people p ON p.id=b.from_id "
+                   "WHERE b.cancelled_at IS NULL AND b.day=%s AND b.end_min > %s ORDER BY b.start_min", (today, now))
+    out = []
+    for r in rows:
+        ms = _members(r["id"])
+        yes = [m for m in ms if m["response"] == "accepted"]
+        ids = [r["from_id"]] + [m["person_id"] for m in yes]
+        if not yes or viewer in ids or viewer in (m["person_id"] for m in ms) or not all(i in known for i in ids):
+            continue
+        out.append({"id": r["id"], "start": r["start_min"], "end": r["end_min"],
+                    "people": [{"id": r["from_id"], "name": r["from_name"]}] + [{"id": m["person_id"], "name": m["name"]} for m in yes],
+                    "place": r["place"] if r["mode"] == "meet" else None,
+                    "now": r["start_min"] <= now < r["end_min"]})
+    return out
+
+
+def planned_with(pid: int, day: dt.date) -> list[dict]:
+    """Voor de meldingen: met wie heeft `pid` op `day` al iets lopen?
+    -> [{start, end, ids (de anderen), state: 'planned'|'pending'}]"""
+    out = []
+    for e in _existing(pid, day):
+        ms = e["members"]
+        if e["from_id"] == pid:
+            yes = [i for i, r in ms.items() if r == "accepted"]
+            open_ = [i for i, r in ms.items() if r == "pending"]
+            if yes:
+                out.append({"start": e["start"], "end": e["end"], "ids": yes, "state": "planned"})
+            if open_:
+                out.append({"start": e["start"], "end": e["end"], "ids": open_, "state": "pending"})
+        elif ms.get(pid) in ("pending", "accepted"):
+            others = [e["from_id"]] + [i for i, r in ms.items() if r == "accepted" and i != pid]
+            out.append({"start": e["start"], "end": e["end"], "ids": others,
+                        "state": "planned" if ms[pid] == "accepted" else "pending"})
+    return out
+
+
 # ---- API -----------------------------------------------------------------------
 
 class BreakIn(BaseModel):
@@ -272,7 +364,7 @@ def breaks(request: Request):
     items = list_for(ctx.person_id)
     # pending_for_me: vragen aan jou zonder antwoord (Home springt dan niet meteen naar je rooster)
     return {"items": items, "pending_for_me": sum(1 for x in items if x["my_response"] == "pending"),
-            "today": _today().isoformat(), "now_min": now_min()}
+            "others": others_planned(ctx.person_id), "today": _today().isoformat(), "now_min": now_min()}
 
 
 @router.post("/breaks")
@@ -346,7 +438,7 @@ def propose(rid: int, body: ProposeIn, request: Request):
     if not mine:
         raise HTTPException(404, {"code": "gone", "message": "Dit verzoek is niet voor jou."})
     new = _create(ctx.person_id, [r["from_id"]], r["day"], body.start_min, body.end_min, flip(r["mode"]), r["place"],
-                  f"ander uur dan {_span(r)}")
+                  f"ander uur dan {_span(r)}", ignore=rid)
     db.run("UPDATE break_request_members SET response='declined', responded_at=UTC_TIMESTAMP() WHERE request_id=%s AND person_id=%s",
            (rid, ctx.person_id))
     return {"ok": True, "id": new}
