@@ -6,6 +6,7 @@ import {
 } from "../app.js";
 import { h, clear, ago, icon, store, isIOS, isStandalone } from "../util.js";
 import { sectionTitle } from "./common.js";
+import { prefs } from "./grid.js";
 
 export async function render(root) {
   const me = myPerson();
@@ -33,7 +34,8 @@ export async function render(root) {
     if (!compact && !isIOS() && !/Android/.test(navigator.userAgent)) root.append(desktopCard());
     root.append(await devicesCard(reload));
   }
-  root.append(startCard());
+  // Kleine app (menubalk/systeemvak): die opent altijd op je rooster, met eigen instellingen
+  root.append(compact ? tinyCard() : startCard());
   if (isAdmin()) {
     root.append(h("section", { class: "card" }, h("button", { class: "row-btn", onclick: () => go("#/opties/admin") },
       icon("shield"), h("span", { class: "row-text" }, h("span", { class: "row-main" }, "Beheer"), h("span", { class: "row-sub" }, "Toegang, groepen, mensen, backup")), icon("chevron", "ico chev"))));
@@ -399,6 +401,25 @@ async function devicesCard(reload) {
         try { const r = await api.del(`/devices/${d.id}`); undoToast(r, null, reload); reload(); } catch (e) { toastError(e); }
       } }, icon("trash"))));
   }
+  return card;
+}
+
+// ---- Kleine app ------------------------------------------------------------------
+function tinyCard() {
+  const card = h("section", { class: "card" }, sectionTitle("Kleine app"));
+  const days = h("select", { "aria-label": "Aantal dagen bij openen" },
+    [1, 2, 3, 4, 5].map((n) => h("option", { value: n, selected: prefs.tinyDays === n }, n === 1 ? "1 dag" : n === 5 ? "5 dagen (week)" : `${n} dagen`)));
+  days.addEventListener("change", () => { prefs.tinyDays = Number(days.value); toast("Onthouden"); });
+  const classic = h("input", { type: "checkbox", role: "switch", checked: store.get("tiny.classic", false) });
+  classic.addEventListener("change", () => {
+    store.set("tiny.classic", classic.checked);
+    // De balk bovenaan wordt bij het opstarten gebouwd: even herladen
+    location.reload();
+  });
+  card.append(
+    h("label", { class: "field tiny-days" }, h("span", null, "Aantal dagen bij openen (met + zet je er tijdelijk een bij)"), days),
+    h("label", { class: "switch-row tiny-classic" }, h("span", { class: "row-text" }, h("span", { class: "row-main" }, "Klassieke weergave"),
+      h("span", { class: "row-sub" }, "Tabbladen bovenaan (Rooster, Vergelijk, Afspreken) in plaats van enkel je rooster.")), classic));
   return card;
 }
 

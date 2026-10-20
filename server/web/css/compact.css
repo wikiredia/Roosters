@@ -1,1 +1,114 @@
-/* compact */
+/* Kleine app (menubalk/systeemvak, ?compact=1) en je eigen rooster: pauzes en na school aantikken. */
+
+/* ---- Afgeronde hoeken (Mac) ----
+   Het venster is doorzichtig met echt wazig glas dat zelf al afgerond is (lib.rs, RADIUS).
+   De pagina knipt zichzelf op dezelfde ronding af, ook vaste lagen (balk, onderblad, schaduw).
+   Windows 11 rondt het venster zelf af (randloos venster met schaduw). */
+body.compact.desktop { --win-radius: 12px; }
+html:has(body.compact.desktop.mac) { background: transparent; clip-path: inset(0 round var(--win-radius, 12px)); }
+body.compact.desktop.mac { background: transparent; }
+body.compact.desktop.mac::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; border-radius: var(--win-radius);
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+}
+body.compact.desktop.mac .shade { border-radius: var(--win-radius); }
+body.compact.desktop.mac .sheet { border-radius: 18px 18px var(--win-radius) var(--win-radius); }
+
+/* ---- Kleine app: enkel ☰ en Vergelijk bovenaan, de rest is je rooster ---- */
+body.tiny { --tabbar: 0px; }
+body.tiny .view { padding: 46px 8px 8px; max-width: none; }
+body.tiny .tabs {
+  display: flex; align-items: center; gap: 6px; height: 42px; padding: 5px 8px;
+  top: 0; bottom: auto; left: 0; right: 0; width: auto; transform: none; border-radius: 0; box-shadow: none;
+  border: 0; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+body.tiny:not([data-view="rooster"]) .tabs { background: color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+body.tiny .tabs button {
+  flex-direction: row; gap: 6px; min-height: 32px; padding: 0 10px; border-radius: 999px; font-size: 14px; color: var(--ink);
+  justify-content: center;
+}
+body.tiny .tabs button .ico { width: 18px; height: 18px; }
+body.tiny .tiny-menu { width: 36px; padding: 0; background: var(--card); box-shadow: var(--shadow); }
+body.tiny .tiny-menu .ico { width: 20px; height: 20px; stroke-width: 2.4; }
+body.tiny .tiny-title { margin-right: auto; color: var(--muted); font-weight: 700; padding-left: 4px; }
+body.tiny .tiny-title .ico { width: 16px; height: 16px; }
+body.tiny[data-view="rooster"] .tiny-title { visibility: hidden; }
+body.tiny .tiny-cmp { background: var(--card); box-shadow: var(--shadow); font-weight: 700; }
+body.tiny .tiny-cmp[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+body.tiny .tiny-menu .badge-dot { top: -8px; right: -10px; }
+body.tiny #banner .banner { margin-top: 44px; }
+body.tiny #toasts { bottom: 10px; }
+/* Je rooster vult het venster: niets scrollt (vegen tussen dagen kan wel) */
+body.tiny[data-view="rooster"] { overflow: hidden; }
+body.tiny .view-rooster .calv { border-radius: 14px; }
+body.tiny .view-rooster .source-error { margin-top: 4px; font-size: 12px; }
+
+/* Smalle strook rechts van het rooster: + (dag erbij), − (dag minder) */
+.calv-rail { flex: 0 0 26px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 14px; border-left: 1px solid var(--line); }
+.calv-add {
+  width: 22px; height: 22px; border: 0; border-radius: 99px; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent); font-weight: 800; font-size: 16px; line-height: 1;
+}
+.calv-add .ico { width: 14px; height: 14px; stroke-width: 3; }
+.calv-add.minus { background: var(--card-2); color: var(--muted); }
+.calv-add:disabled { opacity: .35; cursor: default; }
+
+/* Menu (☰ / ⋯): het bolletje staat rechts in de rij */
+.row-badge { margin-left: auto; display: inline-flex; }
+.row-badge .badge-dot { position: static; box-shadow: none; }
+
+/* ---- Rooster: pauzes en na school ---- */
+.slot {
+  position: absolute; left: 3px; right: 3px; z-index: 1; border: 0; border-radius: 8px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 2px 4px;
+  font-size: 11px; font-weight: 650; line-height: 1.15; color: var(--muted); background: transparent; overflow: hidden; text-align: center;
+}
+.slot .s-main { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.slot .s-who { display: inline-flex; align-items: center; gap: 3px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.slot .s-who .ico { width: 12px; height: 12px; flex: none; }
+.slot:hover { background: color-mix(in srgb, var(--card-2) 70%, transparent); }
+.brk-slot { box-shadow: inset 0 0 0 1.5px var(--line); }
+.brk-slot.shared { background: var(--together-soft); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--together) 75%, transparent); color: var(--together-ink); }
+.brk-slot.shared:hover { background: color-mix(in srgb, var(--together) 40%, transparent); }
+.after-slot { justify-content: flex-start; padding-top: 6px; border-radius: 8px 8px 4px 4px; box-shadow: inset 0 1.5px 0 var(--line); }
+.after-slot.shared { color: var(--ink); }
+.after-slot.chill { background: var(--together-soft); color: var(--together-ink); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--together) 75%, transparent); }
+@media (prefers-color-scheme: dark) { .brk-slot.shared, .after-slot.chill { color: var(--together); } }
+.slot.past { opacity: .45; }
+.slot.tight { flex-direction: row; padding: 0 4px; }
+.calv.cols-5 .slot .s-main, .calv.cols-4 .slot .s-main { display: none; }
+.calv.cols-5 .slot, .calv.cols-4 .slot { font-size: 10px; padding: 1px 2px; }
+.calh-track .slot { top: 3px; bottom: 3px; right: auto; flex-direction: row; gap: 6px; }
+.calh-track .after-slot { justify-content: flex-start; padding: 0 8px; box-shadow: inset 1.5px 0 0 var(--line); }
+
+/* 'Nieuw': klein en rustig, en weg zodra je de les opende */
+.cal-blk.changed { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--together) 80%, transparent); }
+.cal-blk .b-badge.new {
+  background: transparent; color: var(--together-ink); box-shadow: inset 0 0 0 1px var(--together);
+  text-transform: lowercase; font-weight: 750; font-size: 9.5px; padding: 0 5px;
+}
+@media (prefers-color-scheme: dark) { .cal-blk .b-badge.new { color: var(--together); } }
+
+/* 'Vergelijk met Kayra en Corneel? Jullie hebben dezelfde pauzes.' */
+.same-prompt {
+  display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 6px 6px 6px 12px;
+  background: var(--together-soft); border-radius: 14px; font-size: 14px; font-weight: 650;
+}
+.same-prompt > span { flex: 1; min-width: 0; }
+.same-prompt .icon-btn { width: 34px; height: 34px; }
+
+/* Onderbladen: pauze / na school */
+.slot-sheet .picker-group { margin-top: 14px; }
+.slot-same {
+  display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; padding: 8px 8px 8px 12px;
+  background: var(--together-soft); border-radius: 12px; font-weight: 650; font-size: 15px;
+}
+.slot-same span { flex: 1; }
+.slot-none { font-weight: 650; color: var(--muted); padding: 8px 0; }
+.slot-me { display: flex; align-items: center; gap: 10px; font-weight: 650; padding: 4px 0 8px; }
+.slot-me .dot { width: 10px; height: 10px; border-radius: 99px; background: var(--ok); flex: none; }
+.slot-me .link { margin-left: auto; }
+.slot-sheet > .btn.wide { margin-top: 4px; }
+.slot-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.slot-person { min-height: 50px; padding: 8px 2px; }

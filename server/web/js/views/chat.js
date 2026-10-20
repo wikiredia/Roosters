@@ -182,7 +182,7 @@ async function conversation(root, chatId) {
   root.classList.add("chat-open");
   const log = h("div", { class: "chat-log", role: "log", "aria-live": "polite", "aria-label": "Berichten" });
   const input = h("textarea", { class: "chat-input", rows: "1", maxlength: "2000", placeholder: "Bericht", "aria-label": "Bericht" });
-  const sendBtn = h("button", { type: "button", class: "chat-send", "aria-label": "Versturen", disabled: true }, icon("send"));
+  const sendBtn = h("button", { type: "submit", class: "chat-send", "aria-label": "Versturen", disabled: true }, icon("send"));
   const bell = h("button", { type: "button", class: "icon-btn chat-bell" });
   const head = h("header", { class: "chat-head" },
     h("button", { type: "button", class: "icon-btn", "aria-label": "Terug naar Chat", onclick: () => go("#/chat") }, icon("back")),
