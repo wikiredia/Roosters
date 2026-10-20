@@ -188,6 +188,9 @@ def send_pending():
             n = uniq[0]
             payload = db.unjs(n["payload"], {})
             msg = {"title": n["title"], "body": n["body"], "url": _url(payload), "tag": f"roosters-{n['kind']}"}
+            # Pauze-verzoek: de Ja/Nee-knoppen in de melding (sw.js) weten zo over welk verzoek het gaat
+            if payload.get("request"):
+                msg["request"] = int(payload["request"])
         else:
             lines = [n["body"] for n in uniq[:4]]
             if len(uniq) > 4:

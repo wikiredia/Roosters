@@ -221,7 +221,7 @@ function announceChanges(data, own) {
   remember(ANNOUNCED, fresh);
   const l = fresh[0];
   toast(fresh.length === 1
-    ? `${l.title} (${dayWord(l.day, data.today)} ${fmt(l.start)}): ${changedLine(l, data.today).toLowerCase()}`
+    ? `${l.title} (${dayWord(l.day, data.today)} ${fmt(l.start)}): ${changedLine(l, data.today).replace(/^G/, "g")}`
     : `${fresh.length} lessen zijn gewijzigd. ${changedLine(l, data.today)}.`, { ms: 3500 });
 }
 

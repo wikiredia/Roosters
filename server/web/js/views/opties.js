@@ -21,6 +21,8 @@ export async function render(root) {
     who.append(h("p", { class: "muted" }, "Je hebt nog niet gekozen wie je bent."), h("a", { class: "btn", href: "#/home" }, "Kies je naam"));
   }
   root.append(who);
+  // Kleine app (menubalk/systeemvak): eigen instellingen bovenaan; ze opent altijd op je rooster
+  if (compact) root.append(tinyCard());
 
   if (me) root.append(await sourcesCard(reload));
   if (me && isApproved()) {
@@ -34,8 +36,7 @@ export async function render(root) {
     if (!compact && !isIOS() && !/Android/.test(navigator.userAgent)) root.append(desktopCard());
     root.append(await devicesCard(reload));
   }
-  // Kleine app (menubalk/systeemvak): die opent altijd op je rooster, met eigen instellingen
-  root.append(compact ? tinyCard() : startCard());
+  if (!compact) root.append(startCard());
   if (isAdmin()) {
     root.append(h("section", { class: "card" }, h("button", { class: "row-btn", onclick: () => go("#/opties/admin") },
       icon("shield"), h("span", { class: "row-text" }, h("span", { class: "row-main" }, "Beheer"), h("span", { class: "row-sub" }, "Toegang, groepen, mensen, backup")), icon("chevron", "ico chev"))));
