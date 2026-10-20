@@ -239,6 +239,50 @@ def now_status(p: PersonDay, info: DayInfo, now: int) -> dict:
     return {"code": "geen", "text": "Geen les vandaag", "rank": 7}
 
 
+# 'Vraag om te chillen' kan vanaf zoveel minuten voor het einde van een les (of je laatste les)
+PING_SOON = 20
+# ... en tot zoveel minuten na je laatste les (daarna ben je wellicht al weg)
+PING_AFTER = 60
+
+
+def board_status(p: PersonDay, info: DayInfo, now: int) -> dict:
+    """Nu-bord met meer uitleg: een hoofdregel (text), een tweede regel (sub, of None), en of je
+    die persoon kan vragen om te chillen (can_ping: niet in les, of pauze/klaar binnen PING_SOON).
+    -> {code, text, sub, can_ping, rank, until}"""
+    ci = p.checkin or {}
+    st = ci.get("status")
+    busy = info.busy
+    last = busy[-1][1] if busy else None
+    if st == "absent":
+        return {"code": "absent", "text": "Is er vandaag niet", "sub": None, "can_ping": False, "rank": 6, "until": None}
+    if info.left_at is not None and now >= info.left_at:
+        return {"code": "home", "text": f"Naar huis sinds {fmt(info.left_at)}", "sub": None, "can_ping": False, "rank": 5,
+                "until": None}
+    breaks = [(s, e) for s, e in info.free if last is not None and e <= last]
+    home_at = f"Gaat naar huis om {fmt(last)}" if last is not None and st not in CHILL else None
+    for s, e in busy:
+        if s <= now < e:
+            nxt = next(((bs, be) for bs, be in breaks if bs >= e), None)
+            sub = f"Heeft pauze om {fmt(nxt[0])}" if nxt else home_at
+            return {"code": "les", "text": f"Heeft nog les tot {fmt(e)}", "sub": sub, "can_ping": e - now <= PING_SOON,
+                    "rank": 2, "until": e}
+    if busy and now < busy[0][0]:
+        return {"code": "straks", "text": f"Les om {fmt(busy[0][0])}", "sub": home_at, "can_ping": False, "rank": 3,
+                "until": busy[0][0]}
+    for s, e in info.free:
+        if s <= now < e:
+            if last is not None and now < last:
+                return {"code": "pauze", "text": f"Heeft pauze tot {fmt(e)}", "sub": home_at, "can_ping": True, "rank": 0,
+                        "until": e}
+            label = "Aan het chillen in Antwerpen" if st == "chilling" else "Wil chillen in Antwerpen"
+            tail = "" if e >= LATE else f" (tot {fmt(e)})"
+            return {"code": "chill", "text": label + tail, "sub": None, "can_ping": True, "rank": 1, "until": e}
+    if busy:
+        return {"code": "klaar", "text": f"Klaar sinds {fmt(last)}", "sub": None, "can_ping": now - last <= PING_AFTER,
+                "rank": 4, "until": None}
+    return {"code": "geen", "text": "Geen les vandaag", "sub": None, "can_ping": False, "rank": 7, "until": None}
+
+
 def travel_pairs(people: dict, infos: dict, prefs: dict):
     """Samen naar school (zelfde woonplaats, zelfde campus, eerste les ±15 min) en samen naar huis.
 

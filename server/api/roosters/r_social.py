@@ -5,7 +5,7 @@ import urllib.parse
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import access, db, logic, notify
+from . import access, db, events, logic, notify
 from .access import load_ctx
 from .daydata import load as load_day, now_local, now_min, relevant
 from .r_access import visible_people
@@ -41,7 +41,10 @@ def _travel_for(me_id, day, people, infos):
         mine = t["time_a"] if t["a"] == me_id else t["time_b"]
         theirs = t["time_b"] if t["a"] == me_id else t["time_a"]
         out.append({"other": {"id": other, "name": people[other].name}, "kind": t["kind"], "day": day.isoformat(),
-                    "time": mine, "their_time": theirs, "pref": prefs.get((me_id, other))})
+                    "time": mine, "their_time": theirs, "pref": prefs.get((me_id, other)),
+                    "buddy": prefs.get((me_id, other)) == "always"})
+    # Zelf gekozen reismaatjes eerst
+    out.sort(key=lambda x: (not x["buddy"], x["day"], x["kind"] != "heen", x["time"]))
     return out
 
 
@@ -103,17 +106,21 @@ def home(request: Request):
             my_breaks.append({"start": s, "end": e, "same_campus": same, "people": [pname(i) for i in ids],
                               "now": s <= now < e})
 
-    # Nu-bord
+    # Nu-bord: iedereen die je kent (vriendengroep en wie je aanduidde), met wat ze nu doen
     board = []
+    known = known_ids(me.id) if me else None
+    mates = friend_mates(me.id) if me else set()
     for pid, p in people.items():
         if me and pid == me.id:
             continue
-        st = logic.now_status(p, infos[pid], now)
-        if st["code"] == "geen":
+        if known is not None and pid not in known:
             continue
-        board.append({**pname(pid), **st, "close": _closeness(me, p),
+        st = logic.board_status(p, infos[pid], now)
+        if st["code"] == "geen" and known is None:
+            continue
+        board.append({**pname(pid), **st, "close": _closeness(me, p), "friend": pid in mates,
                       "with": p.checkin.get("with_text") if p.checkin else None})
-    board.sort(key=lambda b: (b["close"], b["rank"], b["name"].lower()))
+    board.sort(key=lambda b: (b["code"] == "geen", b["close"], b["rank"], b["name"].lower()))
 
     # Meldingen van vandaag (alles wat als push kwam, en meer)
     feed = []
@@ -201,15 +208,32 @@ def checkin(body: CheckinIn, request: Request):
     labels = {"chilling": "Al aant chillen", "want_chill": "Ik wil chillen", "home": "Ik ga naar huis",
               "absent": "Ik ben er vandaag niet", "skip": "Check-in overgeslagen", "clear": "Check-in gewist"}
     undo = access.record(ctx, "checkin", labels[body.status], {"person_id": ctx.person_id, "day": t.isoformat(), "before": before})
-    if body.status in ("chilling", "want_chill"):
+    if body.status in STAY_EVENT:
         _announce_stay(ctx.person_id, body, t)
     return {"ok": True, "undo": undo}
 
 
+STAY_EVENT = {
+    "chilling": "{name} is aan het chillen in Antwerpen",
+    "want_chill": "{name} wil chillen in Antwerpen",
+    "home": "{name} gaat naar huis",
+    "absent": "{name} is er vandaag niet",
+}
+
+
 def _announce_stay(pid, body, t):
+    """Chillen: push naar je vriendengroep (anderen binnen hun bereik zien het enkel op Home),
+    en bij elke check-in een blokje in de groepschat."""
     people, infos, _ = load_day(t)
     me = people.get(pid)
     if not me:
+        return
+    if body.status in STAY_EVENT:
+        until = f" tot {logic.fmt(body.until_min)}" if body.until_min and body.status in logic.CHILL else ""
+        events.post(pid, STAY_EVENT[body.status].format(name=me.name) + until,
+                    payload={"open": "rooster", "people": [pid], "status": body.status}, scope="friends",
+                    dedupe=f"checkin:{t}:{pid}:{body.status}", day=t)
+    if body.status not in logic.CHILL:
         return
     who = [people[i].name for i in body.with_ids if i in people]
     if body.with_text:
@@ -218,13 +242,57 @@ def _announce_stay(pid, body, t):
     if body.status == "chilling":
         text = f"{me.name} is aan het chillen" + (f" met {logic.names(who)}" if who else "") + until + "."
     else:
-        text = f"{me.name} blijft in Antwerpen en wil chillen{until}."
+        text = f"{me.name} blijft in Antwerpen en wil chillen{until}. Doe je mee?"
+    mates = friend_mates(pid)
     scopes = notify.all_scopes()
     for oid, other in people.items():
-        if oid == pid or not relevant(other, me, scopes.get(oid, notify.DEFAULT_SCOPE)):
+        if oid == pid:
+            continue
+        friend = oid in mates
+        if not friend and not relevant(other, me, scopes.get(oid, notify.DEFAULT_SCOPE)):
             continue
         notify.enqueue(oid, "blijven", f"blijven:{t}:{pid}:{body.status}:{body.until_min}", "Wie blijft er?", text,
-                       {"open": "afspreken", "people": [pid, oid]}, t)
+                       {"open": "afspreken", "people": [pid, oid]}, t, push=friend)
+
+
+# ---- Vraag aan een vriend: wil je chillen? -------------------------------------
+
+PING_KINDS = {"chill": ("Chillen?", "{name} vraagt of je wil chillen.")}
+PING_GAP_MIN = 30  # hoogstens één vraag per persoon per half uur
+
+
+class PingIn(BaseModel):
+    to_id: int
+    kind: str = Field(default="chill", pattern="^(chill)$")
+
+
+@router.post("/ping")
+def ping(body: PingIn, request: Request):
+    ctx = load_ctx(request)
+    access.need_person(ctx)
+    me = ctx.person_id
+    if body.to_id == me:
+        raise HTTPException(400, {"code": "self", "message": "Dat ben je zelf."})
+    if body.to_id not in known_ids(me):
+        raise HTTPException(404, {"code": "noperson", "message": "Die persoon ken je (nog) niet."})
+    other = db.one("SELECT name FROM people WHERE id=%s AND deleted_at IS NULL", (body.to_id,))
+    if not other:
+        raise HTTPException(404, {"code": "noperson", "message": "Die persoon bestaat niet (meer)."})
+    access.rate_limit(f"ping:{me}", 20, 3600)
+    recent = db.one("SELECT 1 AS x FROM pings WHERE from_id=%s AND to_id=%s AND kind=%s"
+                    " AND created_at > UTC_TIMESTAMP() - INTERVAL %s MINUTE", (me, body.to_id, body.kind, PING_GAP_MIN))
+    if recent:
+        raise HTTPException(429, {"code": "rate", "message": f"Je vroeg het net al aan {other['name']}."})
+    pid = db.run("INSERT INTO pings (from_id, to_id, kind) VALUES (%s,%s,%s)", (me, body.to_id, body.kind))
+    name = db.one("SELECT name FROM people WHERE id=%s", (me,))["name"]
+    title, text = PING_KINDS[body.kind]
+    text = text.format(name=name)
+    # Ook in jullie gesprek, zodat de ander daar meteen kan antwoorden
+    chat = events.dm_chat(me, body.to_id)
+    db.run("INSERT INTO chat_messages (chat_id, person_id, kind, body, payload) VALUES (%s,%s,'event',%s,%s)",
+           (chat, me, text, db.js({"ping": body.kind, "actors": [me]})))
+    notify.enqueue(body.to_id, "chill_vraag", f"ping:{pid}", title, text, {"open": "chat", "chat": chat, "from": me}, today())
+    return {"ok": True, "chat": chat, "message": f"{other['name']} krijgt een melding."}
 
 
 # ---- Afspreken ---------------------------------------------------------------

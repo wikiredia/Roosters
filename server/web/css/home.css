@@ -1,1 +1,85 @@
-/* home */
+/* home: meldingen met icoontjes, nu-bord, samen reizen, 'bekijk rooster van' */
+
+/* ---- Meldingen: icoontje links, tekst rechts ---- */
+.feed-item { flex-direction: row; align-items: flex-start; gap: 12px; }
+.f-ico-wrap {
+  flex: none; width: 34px; height: 34px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--card-2); color: var(--muted); margin-top: 1px;
+}
+.f-ico-wrap .ico { width: 18px; height: 18px; }
+.feed-item.k-wijziging .f-ico-wrap { background: var(--together-soft); color: var(--together-ink); }
+.feed-item.k-toegang .f-ico-wrap, .feed-item.k-apparaat .f-ico-wrap, .feed-item.k-cert .f-ico-wrap { background: var(--accent-soft); color: var(--accent); }
+.feed-item.k-pauze_nu .f-ico-wrap, .feed-item.k-pauze_wijzig .f-ico-wrap, .feed-item.k-andere_campus .f-ico-wrap,
+.feed-item.k-pauze_verzoek .f-ico-wrap, .feed-item.k-ochtend .f-ico-wrap { background: var(--together-soft); color: var(--together-ink); }
+.feed-item.k-blijven .f-ico-wrap, .feed-item.k-chill_vraag .f-ico-wrap { background: rgba(31, 157, 85, .14); color: var(--ok); }
+@media (prefers-color-scheme: dark) {
+  .feed-item.k-wijziging .f-ico-wrap, .feed-item.k-pauze_nu .f-ico-wrap, .feed-item.k-pauze_wijzig .f-ico-wrap,
+  .feed-item.k-andere_campus .f-ico-wrap, .feed-item.k-pauze_verzoek .f-ico-wrap, .feed-item.k-ochtend .f-ico-wrap { color: var(--together); }
+}
+.f-content { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.f-content .btn { align-self: flex-start; margin-top: 6px; }
+/* Roosterwijziging: oud doorstreept, nieuw eronder */
+.f-body.chg { display: flex; flex-direction: column; gap: 1px; white-space: normal; }
+.f-body.chg s { color: var(--muted); }
+.chg-tag { align-self: flex-start; font-size: 11px; font-weight: 800; text-transform: uppercase; background: var(--card-2); color: var(--muted); padding: 1px 7px; border-radius: 99px; margin-top: 2px; }
+
+/* ---- Jouw dag: rij + 'Vraag'-knop ---- */
+.break-line { display: flex; align-items: center; gap: 6px; }
+.break-line + .break-line { border-top: 1px solid var(--line); }
+.break-line .break-row { flex: 1; min-width: 0; }
+.break-line .break-row .time { min-width: 86px; }
+.break-line.now { background: var(--together-soft); border-radius: 14px; padding-right: 8px; }
+.break-line.now .break-row { background: none; padding-left: 10px; }
+.break-row .f-ico { color: var(--muted); width: 18px; height: 18px; }
+.home-ask { flex: none; }
+
+/* ---- Nu-bord ---- */
+.now-card .board li { padding: 4px 0; gap: 8px; }
+.board .b-main {
+  display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; border: 0; background: none; text-align: left;
+  padding: 6px 4px; border-radius: 12px; cursor: pointer;
+}
+.board .b-main:hover { background: var(--card-2); }
+.b-who { display: flex; flex-direction: column; min-width: 0; }
+.board .b-name { min-width: 0; }
+.board .b-text { margin-left: 0; text-align: left; font-size: 14.5px; }
+.b-sub { font-size: 13px; color: var(--muted); }
+.board li.friend .b-name::after { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 9px; background: var(--accent); margin-left: 6px; vertical-align: 3px; opacity: .7; }
+.ping-btn { flex: none; gap: 5px; padding: 6px 11px; min-height: 34px; background: var(--together-soft); box-shadow: none; color: var(--ink); }
+.ping-btn .ico { width: 16px; height: 16px; }
+.ping-btn:disabled { opacity: .7; }
+.board .st-geen { opacity: .55; }
+
+/* ---- Samen reizen: reismaatje groot, voorstellen klein ---- */
+.travel.buddy { display: flex; align-items: center; gap: 12px; padding: 10px 12px; margin: 4px 0; border-radius: 16px; background: var(--accent-soft); }
+.travel.buddy .row-main { font-size: 17px; }
+.travel + .travel { border-top: 0; }
+.small-travel { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 12px; padding: 6px 2px; }
+.small-travel + .small-travel, .travel.buddy + .small-travel { border-top: 1px solid var(--line); }
+.small-travel p { margin: 0; font-size: 14px; color: var(--muted); flex: 1 1 220px; }
+.travel-acts { display: inline-flex; gap: 12px; }
+.travel-acts .link { font-size: 13px; padding: 2px 0; }
+.muted-link { color: var(--muted); font-weight: 600; }
+
+/* ---- Bekijk rooster van: wie heeft pauze / is klaar / wil chillen op hetzelfde moment ---- */
+.match-now { display: flex; flex-direction: column; gap: 8px; margin: 0 0 6px; }
+.mn-line { background: var(--card-2); border-radius: 14px; padding: 8px 10px; }
+.mn-head { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 2px 0 6px; cursor: pointer; font-weight: 700; font-size: 14.5px; text-align: left; }
+.mn-head .f-ico { width: 17px; height: 17px; color: var(--muted); }
+.mn-cmp { margin-left: auto; color: var(--accent); font-size: 13px; font-weight: 650; }
+.mn-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.name-chip {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 99px; padding: 4px 11px 4px 4px; min-height: 32px;
+  background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-weight: 650; font-size: 14px; cursor: pointer;
+}
+.picker-group.group-cmp {
+  display: flex; align-items: center; gap: 4px; width: 100%; border: 0; background: none; padding: 4px 0; cursor: pointer; text-align: left;
+}
+.gc-go { margin-left: auto; color: var(--accent); text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 650; }
+.group-cmp:hover .gc-go { text-decoration: underline; }
+.ci-hint { margin: 8px 0 0; }
+@media (max-width: 520px) {
+  .break-line .break-row { gap: 8px; }
+  .break-line .break-row .time { min-width: 0; }
+  .break-line .break-row .chev { display: none; }
+}

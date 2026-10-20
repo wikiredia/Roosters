@@ -58,7 +58,7 @@ def apply(src: dict, lessons: list[dict]) -> list[dict]:
     changes = []
     with db.tx() as c:
         existing = {r["uid"]: r for r in db.rows(
-            "SELECT id, uid, day, start_min, end_min, title, state, fingerprint FROM lessons WHERE source_id=%s AND day>=%s",
+            "SELECT id, uid, day, start_min, end_min, title, location, state, fingerprint FROM lessons WHERE source_id=%s AND day>=%s",
             (src["id"], today - dt.timedelta(days=1)), c)}
         seen = set()
         for l in lessons:
@@ -84,7 +84,7 @@ def apply(src: dict, lessons: list[dict]) -> list[dict]:
                     (*values, now if l["day"] >= today else None, old["id"]), c)
                 if l["day"] >= today:
                     kind = "vervallen" if l["state"] == "cancelled" and old["state"] != "cancelled" else "gewijzigd"
-                    changes.append({"type": kind, **l})
+                    changes.append({"type": kind, **l, "old": {k: old[k] for k in ("title", "start_min", "end_min", "location")}})
         # Lessen die verdwenen zijn: tonen als 'vervallen' i.p.v. stil te verdwijnen.
         # Een volledig lege reeks terwijl er wel lessen waren is verdacht (storing): dan niets weghalen.
         future_old = [r for r in existing.values() if r["day"] >= today]
@@ -95,12 +95,38 @@ def apply(src: dict, lessons: list[dict]) -> list[dict]:
                     continue
                 db.run("UPDATE lessons SET state='removed', changed_at=%s WHERE id=%s", (now, r["id"]), c)
                 changes.append({"type": "vervallen", "day": r["day"], "start_min": r["start_min"],
-                                "end_min": r["end_min"], "title": r["title"]})
+                                "end_min": r["end_min"], "title": r["title"], "location": r["location"]})
         db.run("DELETE FROM lessons WHERE source_id=%s AND day < %s", (src["id"], today - dt.timedelta(days=7)), c)
         db.run("UPDATE sources SET last_sync=%s, last_ok=%s, last_error=NULL, refresh_requested=0 WHERE id=%s",
                (now, now, src["id"]), c)
     _notify_changes(src["person_id"], changes, today)
     return changes
+
+
+def _side(title, start, end, location) -> dict:
+    return {"title": title, "start": start, "end": end, "location": location or None}
+
+
+def change_text(ch: dict) -> str:
+    """Kort: enkel vak, uur en lokaal, en bij een wijziging enkel wat anders is (oud → nieuw)."""
+    when = f"{_fmt(ch['start_min'])}–{_fmt(ch['end_min'])}"
+    room = f" · {ch['location']}" if ch.get("location") else ""
+    if ch["type"] == "vervallen":
+        return f"Vervalt: {ch.get('title')} {when}{room}"
+    if ch["type"] == "nieuw":
+        return f"Nieuw: {ch.get('title')} {when}{room}"
+    old = ch.get("old") or {}
+    parts = []
+    renamed = bool(old.get("title")) and old["title"] != ch.get("title")
+    if renamed:
+        parts.append(f"{old['title']} → {ch.get('title')}")
+    old_when = f"{_fmt(old['start_min'])}–{_fmt(old['end_min'])}" if old.get("start_min") is not None else when
+    if old_when != when:
+        parts.append(f"{old_when} → {when}")
+    if (old.get("location") or None) != (ch.get("location") or None):
+        parts.append(f"{old.get('location') or '?'} → {ch.get('location') or '?'}")
+    body = " · ".join(parts) if parts else "details gewijzigd"
+    return body if renamed else f"{ch.get('title')}: {body}"
 
 
 def _notify_changes(person_id: int, changes: list[dict], today: dt.date):
@@ -113,16 +139,18 @@ def _notify_changes(person_id: int, changes: list[dict], today: dt.date):
         if ch.get("title") in hidden:
             continue
         when = "vandaag" if ch["day"] == today else "morgen"
-        what = {"vervallen": "vervalt", "nieuw": "is erbij gekomen", "gewijzigd": "is gewijzigd"}[ch["type"]]
-        extra = ""
-        if ch["type"] == "gewijzigd" and ch.get("location"):
-            extra = f" (lokaal {ch['location']})"
+        new = _side(ch.get("title"), ch["start_min"], ch["end_min"], ch.get("location"))
+        o = ch.get("old")
+        old = _side(o["title"], o["start_min"], o["end_min"], o.get("location")) if o else None
         notify.enqueue(
             person_id, "wijziging",
             f"wijziging:{ch['day']}:{ch['start_min']}:{ch.get('title')}:{ch['type']}:{ch.get('location')}",
-            "Roosterwijziging",
-            f"{ch.get('title')} om {_fmt(ch['start_min'])} {when} {what}{extra}.",
-            {"open": "rooster", "day": ch["day"].isoformat()},
+            f"Roosterwijziging {when}",
+            change_text(ch),
+            {"open": "rooster", "day": ch["day"].isoformat(),
+             "change": {"type": ch["type"], "old": old if ch["type"] == "gewijzigd" else None,
+                        "new": new if ch["type"] != "vervallen" else None,
+                        "was": new if ch["type"] == "vervallen" else None}},
             ch["day"],
         )
 

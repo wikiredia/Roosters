@@ -146,3 +146,41 @@ def test_travel_pairs_respect_prefs():
     assert got == {(1, 2, "heen"), (1, 2, "terug")}
     got = {(x["a"], x["b"], x["kind"]) for x in travel_pairs(people, inf, {(1, 2): "never", (3, 1): "always"})}
     assert got == {(1, 3, "heen"), (1, 3, "terug")}
+
+
+def test_board_status_lines():
+    from roosters.logic import board_status
+    p = P(1, "Nio", [(9, 10), (12, 13)])
+    i = day_info(p)
+    s = board_status(p, i, 9 * H + 5)
+    assert (s["text"], s["sub"], s["can_ping"]) == ("Heeft nog les tot 10:00", "Heeft pauze om 10:00", False)
+    assert board_status(p, i, 9 * H + 45)["can_ping"]  # pauze binnen 20 minuten
+    s = board_status(p, i, 11 * H)
+    assert (s["text"], s["sub"], s["can_ping"]) == ("Heeft pauze tot 12:00", "Gaat naar huis om 13:00", True)
+    s = board_status(p, i, 12 * H + 10)
+    assert (s["text"], s["sub"]) == ("Heeft nog les tot 13:00", "Gaat naar huis om 13:00")
+    assert board_status(p, i, 13 * H + 30)["can_ping"]
+    assert not board_status(p, i, 15 * H)["can_ping"]
+    assert board_status(p, i, 8 * H)["text"] == "Les om 9:00"
+
+
+def test_board_status_chill_and_home():
+    from roosters.logic import board_status
+    c = P(1, "Seba", [(9, 12)], checkin={"status": "want_chill", "until_min": 18 * H})
+    s = board_status(c, day_info(c), 13 * H)
+    assert s["text"] == "Wil chillen in Antwerpen (tot 18:00)" and s["can_ping"]
+    hm = P(2, "Yarno", [(9, 10), (14, 15)], checkin={"status": "home", "since_min": 11 * H})
+    s = board_status(hm, day_info(hm), 12 * H)
+    assert s["code"] == "home" and not s["can_ping"]
+
+
+def test_change_text_only_shows_what_changed():
+    import datetime as dt
+    from roosters.sync import change_text
+    d = dt.date(2026, 10, 20)
+    old = {"title": "Python", "start_min": 690, "end_min": 780, "location": "SN 1.02"}
+    base = {"type": "gewijzigd", "day": d, "start_min": 690, "end_min": 780, "title": "Python", "location": "SN 1.02"}
+    assert change_text({**base, "location": "SN 2.01", "old": old}) == "Python: SN 1.02 → SN 2.01"
+    assert change_text({**base, "start_min": 720, "end_min": 810, "old": old}) == "Python: 11:30–13:00 → 12:00–13:30"
+    assert change_text({**base, "title": "DevOps", "old": old}) == "Python → DevOps"
+    assert change_text({**base, "type": "vervallen"}) == "Vervalt: Python 11:30–13:00 · SN 1.02"
