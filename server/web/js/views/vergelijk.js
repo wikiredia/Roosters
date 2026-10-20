@@ -1,7 +1,7 @@
 // Vergelijken: eerst mensen kiezen (met wie je pauze kan nemen, wie je vaak kiest, je vrienden, je campus),
 // dan een tijdlijn per dag: wie samen pauze heeft eerst, de rest ingeklapt, en wie er ook nog pauze heeft.
 import { api } from "../api.js";
-import { state, go, myPerson, sheet } from "../app.js";
+import { state, go, myPerson, sheet, tiny } from "../app.js";
 import { h, append, clear, fmt, names, avatar, personColor, brusselsMinutes, store, icon, dayLabel } from "../util.js";
 import { dayScroller, lessonSheet, sortGroups, personToggle, knownSheet, emptyState } from "./common.js";
 import { prefs, viewControls, hourRange, freeHeight } from "./grid.js";
@@ -202,7 +202,7 @@ async function showCompare(root, ids, extra) {
     root.append(holder);
     // Zoveel mogelijk van het scherm gebruiken: dag-kop en uitleg eronder eraf
     const avail = freeHeight(holder, 64);
-    const vertical = prefs.orient === "v";
+    const vertical = tiny || prefs.orient === "v"; // kleine app: altijd verticaal
     holder.append(dayScroller(data.days, data.today, (d) => {
       const isToday = d.day === data.today;
       const plan = arrange(d, ctx);

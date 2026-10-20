@@ -124,3 +124,8 @@ body.tiny .more-list .row-btn { min-height: 42px; padding: 7px 2px; }
 .calh-track .slot.tight .s-who .ico { width: 14px; height: 14px; }
 /* Smal lesblok: 'nieuw' wordt een geel bolletje (de uitleg staat in de tooltip en bij het openen) */
 .cal-blk.compact .b-badge.new { font-size: 0; width: 8px; height: 8px; padding: 0; border-radius: 9px; background: var(--together); box-shadow: none; }
+
+/* Kleine app: Vergelijk past binnen de smallere marge, en altijd verticaal (geen keuze) */
+body.tiny .days-wrap { margin: 0 -8px; }
+body.tiny .day { padding: 0 8px; }
+body.tiny .view-vergelijk .orient-btn { display: none; }
