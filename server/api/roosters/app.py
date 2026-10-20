@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from . import access, config, db, notify, r_access, r_admin, r_schedule, r_social
+from . import access, config, db, notify, r_access, r_admin, r_breaks, r_chat, r_overview, r_schedule, r_social
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("roosters")
@@ -62,5 +62,6 @@ def health():
     return {"ok": True, "tls": config.TLS_MODE}
 
 
-for r in (r_access.router, r_schedule.router, r_social.router, r_admin.router):
+for r in (r_access.router, r_schedule.router, r_social.router, r_admin.router, r_overview.router, r_breaks.router,
+          r_chat.router):
     app.include_router(r)

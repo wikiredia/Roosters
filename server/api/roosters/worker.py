@@ -6,7 +6,7 @@ import os
 import time
 import traceback
 
-from . import certstatus, config, db, geoip, logic, notify, sync
+from . import certstatus, config, db, events, geoip, logic, notify, sync
 from .daydata import load as load_day, now_local, relevant
 from .netfetch import fetch
 
@@ -157,6 +157,31 @@ def travel_notifications():
                            {"open": "home", "travel": {"other": oid, "kind": kind}}, tm)
 
 
+# ---- Gebeurtenissen in de groepschat (geen push, enkel het rode bolletje) -------------
+
+def chat_events():
+    """In de chat van elke vriendengroep: wie nu stopt met de les en wie nu samen pauze heeft."""
+    nowdt = now_local()
+    t = nowdt.date()
+    now = nowdt.hour * 60 + nowdt.minute
+    if not 6 * 60 <= now < 22 * 60:
+        return
+    people, infos, _ = load_day(t)
+    groups = {}
+    for r in db.rows("SELECT gm.group_id, gm.person_id FROM group_members gm "
+                     "JOIN user_groups g ON g.id=gm.group_id AND g.kind='friends' AND g.deleted_at IS NULL"):
+        groups.setdefault(r["group_id"], []).append(r["person_id"])
+    for gid, members in groups.items():
+        for end, ids in events.done_now(members, people, infos, now):
+            events.post_group(gid, events.done_text([people[i].name for i in ids]), dedupe=f"klaar:{t}:{end}:{','.join(map(str, ids))}",
+                              payload={"actors": ids, "people": ids, "day": t.isoformat(), "start": end, "open": "vergelijk"})
+        for m in events.breaks_starting(members, people, infos, now):
+            names_ = sorted((people[i].name for i in m["ids"]), key=str.lower)
+            events.post_group(gid, events.break_text(names_, m["end"]), dedupe=f"pauze:{t}:{m['start']}:{','.join(map(str, sorted(m['ids'])))}",
+                              payload={"actors": m["ids"], "people": m["ids"], "day": t.isoformat(), "start": m["start"],
+                                       "end": m["end"], "open": "vergelijk"})
+
+
 # ---- Testmelding vanuit Beheer --------------------------------------------------
 
 def push_test():
@@ -206,6 +231,9 @@ def cleanup():
     db.run("DELETE FROM plans WHERE day < CURDATE() - INTERVAL 14 DAY")
     db.run("DELETE pm FROM plan_members pm LEFT JOIN plans p ON p.id=pm.plan_id WHERE p.id IS NULL")
     db.run("DELETE FROM push_subs WHERE device_id NOT IN (SELECT id FROM devices)")
+    # Chat: gebeurtenissen na 30 dagen weg, getypte berichten na een jaar
+    db.run("DELETE FROM chat_messages WHERE kind='event' AND created_at < UTC_TIMESTAMP() - INTERVAL 30 DAY")
+    db.run("DELETE FROM chat_messages WHERE created_at < UTC_TIMESTAMP() - INTERVAL 365 DAY")
 
 
 def update_geoip():
@@ -237,7 +265,8 @@ def main():
     last_hourly = 0.0
     while True:
         started = time.time()
-        for step in (run_syncs, day_notifications, travel_notifications, cert_check, push_test, notify.send_pending):
+        for step in (run_syncs, day_notifications, chat_events, travel_notifications, cert_check, push_test,
+                     notify.send_pending):
             try:
                 step()
             except Exception:

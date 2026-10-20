@@ -22,6 +22,9 @@ KINDS = {
     "reizen": "Samen naar school of naar huis (avond ervoor)",
     "wijziging": "Wijzigingen in je eigen rooster",
     "apparaat": "Er is een nieuw toestel aan jou gekoppeld",
+    "pauze_verzoek": "Iemand wil pauze met jou (en antwoorden op jouw verzoeken)",
+    "chill_vraag": "Een vriend vraagt of je wil chillen",
+    "chat": "Chatberichten (enkel in chats waar je de bel aanzette)",
 }
 SCOPES = {
     "vrienden": "Alleen mensen uit mijn vriendengroepen",
@@ -150,6 +153,10 @@ def _url(payload: dict) -> str:
         return "/#/rooster"
     if target == "afspreken":
         return "/#/afspreken"
+    if target == "chat" and payload.get("chat"):
+        return f"/#/chat/{int(payload['chat'])}"
+    if target == "pauzes":
+        return "/#/afspreken"
     return "/#/home"
 
 
@@ -181,6 +188,9 @@ def send_pending():
             n = uniq[0]
             payload = db.unjs(n["payload"], {})
             msg = {"title": n["title"], "body": n["body"], "url": _url(payload), "tag": f"roosters-{n['kind']}"}
+            # Pauze-verzoek: de Ja/Nee-knoppen in de melding (sw.js) weten zo over welk verzoek het gaat
+            if payload.get("request"):
+                msg["request"] = int(payload["request"])
         else:
             lines = [n["body"] for n in uniq[:4]]
             if len(uniq) > 4:

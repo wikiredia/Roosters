@@ -211,6 +211,111 @@ def delete_person(pid: int, request: Request):
     return {"ok": True, "undo": access.record(ctx, "person_delete", f"{p['name']} verwijderd", {"id": pid}, admin_only=True)}
 
 
+# ---- Alles in één keer opslaan (Beheer: 'Opslaan') ------------------------------
+# De pagina houdt wijzigingen bij en stuurt ze samen; alles of niets, en één keer ongedaan te maken.
+
+class BatchOp(BaseModel):
+    op: str = Field(pattern="^(group_create|group_rename|group_delete|member|person_rename|person_delete)$")
+    tmp: str | None = Field(default=None, max_length=20)        # tijdelijke id van een nieuwe groep
+    group_id: int | None = None
+    group_tmp: str | None = Field(default=None, max_length=20)  # lid van een groep die in deze batch gemaakt wordt
+    person_id: int | None = None
+    name: str | None = Field(default=None, max_length=80)
+    kind: str | None = Field(default=None, pattern="^(campus|home|friends)$")
+    member: bool | None = None
+
+
+class BatchIn(BaseModel):
+    ops: list[BatchOp] = Field(min_length=1, max_length=500)
+
+
+# Eerst nieuwe groepen (dan bestaan hun id's), verwijderen als laatste
+_ORDER = {"group_create": 0, "group_rename": 1, "person_rename": 1, "member": 2, "group_delete": 3, "person_delete": 3}
+
+
+def _bad(msg):
+    return HTTPException(400, {"code": "batch", "message": msg})
+
+
+def apply_batch(ops, c):
+    """-> (reverse: ops om ongedaan te maken, created: {tmp: id}, tellingen per soort)"""
+    reverse, created, counts = [], {}, {}
+    for o in sorted(ops, key=lambda o: _ORDER[o.op]):
+        if o.op == "group_create":
+            name = (o.name or "").strip()
+            if not name or not o.kind or not o.tmp:
+                raise _bad("Een nieuwe groep heeft een naam en een soort nodig.")
+            gid = db.run("INSERT INTO user_groups (name, kind) VALUES (%s,%s)", (name, o.kind), c)
+            created[o.tmp] = gid
+            reverse.append({"t": "group_soft_delete", "id": gid})
+        elif o.op in ("group_rename", "group_delete"):
+            g = db.one("SELECT id, name FROM user_groups WHERE id=%s AND deleted_at IS NULL", (o.group_id,), c)
+            if not g:
+                raise _bad("Een van de groepen bestaat niet meer. Vernieuw de pagina.")
+            if o.op == "group_rename":
+                name = (o.name or "").strip()
+                if not name:
+                    raise _bad("Een groep heeft een naam nodig.")
+                db.run("UPDATE user_groups SET name=%s WHERE id=%s", (name, g["id"]), c)
+                reverse.append({"t": "group_name", "id": g["id"], "name": g["name"]})
+            else:
+                db.run("UPDATE user_groups SET deleted_at=UTC_TIMESTAMP() WHERE id=%s", (g["id"],), c)
+                reverse.append({"t": "group_restore", "id": g["id"]})
+        elif o.op == "member":
+            gid = created.get(o.group_tmp) if o.group_tmp else o.group_id
+            if not gid or o.member is None or not db.one("SELECT 1 AS x FROM user_groups WHERE id=%s AND deleted_at IS NULL", (gid,), c):
+                raise _bad("Een van de groepen bestaat niet meer. Vernieuw de pagina.")
+            if not db.one("SELECT 1 AS x FROM people WHERE id=%s AND deleted_at IS NULL", (o.person_id,), c):
+                raise _bad("Een van de mensen bestaat niet meer. Vernieuw de pagina.")
+            was = bool(db.one("SELECT 1 AS x FROM group_members WHERE group_id=%s AND person_id=%s", (gid, o.person_id), c))
+            if was == o.member:
+                continue
+            if o.member:
+                db.run("INSERT IGNORE INTO group_members (group_id, person_id) VALUES (%s,%s)", (gid, o.person_id), c)
+            else:
+                db.run("DELETE FROM group_members WHERE group_id=%s AND person_id=%s", (gid, o.person_id), c)
+            reverse.append({"t": "member", "group_id": gid, "person_id": o.person_id, "member": was})
+        else:
+            p = db.one("SELECT id, name FROM people WHERE id=%s AND deleted_at IS NULL", (o.person_id,), c)
+            if not p:
+                raise _bad("Een van de mensen bestaat niet meer. Vernieuw de pagina.")
+            if o.op == "person_rename":
+                name = (o.name or "").strip()[:60]
+                if not name:
+                    raise _bad("Iemand heeft een naam nodig.")
+                if db.one("SELECT id FROM people WHERE LOWER(name)=LOWER(%s) AND id<>%s AND deleted_at IS NULL", (name, p["id"]), c):
+                    raise _bad(f"De naam '{name}' bestaat al.")
+                db.run("UPDATE people SET name=%s WHERE id=%s", (name, p["id"]), c)
+                reverse.append({"t": "person_name", "id": p["id"], "name": p["name"]})
+            else:
+                db.run("UPDATE people SET deleted_at=UTC_TIMESTAMP() WHERE id=%s", (p["id"],), c)
+                reverse.append({"t": "person_restore", "id": p["id"]})
+        counts[o.op] = counts.get(o.op, 0) + 1
+    return reverse, created, counts
+
+
+_COUNT_LABEL = {
+    "group_create": ("nieuwe groep", "nieuwe groepen"), "group_rename": ("groep hernoemd", "groepen hernoemd"),
+    "group_delete": ("groep verwijderd", "groepen verwijderd"), "member": ("groepslid", "groepsleden"),
+    "person_rename": ("naam gewijzigd", "namen gewijzigd"), "person_delete": ("persoon verwijderd", "mensen verwijderd"),
+}
+
+
+@router.post("/batch")
+def batch(body: BatchIn, request: Request):
+    ctx = load_ctx(request)
+    access.need_admin(ctx)
+    with db.tx() as c:
+        reverse, created, counts = apply_batch(body.ops, c)
+    if not reverse:
+        return {"ok": True, "created": created, "undo": None, "changes": 0}
+    n = len(reverse)
+    parts = [f"{k} {_COUNT_LABEL[op][0 if k == 1 else 1]}" for op, k in counts.items()]
+    summary = f"Beheer: {n} {'wijziging' if n == 1 else 'wijzigingen'} ({', '.join(parts)})"
+    undo = access.record(ctx, "batch", summary, {"reverse": reverse}, admin_only=True)
+    return {"ok": True, "created": created, "undo": undo, "changes": n}
+
+
 # ---- Backup, certificaat, ongedaan maken -------------------------------------
 
 @router.get("/backup")

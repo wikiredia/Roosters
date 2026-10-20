@@ -1,10 +1,13 @@
 # Roosters in je menubalk (Mac) en systeemvak (Windows)
 
-Een klein venster dat openspringt onder het icoon in je menubalk (Mac) of boven het icoon in het
-systeemvak (Windows), zoals Twinkle Tray of het Bluetooth-menu. Het toont gewoon je eigen
-Roosters-server (`server/`) in de compacte weergave (`/?compact=1`): Rooster, Vergelijk en
-Afspreken bovenaan, de rest onder ⋯. Elke update van de site zit er dus meteen in; de app zelf
-moet je enkel opnieuw bouwen als er in deze map iets verandert.
+Een klein venster met afgeronde hoeken dat openspringt onder het icoon in je menubalk (Mac) of boven
+het icoon in het systeemvak (Windows), zoals Twinkle Tray of het Bluetooth-menu. Het toont gewoon je
+eigen Roosters-server (`server/`) in de compacte weergave (`/?compact=1`): het hele venster is je
+eigen rooster, met enkel ☰ (menu: Home, Chat, Afspreken, Opties, …) en Vergelijk bovenaan. Hoeveel
+dagen je ziet, kies je in Opties → Kleine app (standaard 1); met de **+** rechts zet je er tijdelijk
+een dag bij. Liever de vorige versie met tabbladen bovenaan? Opties → Kleine app → *Klassieke weergave*.
+Elke update van de site zit er dus meteen in; de app zelf moet je enkel opnieuw bouwen als er in deze
+map iets verandert.
 
 Gemaakt met [Tauri 2](https://tauri.app): de app gebruikt de webweergave van je systeem
 (Safari op Mac, Edge op Windows), daarom is ze maar een paar MB.
@@ -16,7 +19,7 @@ Gemaakt met [Tauri 2](https://tauri.app): de app gebruikt de webweergave van je 
 - **Naast het icoon** (Mac) of in de tooltip (Windows): wat er nu of straks is, bv. `☕ Kayra tot 12:00`,
   `📚 tot 12:30` of `📚 13:30`.
 - **Rechtsklik op het icoon**: Vernieuwen, Openen in je browser, Start bij inloggen, Serveradres wijzigen, Stoppen.
-- Links naar buiten (les-links, *Openen in je browser*) gaan naar je gewone browser; het venster
+- Links naar buiten (les-links, *Openen in je browser*) gaan naar je standaardbrowser; het venster
   zelf toont enkel je eigen server.
 
 ## Installeren
@@ -56,5 +59,13 @@ De app-iconen komen uit `server/web/icons/icon-512.png` (`npx tauri icon ../serv
 - `src/index.html`: het instelscherm voor het serveradres.
 - `server/web/js/desktop.js` (op de server): Esc, links naar de browser en de tekst naast het icoon.
   Wordt enkel geladen in deze app.
-- `src-tauri/capabilities/server.json`: de pagina van je server mag enkel de vijf commando's uit
-  `lib.rs` gebruiken (tekst naast het icoon, venster verbergen, link openen, serveradres lezen/zetten).
+- `src-tauri/build.rs` + `src-tauri/capabilities/`: Tauri weigert de eigen commando's vanaf een webadres
+  (je server) tenzij een capability ze toelaat, en dat gebeurt stil. Daarom krijgt elk commando een
+  permissie (`allow-<commando>`, gegenereerd door `build.rs`); `server.json` laat de pagina van je server
+  enkel de tekst naast het icoon zetten, het venster verbergen, een link openen en het serveradres lezen.
+  Nieuw commando? Zet het in `COMMANDS` in `build.rs` én in de juiste capability.
+- Openen in je browser werkt ook zonder commando's: `lib.rs` opent nieuwe vensters (`target="_blank"`),
+  adressen buiten je server en adressen van je server met `?roosters-browser=1` in je standaardbrowser.
+- Afgeronde hoeken: op Mac een doorzichtig venster met wazig glas (`RADIUS` in `lib.rs`, de pagina rondt
+  zich mee af in `server/web/css/compact.css`); op Windows 11 rondt het systeem een randloos venster met
+  schaduw zelf af (Windows 10: rechte hoeken).

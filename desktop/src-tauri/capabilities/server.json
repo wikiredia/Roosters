@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "server",
-  "description": "De Roosters-pagina van je eigen server mag het menubalk-opschrift zetten en het venster verbergen. Naar andere adressen kan het venster niet (zie on_navigation in lib.rs).",
+  "description": "De Roosters-pagina van je eigen server mag het menubalk-opschrift zetten, het venster verbergen en links in je browser openen. Naar andere adressen kan het venster niet (zie on_navigation in lib.rs). Zonder deze permissies weigert Tauri de commando's vanaf een webadres, stil.",
   "windows": ["main"],
-  "remote": { "urls": ["https://*"] },
-  "permissions": ["core:default"]
+  "remote": { "urls": ["https://*", "https://*:*"] },
+  "permissions": ["core:default", "allow-get-server", "allow-hide-popover", "allow-set-tray-title", "allow-open-external"]
 }

@@ -57,9 +57,16 @@ beginscherm en tikt daar het juiste getal aan (één poging, 5 minuten, enkel va
   Andere campus: enkel langer dan 30 minuten. Wie "Al aant chillen" of "Ik wil chillen" kiest, is ook
   na de laatste les beschikbaar. Instellingen staan bovenaan `api/roosters/logic.py`.
 - Meldingen: ochtendoverzicht bij je eerste les, "je kan nu op pauze met…", wie erbij komt of naar huis
-  gaat, pauzes met andere campussen, wie blijft chillen, afspraken, 's avonds om 19u samen-reizen-voorstellen
-  en wijzigingen in je eigen rooster. Meerdere tegelijk worden één melding. Iedereen kiest in Opties waarover
-  en van wie.
+  gaat, pauzes met andere campussen, wie blijft chillen, pauze-verzoeken en hun antwoord, "wil je chillen?",
+  's avonds om 19u samen-reizen-voorstellen en wijzigingen in je eigen rooster (kort: oud → nieuw).
+  Meerdere tegelijk worden één melding. Iedereen kiest in Opties waarover en van wie.
+- **Pauzes samen**: tik een pauze die je met iemand deelt (Rooster, Vergelijk, Home) en vraag om ze samen
+  te nemen: ik kom naar jou, jij komt naar mij of afspreken op een plek, van/tot. De ander antwoordt Ja, Nee
+  of Ander uur (ook vanuit de pushmelding); het antwoord komt als melding terug. Vervangt de oude Afspraken.
+- **Chat**: je vriendengroep (vastgepind), je woonplaats, en losse gesprekken (enkel als je er zelf een
+  begint). Wat de groep aangaat ("Reda stopt nu met de les", "… wil chillen in Antwerpen", "… gaan samen
+  pauze pakken") staat als klein blokje in de groepschat: geen pushmelding, enkel het rode bolletje op het
+  Chat-icoon. Pushmeldingen voor chatberichten staan standaard uit (bel per chat).
 - Certificaat: `certbot` vraagt een IP-certificaat aan bij Let's Encrypt (6 dagen geldig) en vernieuwt het
   ruim op tijd. Lukt dat niet, dan krijgen je admin-toestellen een pushmelding; tik erop en je krijgt in
   Beheer een kant-en-klare **debug-prompt voor Claude** (ook in het volume `tls`, `status.json`).
