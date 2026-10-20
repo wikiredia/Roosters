@@ -1,1 +1,88 @@
-/* vergelijk */
+/* vergelijk: kiezen (wie je pauze mee kan nemen bovenaan), vergelijken (match eerst, rest ingeklapt), 'hebben ook pauze' */
+
+/* ---- Kiezen ---- */
+.pick-title { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 2px 0; cursor: pointer; color: inherit; text-align: left; }
+.pick-title .ico.chev { width: 15px; height: 15px; margin-left: 0; }
+.pick-title:hover h2 { color: var(--accent); }
+.pick-text { display: flex; flex-direction: column; min-width: 0; }
+.pick-sub { font-size: 13px; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick-row[aria-checked="true"] .pick-sub { color: var(--ink); }
+.fold-cmp { margin-left: auto; font-size: 14px; }
+.fold-cmp + .ico.chev { margin-left: 4px; }
+.same-card { display: flex; align-items: center; gap: 12px; cursor: pointer; box-shadow: inset 4px 0 0 var(--together), var(--shadow); color: inherit; }
+.same-card > .ico:first-child { color: var(--together-ink); }
+@media (prefers-color-scheme: dark) { .same-card > .ico:first-child { color: var(--together); } }
+
+/* ---- Vergelijken: rooster + zijkant ---- */
+.cmp-day { display: flex; flex-direction: column; gap: 10px; }
+.cmp-day > .tl { min-width: 0; }
+.cmp-side { background: var(--card); border-radius: 18px; padding: 10px 14px 12px; box-shadow: var(--shadow); font-size: 15px; }
+.cmp-side > p:first-child { margin-top: 0; }
+@media (min-width: 900px) {
+  .view-vergelijk { max-width: 1120px; }
+  .cmp-day { flex-direction: row; align-items: flex-start; }
+  .cmp-day > .tl { flex: 1; }
+  .cmp-side { flex: 0 0 280px; position: sticky; top: 90px; }
+}
+
+/* Samen-pauzes zijn aantikbaar */
+.match-line { width: 100%; border: 0; background: none; padding: 6px 4px; margin: 0; border-radius: 10px; cursor: pointer; text-align: left; color: inherit; font-size: 15px; }
+.match-line:hover { background: var(--together-soft); }
+.match-line .ml-who { flex: 1; min-width: 0; }
+.match-line .ico.chev { width: 16px; height: 16px; flex: none; }
+.match-band, .tl-bands i, .tlv-bands i { pointer-events: auto; cursor: pointer; }
+.match-band:hover, .tl-bands i:hover, .tlv-bands i:hover { background: color-mix(in srgb, var(--together) 45%, transparent); }
+.match-band:focus-visible, .tl-bands i:focus-visible, .tlv-bands i:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ask-btn { margin: 6px 0 2px; width: 100%; justify-content: flex-start; text-align: left; }
+.ask-btn .ico { width: 18px; height: 18px; }
+
+/* Hebben ook pauze: checklist */
+.also { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }
+.cmp-side > .also:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+.also-title, .ms-also-title { font-weight: 720; margin: 0 0 4px; }
+.also-list { display: flex; flex-direction: column; }
+.also-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; cursor: pointer; color: inherit;
+  padding: 6px 4px; border-radius: 10px; text-align: left; min-height: 40px;
+}
+.also-row:hover { background: var(--card-2); }
+.also-row b { font-weight: 700; }
+.also-row .muted { margin-left: auto; }
+.also-plus { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); flex: none; }
+.also-plus .ico { width: 16px; height: 16px; stroke-width: 2.6; }
+
+/* Onderblad bij een samen-pauze */
+.ms-match + .ms-match { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.ms-when { display: flex; align-items: baseline; gap: 8px; font-size: 17px; margin: 0 0 10px; }
+.ms-people { display: flex; flex-direction: column; margin: 8px 0; }
+.ms-person { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 8px 2px; cursor: pointer; color: inherit; font-weight: 650; font-size: 16px; text-align: left; }
+.ms-person + .ms-person { border-top: 1px solid var(--line); }
+
+/* ---- Wie geen match heeft: ingeklapt ---- */
+.fold-avs { display: inline-flex; }
+.fold-avs .avatar { box-shadow: 0 0 0 2px var(--card); }
+.fold-avs .avatar + .avatar { margin-left: -7px; }
+.ico.chev.up { transform: rotate(-90deg); }
+.ico.chev.back { transform: rotate(180deg); }
+/* Horizontaal: een dunne rij */
+.tl-fold {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; margin: 4px 0; padding: 4px 10px;
+  border: 1px dashed var(--line); border-radius: 10px; background: var(--card-2); color: var(--muted); font-weight: 650; font-size: 14px; cursor: pointer; text-align: left;
+}
+.tl-fold .ico.chev { margin-left: auto; }
+/* Verticaal: een smalle kolom */
+.tlv-col.fold-col { flex: 0 0 34px !important; min-width: 34px; display: flex; }
+.tlv-fold {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0; margin: 0;
+  border: 1px dashed var(--line); border-radius: 10px; background: var(--card-2); color: var(--muted); cursor: pointer; font-weight: 700; font-size: 13px;
+}
+.tlv-fold .fold-avs { flex-direction: column; }
+.tlv-fold .fold-avs .avatar + .avatar { margin: -7px 0 0; }
+.tlv-fold .fold-text { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+.tlv-fold .ico.chev { margin: 0; }
+.tlv-fold:hover, .tl-fold:hover { color: var(--accent); border-color: var(--accent); }
+/* Opengeklapt: zijwaarts scrollen, elke kolom houdt een leesbare breedte */
+.tlv-cols.scrolls { overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; padding-bottom: 4px; }
+.tlv-cols.scrolls .tlv-col:not(.fold-col) { min-width: 84px; scroll-snap-align: start; }
+.tlv-cols.scrolls .tlv-bands { width: 100%; }
+.tlv-col.no-match .tlv-body, .tl-row.no-match .tl-track { opacity: .8; }

@@ -11,6 +11,8 @@ from . import access, config, crypto, db, ics, logic, sync, untis
 from .access import load_ctx
 from .daydata import load as load_day, now_local, now_min
 from .netfetch import FetchError, check_url, normalize_url, resolve_public
+from .r_overview import overview_for
+from .r_social import known_ids
 
 router = APIRouter(prefix="/api")
 
@@ -206,6 +208,36 @@ def _remember_picks(me, pids):
            tuple(v for oid in others for v in (me, oid)))
 
 
+def school_breaks(info):
+    """Pauzes tussen de lessen (zonder het chillen na school), ingekort als iemand naar huis ging."""
+    out = logic.gaps(info.busy)
+    if info.left_at is not None:
+        out = [(s, min(e, info.left_at)) for s, e in out if s < info.left_at]
+    return out
+
+
+def also_free(people, infos, pids, matches, known, after=0):
+    """'Hebben ook pauze': wie je kent (en nog niet vergelijkt) is ook vrij tijdens een samen-pauze.
+    Nog geen samen-pauze? Dan tijdens de pauzes van wie je vergelijkt.
+    -> [{id, name, start, end, with: [ids]}], per persoon het langste moment."""
+    windows = [(m["start"], m["end"], m["ids"]) for m in matches]
+    if not windows:
+        windows = [(s, e, [pid]) for pid in pids if pid in infos and infos[pid].present
+                   for s, e in school_breaks(infos[pid])]
+    windows = [w for w in windows if w[1] > after]
+    best = {}
+    for oid in known:
+        if oid in pids or oid not in people or not infos[oid].present:
+            continue
+        o = people[oid]
+        for ws, we, ids in windows:
+            need = max(logic.min_break(o, people[x]) for x in ids if x in people)
+            for s, e in logic.overlaps(infos[oid].free, [(ws, we)]):
+                if e - s >= need and (oid not in best or e - s > best[oid]["end"] - best[oid]["start"]):
+                    best[oid] = {"id": oid, "name": o.name, "start": s, "end": e, "with": list(ids)}
+    return sorted(best.values(), key=lambda x: (x["start"], x["name"].lower()))
+
+
 @router.get("/compare")
 def compare(ids: str, request: Request):
     ctx = load_ctx(request)
@@ -224,6 +256,7 @@ def compare(ids: str, request: Request):
             if l["state"] not in ("cancelled", "removed")]
     if len(days) > 1 and (not ends or max(ends) <= now):
         days = days[1:]  # vandaag is voorbij: begin bij de volgende lesdag
+    known = known_ids(ctx.person_id) if ctx.person_id else set()
     out_days = []
     for d in days:
         people, infos, _ = load_day(d)
@@ -250,9 +283,42 @@ def compare(ids: str, request: Request):
             for fr in present[1:]:
                 cur = logic.overlaps(cur, fr)
             together = [(s, e) for s, e in cur if e - s >= logic.SAME_CAMPUS_MIN]
-        matches = logic.compare_matches([people[pid] for pid in pids if pid in people], infos)
-        out_days.append({"day": d.isoformat(), "people": rows, "together": together, "matches": matches})
-    return {"days": out_days, "now_min": now_min(), "today": t.isoformat()}
+        here = [pid for pid in pids if pid in people]
+        matches = logic.compare_matches([people[pid] for pid in here], infos)
+        also = also_free(people, infos, here, matches, known, after=now if d == t else 0)
+        out_days.append({"day": d.isoformat(), "people": rows, "together": together, "matches": matches, "also": also})
+    return {"days": out_days, "me": ctx.person_id, "now_min": now_min(), "today": t.isoformat()}
+
+
+@router.get("/compare/suggest")
+def compare_suggest(request: Request):
+    """Bovenaan bij Vergelijk: met wie kan je (vandaag, of de volgende lesdag als vandaag voorbij is) pauze nemen?"""
+    ctx = load_ctx(request)
+    access.need_read(ctx, "probeerde Vergelijk te openen")
+    if not ctx.person_id:
+        return {"day": None, "today": today().isoformat(), "mates": [], "same_breaks": []}
+    t = today()
+    now = now_min()
+
+    def build(d):
+        ov = overview_for(ctx.person_id, d, ctx.person_id)
+        times = {}
+        for sl in ov["slots"]:
+            for p in sl["people"]:
+                if d == t and p["end"] <= now:
+                    continue
+                times.setdefault(p["id"], []).append([p["start"], p["end"]])
+        mates = [{**m, "times": times[m["id"]]} for m in ov["mates"] if m["id"] in times]
+        for m in mates:
+            m.pop("slots", None)
+        return {"day": d.isoformat(), "mates": mates, "same_breaks": [i for i in ov["same_breaks"] if i in times]}
+
+    res = build(t)
+    if not res["mates"]:
+        later = [d for d in visible_days([ctx.person_id], extra=1) if d > t]
+        if later:
+            res = build(later[0])
+    return {**res, "today": t.isoformat()}
 
 
 # ---- Bronnen -----------------------------------------------------------------
