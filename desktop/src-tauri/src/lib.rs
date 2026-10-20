@@ -90,13 +90,17 @@ fn is_local(url: &Url) -> bool {
     url.scheme() == "tauri" || url.host_str() == Some("tauri.localhost")
 }
 
-/// Adres met `?roosters-browser=1` -> hetzelfde adres zonder dat stukje (anders None)
+/// Adres met `?roosters-browser=1` -> hetzelfde adres zonder dat stukje en zonder `compact=1`
+/// (in je browser wil je de gewone site), anders None
 fn browser_target(url: &Url) -> Option<Url> {
     if !url.query_pairs().any(|(k, _)| k == BROWSER_MARK) {
         return None;
     }
-    let rest: Vec<(String, String)> =
-        url.query_pairs().filter(|(k, _)| k != BROWSER_MARK).map(|(k, v)| (k.into_owned(), v.into_owned())).collect();
+    let rest: Vec<(String, String)> = url
+        .query_pairs()
+        .filter(|(k, _)| k != BROWSER_MARK && k != "compact")
+        .map(|(k, v)| (k.into_owned(), v.into_owned()))
+        .collect();
     let mut out = url.clone();
     if rest.is_empty() {
         out.set_query(None);
@@ -410,6 +414,7 @@ mod tests {
         let u = |s: &str| Url::parse(s).unwrap();
         assert_eq!(browser_target(&u("https://1.2.3.4/?roosters-browser=1#/rooster")).unwrap().as_str(), "https://1.2.3.4/#/rooster");
         assert_eq!(browser_target(&u("https://1.2.3.4/?a=b&roosters-browser=1")).unwrap().as_str(), "https://1.2.3.4/?a=b");
+        assert_eq!(browser_target(&u("https://1.2.3.4/?compact=1&roosters-browser=1#/home")).unwrap().as_str(), "https://1.2.3.4/#/home");
         assert!(browser_target(&u("https://1.2.3.4/?compact=1")).is_none());
     }
 }

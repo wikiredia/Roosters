@@ -20,7 +20,6 @@ const COMPACT_TABS = ["rooster", "vergelijk", "afspreken"];
 // Kleine app standaard: het hele venster is je rooster, met enkel ☰ en Vergelijk bovenaan.
 // 'Klassieke weergave' (Opties) geeft de tabs bovenaan terug.
 export const tiny = compact && !store.get("tiny.classic", false);
-const VIEW_TITLE = { home: "Home", chat: "Chat", afspreken: "Afspreken", opties: "Opties", admin: "Beheer", vergelijk: "Vergelijk" };
 
 const loaders = {
   home: () => import("./views/home.js"),
@@ -83,8 +82,6 @@ async function route() {
   const current = tiny ? (["rooster", "vergelijk"].includes(view) ? view : "more")
     : compact && !COMPACT_TABS.includes(tab) ? "more" : tab;
   document.body.dataset.view = view;
-  const title = document.querySelector(".tiny-title span");
-  if (title) title.textContent = view === "rooster" ? "" : VIEW_TITLE[view] || "";
   document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === current ? "page" : "false"));
   const token = ++routeToken;
   if (cleanup) { try { cleanup(); } catch { /* */ } cleanup = null; }
@@ -321,9 +318,9 @@ function buildTabs() {
     nav.append(
       h("button", { type: "button", class: "tiny-menu", "data-tab": "more", "aria-current": "false", "aria-label": "Menu", onclick: moreSheet },
         h("span", { class: "tab-ico" }, icon("menu"), badgeEl("chat"))),
-      // Buiten je rooster: terug naar je rooster, met de naam van waar je bent
+      // Buiten je rooster: terug naar je rooster
       h("button", { type: "button", class: "tiny-title", "data-tab": "rooster", "aria-label": "Terug naar je rooster", onclick: () => go("#/rooster") },
-        icon("back"), h("span")),
+        icon("back"), h("span", null, "Rooster")),
       h("button", { type: "button", class: "tiny-cmp", "data-tab": "vergelijk", "aria-current": "false", onclick: () => go("#/vergelijk") },
         icon("vergelijk"), h("span", null, "Vergelijk")));
     return;

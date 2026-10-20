@@ -7,15 +7,19 @@ import { fmt, brusselsMinutes } from "./util.js";
 const call = (cmd, args) => window.__TAURI__.core.invoke(cmd, args);
 const invoke = (cmd, args) => call(cmd, args).catch(() => {});
 
-// In je gewone browser openen. Lukt het commando niet (oude app, of de pagina mag geen commando's
-// aanroepen), dan zelf navigeren: lib.rs vangt ?roosters-browser=1 (eigen server) en andere adressen
-// op en opent ze in je browser i.p.v. in het venster.
+// In je gewone browser openen. Lukt het commando niet (de pagina mag geen commando's aanroepen),
+// dan zelf navigeren: lib.rs vangt ?roosters-browser=1 (eigen server) en andere adressen op en opent
+// ze in je browser i.p.v. in het venster. compact=1 blijft erin: een oudere app zonder die opvang
+// laadt dan gewoon opnieuw de kleine app (lib.rs haalt het eruit voor je browser).
 export async function openInBrowser(href) {
   const url = new URL(href, location.href);
   try {
     await call("open_external", { url: url.href });
   } catch {
-    if (url.origin === location.origin) url.searchParams.set("roosters-browser", "1");
+    if (url.origin === location.origin) {
+      url.searchParams.set("compact", "1");
+      url.searchParams.set("roosters-browser", "1");
+    }
     location.href = url.href;
   }
 }

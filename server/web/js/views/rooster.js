@@ -285,7 +285,7 @@ function slotEls(d, ov, ctx, pos, { isToday, now, hi, small }) {
     const n = new Set([...a.done_same, ...a.chill, ...a.free].map((p) => p.id)).size;
     const label = a.me_chill ? "Jij blijft in Antwerpen" : n ? `na school · ${n} ${n === 1 ? "ander" : "anderen"}` : "na school";
     out.push(h("button", {
-      type: "button", class: `slot after-slot${a.me_chill ? " chill" : ""}${n ? " shared" : ""}`, style: pos(a.start, hi),
+      type: "button", class: `slot after-slot${a.me_chill ? " chill" : ""}${n ? " shared" : ""}${small(a.start, hi) ? " tight" : ""}`, style: pos(a.start, hi),
       "aria-label": `Na school, vanaf ${fmt(a.start)}`,
       onclick: () => afterSheet(d, ov, ctx),
     }, h("span", { class: "s-main" }, label),
