@@ -141,6 +141,24 @@ CREATE TABLE IF NOT EXISTS travel_prefs (
   PRIMARY KEY (person_id, other_id)
 );
 
+-- Wie je kent buiten je vriendengroep(en): enkel wie je kent, kan je kiezen bij Vergelijk.
+-- known=0: gezien in 'Wie ken je?' maar ken je niet (dan vragen we het niet opnieuw)
+CREATE TABLE IF NOT EXISTS known_people (
+  person_id INT NOT NULL,
+  other_id INT NOT NULL,
+  known TINYINT NOT NULL,
+  PRIMARY KEY (person_id, other_id)
+);
+
+-- Wie je vaak vergelijkt: die staan bovenaan bij Vergelijk (n telt hoogstens één keer per uur)
+CREATE TABLE IF NOT EXISTS compare_picks (
+  person_id INT NOT NULL,
+  other_id INT NOT NULL,
+  n INT NOT NULL DEFAULT 1,
+  last_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (person_id, other_id)
+);
+
 CREATE TABLE IF NOT EXISTS push_subs (
   id INT AUTO_INCREMENT PRIMARY KEY,
   device_id INT NOT NULL,

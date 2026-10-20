@@ -1,5 +1,5 @@
 from roosters.logic import (
-    PersonDay, campus_windows, day_info, now_status, pair_breaks, partners, travel_pairs,
+    PersonDay, campus_windows, compare_matches, day_info, now_status, pair_breaks, partners, travel_pairs,
 )
 
 H = 60
@@ -85,6 +85,45 @@ def test_partners_and_campus_windows():
         ("UA Stadscampus", 10 * H, 11 * H, [3, 4]),
         ("AP Spoor Noord", 11 * H, 12 * H, [1, 2]),
     ]
+
+
+def test_compare_shows_every_match_not_only_everyone():
+    people = [
+        P(1, "Nio", [(9, 10), (13, 14)]),     # vrij 10-13
+        P(2, "Yarno", [(9, 11), (13, 14)]),   # vrij 11-13
+        P(3, "Yeno", [(8, 10), (12, 16)]),    # vrij 10-12
+        P(4, "Yves", [(8, 9), (9 * H + 30, 15)]),  # 30 min tussen lessen, maar niet samen met iemand
+    ]
+    inf = {p.id: day_info(p) for p in people}
+    got = [(x["ids"], x["start"], x["end"]) for x in compare_matches(people, inf)]
+    assert got == [
+        ([1, 3], 10 * H, 12 * H),
+        ([1, 2, 3], 11 * H, 12 * H),
+        ([1, 2], 11 * H, 13 * H),
+    ]
+
+
+def test_compare_finds_pair_across_changing_groups():
+    # Nio en Yeno zijn samen vrij van 10 tot 12, eerst met Yarno, dan met Yves
+    people = [
+        P(1, "Nio", [(9, 10), (12, 13)]),
+        P(2, "Yarno", [(9, 10), (11, 13)]),
+        P(3, "Yeno", [(9, 10), (12, 13)]),
+        P(4, "Yves", [(9, 11), (12, 13)]),
+    ]
+    inf = {p.id: day_info(p) for p in people}
+    got = [(x["ids"], x["start"], x["end"]) for x in compare_matches(people, inf)]
+    assert got == [
+        ([1, 2, 3], 10 * H, 11 * H),
+        ([1, 3], 10 * H, 12 * H),
+        ([1, 3, 4], 11 * H, 12 * H),
+    ]
+
+
+def test_compare_short_overlap_does_not_count():
+    people = [P(1, "Nio", [(9, 10), (11, 12)]), P(2, "Yarno", [(9, 10 * H + 40), (11, 12)])]
+    inf = {p.id: day_info(p) for p in people}
+    assert compare_matches(people, inf) == []
 
 
 def test_now_status():

@@ -2,7 +2,7 @@
 import { api } from "../api.js";
 import { state, go, replaceRoute, loadMe, myPerson, isPending, isApproved, isAdmin, toast, toastError, undoToast, sheet, closeSheet } from "../app.js";
 import { h, clear, fmt, dur, names, avatar, icon, personColor, ago, store } from "../util.js";
-import { sortGroups, sectionTitle, KIND_LABEL } from "./common.js";
+import { sortGroups, sectionTitle, KIND_LABEL, knownSheet } from "./common.js";
 import { checkinSheet, CHECKIN_LABEL } from "./afspreken.js";
 
 export async function render(root) {
@@ -40,6 +40,7 @@ function somethingNew(d) {
   const seen = store.get("feedSeen", 0);
   return Boolean(
     d.admin?.pending ||
+    d.known_new ||
     d.feed.some((n) => n.id > seen) ||
     d.plans.some((p) => !p.mine && !p.my_response) ||
     d.travel.some((t) => !t.pref) ||
@@ -58,6 +59,15 @@ function draw(root, d, groups) {
   if (d.admin?.pending) {
     root.append(h("button", { class: "card alert-card", onclick: () => go("#/opties/admin") },
       icon("shield"), h("span", null, `${d.admin.pending} ${d.admin.pending === 1 ? "toegangsverzoek" : "toegangsverzoeken"} wachten op jou`), icon("chevron", "ico chev")));
+  }
+
+  // Wie ken je? Blijft staan tot je iets zei over iedereen buiten je vriendengroep
+  if (d.known_new) {
+    root.append(h("button", { class: "card known-card", onclick: () => knownSheet(() => go("#/home")) },
+      h("span", { class: "row-text" },
+        h("span", { class: "row-main" }, "Wie ken je nog?"),
+        h("span", { class: "row-sub" }, `${d.known_new} ${d.known_new === 1 ? "iemand" : "mensen"} buiten je vriendengroep. Wie je kent, kan je vergelijken.`)),
+      icon("chevron", "ico chev")));
   }
 
   // Check-in: klein, niet in de weg

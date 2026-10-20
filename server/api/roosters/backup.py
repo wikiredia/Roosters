@@ -9,7 +9,7 @@ import zipfile
 from . import db
 
 TABLES = ["settings", "people", "user_groups", "group_members", "devices", "sources", "lessons", "hidden_courses",
-          "checkins", "plans", "plan_members", "travel_prefs", "push_subs", "notify_prefs", "notifications",
+          "checkins", "plans", "plan_members", "travel_prefs", "compare_picks", "known_people", "push_subs", "notify_prefs", "notifications",
           "day_state", "actions"]
 
 README = """Roosters-backup
