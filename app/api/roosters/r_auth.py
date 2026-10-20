@@ -1,0 +1,179 @@
+"""Signing in: a 6-digit code by e-mail, Sign in with Apple, Sign in with Google. No passwords."""
+import datetime as dt
+import re
+import secrets
+
+import pymysql
+from fastapi import APIRouter, Depends, Request, Response
+from pydantic import BaseModel, Field
+
+from . import config, crypto, db, jobs, providers, redisx, tokens
+from .deps import Ctx, auth, lang
+from .errors import ApiError
+
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$")
+
+
+class Device(BaseModel):
+    device_name: str | None = Field(None, max_length=80)
+    platform: str | None = Field(None, max_length=10)
+
+
+class EmailStart(BaseModel):
+    email: str = Field(max_length=254)
+
+
+class EmailVerify(Device):
+    email: str = Field(max_length=254)
+    code: str = Field(max_length=12)
+
+
+class AppleLogin(Device):
+    id_token: str = Field(max_length=8000)
+    nonce: str | None = Field(None, max_length=200)
+    # Apple only sends the name the very first time, to the app, not in the token
+    name: str | None = Field(None, max_length=60)
+
+
+class GoogleLogin(Device):
+    id_token: str = Field(max_length=8000)
+
+
+class RefreshIn(BaseModel):
+    refresh_token: str = Field(max_length=200)
+
+
+def _email(value: str) -> str:
+    email = (value or "").strip().lower()
+    if not EMAIL_RE.match(email):
+        raise ApiError(400, "email_invalid")
+    return email
+
+
+def _client_ip(request: Request) -> str:
+    # Behind Caddy: X-Forwarded-For is set by our own proxy
+    return (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (
+        request.client.host if request.client else "?")
+
+
+def _new_user(c, name: str | None, email: str | None, lang_: str) -> int:
+    name = (name or "").strip()[:60] or (email.split("@")[0][:60] if email else "Student")
+    return db.run("INSERT INTO users (display_name, email, locale, avatar_color) VALUES (%s,%s,%s,%s)",
+                  (name, email, lang_, secrets.randbelow(8)), c)
+
+
+def _sign_in(c, provider: str, subject: str, email: str | None, email_verified: bool, name: str | None,
+             lang_: str) -> tuple[int, bool]:
+    """Finds or creates the account for this identity. -> (user_id, is_new).
+    A verified e-mail address links Apple/Google/e-mail to the same account."""
+    ident = db.one("SELECT * FROM auth_identities WHERE provider=%s AND subject=%s FOR UPDATE", (provider, subject), c)
+    if ident:
+        db.run("UPDATE auth_identities SET last_used_at=UTC_TIMESTAMP() WHERE id=%s", (ident["id"],), c)
+        return ident["user_id"], False
+    user = None
+    if email and email_verified:
+        user = db.one("SELECT id FROM users WHERE email=%s FOR UPDATE", (email,), c)
+    is_new = user is None
+    user_id = _new_user(c, name, email if email_verified else None, lang_) if is_new else user["id"]
+    db.run("INSERT INTO auth_identities (user_id, provider, subject, email, last_used_at) "
+           "VALUES (%s,%s,%s,%s,UTC_TIMESTAMP())", (user_id, provider, subject, email), c)
+    return user_id, is_new
+
+
+def _answer(user_id: int, is_new: bool, body: Device, c) -> dict:
+    out = tokens.start_session(user_id, body.device_name, body.platform, c)
+    out["is_new"] = is_new
+    return out
+
+
+@router.post("/email/start", status_code=204)
+def email_start(body: EmailStart, request: Request):
+    """Sends a 6-digit code. Always answers 204, also for unknown addresses (no way to find out who has an account)."""
+    email = _email(body.email)
+    email_hash = crypto.keyed_hash("email", email)
+    redisx.rate_limit(f"code-ip:{_client_ip(request)}", 60, 600)  # a whole school shares one IP: generous
+    redisx.rate_limit(f"code-email:{email_hash}", 5, 3600)
+    code = f"{secrets.randbelow(10 ** 6):06d}"
+    with db.tx() as c:
+        db.run("UPDATE login_codes SET used_at=UTC_TIMESTAMP() WHERE email_hash=%s AND used_at IS NULL", (email_hash,), c)
+        db.run("INSERT INTO login_codes (email_hash, code_hash, expires_at) VALUES (%s,%s,%s)",
+               (email_hash, crypto.keyed_hash("login-code", f"{email}:{code}"),
+                db.utcnow() + dt.timedelta(seconds=config.LOGIN_CODE_TTL)), c)
+        jobs.enqueue("send_login_code", {"email": email, "code": code, "lang": lang(request)}, priority=0, c=c)
+    return Response(status_code=204)
+
+
+@router.post("/email/verify")
+def email_verify(body: EmailVerify, request: Request):
+    email = _email(body.email)
+    email_hash = crypto.keyed_hash("email", email)
+    code = re.sub(r"\D", "", body.code or "")
+    redisx.rate_limit(f"verify-email:{email_hash}", 20, 3600)
+    with db.tx() as c:
+        row = db.one("SELECT * FROM login_codes WHERE email_hash=%s AND used_at IS NULL AND expires_at > UTC_TIMESTAMP() "
+                     "ORDER BY id DESC LIMIT 1 FOR UPDATE", (email_hash,), c)
+        if row is None:
+            raise ApiError(400, "code_invalid")
+        if row["attempts"] >= config.LOGIN_CODE_ATTEMPTS:
+            raise ApiError(400, "code_attempts")
+        if not crypto.same(row["code_hash"], crypto.keyed_hash("login-code", f"{email}:{code}")):
+            db.run("UPDATE login_codes SET attempts=attempts+1 WHERE id=%s", (row["id"],), c)
+            c.commit()
+            raise ApiError(400, "code_invalid")
+        db.run("UPDATE login_codes SET used_at=UTC_TIMESTAMP() WHERE id=%s", (row["id"],), c)
+        user_id, is_new = _sign_in(c, "email", email, email, True, None, lang(request))
+        return _answer(user_id, is_new, body, c)
+
+
+def _provider_login(ident: providers.Identity, name: str | None, body: Device, request: Request) -> dict:
+    for attempt in range(2):
+        try:
+            with db.tx() as c:
+                user_id, is_new = _sign_in(c, ident.provider, ident.subject, ident.email, ident.email_verified, name,
+                                           lang(request))
+                return _answer(user_id, is_new, body, c)
+        except pymysql.err.IntegrityError as e:
+            # Two simultaneous first logins (double tap on slow wifi): the second one finds the account
+            if e.args[0] != db.DUPLICATE or attempt:
+                raise
+    raise ApiError(500, "server")
+
+
+@router.post("/apple")
+def apple(body: AppleLogin, request: Request):
+    redisx.rate_limit(f"provider-ip:{_client_ip(request)}", 120, 600)
+    return _provider_login(providers.apple(body.id_token, body.nonce), body.name, body, request)
+
+
+@router.post("/google")
+def google(body: GoogleLogin, request: Request):
+    redisx.rate_limit(f"provider-ip:{_client_ip(request)}", 120, 600)
+    return _provider_login(providers.google(body.id_token), None, body, request)
+
+
+@router.post("/refresh")
+def refresh(body: RefreshIn):
+    return tokens.refresh(body.refresh_token)
+
+
+@router.post("/logout", status_code=204)
+def logout(ctx: Ctx = Depends(auth)):
+    tokens.revoke(ctx.session_id)
+    return Response(status_code=204)
+
+
+@router.post("/logout-all", status_code=204)
+def logout_all(ctx: Ctx = Depends(auth)):
+    tokens.revoke_all(ctx.uid)
+    return Response(status_code=204)
+
+
+@router.get("/sessions")
+def sessions(ctx: Ctx = Depends(auth)):
+    return {"sessions": [
+        {"id": s["id"], "device_name": s["device_name"], "platform": s["platform"], "current": s["id"] == ctx.session_id,
+         "created_at": s["created_at"].isoformat() + "Z", "last_used_at": s["last_used_at"].isoformat() + "Z"}
+        for s in db.rows("SELECT * FROM sessions WHERE user_id=%s AND revoked_at IS NULL AND expires_at > UTC_TIMESTAMP() "
+                         "ORDER BY last_used_at DESC", (ctx.uid,))]}

@@ -1,0 +1,8 @@
+fastapi==0.156.0
+uvicorn==0.54.0
+PyMySQL==1.2.3
+cryptography==50.0.2
+icalendar==7.3.0
+recurring-ical-events==3.8.2
+PyJWT==2.15.1
+redis==8.1.0

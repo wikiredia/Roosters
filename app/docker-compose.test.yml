@@ -1,0 +1,19 @@
+# Only for running the API tests on your laptop:
+#   docker compose -f docker-compose.test.yml up -d
+#   cd api && pip install -r requirements-dev.txt && pytest
+name: roostersplus-test
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: roosters_test
+      MYSQL_USER: roosters
+      MYSQL_PASSWORD: roosters
+    command: ["--skip-name-resolve", "--mysqlx=OFF"]
+    ports: ["127.0.0.1:3306:3306"]
+    tmpfs: [/var/lib/mysql]
+  redis:
+    image: valkey/valkey:8.1-alpine
+    ports: ["127.0.0.1:6379:6379"]
