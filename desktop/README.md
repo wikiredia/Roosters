@@ -21,8 +21,11 @@ Gemaakt met [Tauri 2](https://tauri.app): de app gebruikt de webweergave van je 
 
 ## Installeren
 
-1. GitHub → **Actions → Desktop-app bouwen** → laatste run → onderaan bij *Artifacts*:
-   `roosters-mac` (.dmg) of `roosters-windows` (installer). Of start zelf een run met *Run workflow*.
+1. Op je Roosters-server (in de browser van je computer): **Opties → Op je computer → Download**.
+   Die knop haalt de nieuwste build uit de GitHub-release
+   [`desktop-latest`](https://github.com/wikiredia/Roosters/releases/tag/desktop-latest), die de
+   Action *Desktop-app bouwen* bijwerkt bij elke wijziging in `desktop/` op main (of met *Run workflow*).
+   Bouwen op je eigen server kan niet: een Mac-app bouwen vraagt een Mac.
 2. De app is niet ondertekend (dat kost een betaald Apple-ontwikkelaarsaccount), dus de eerste keer:
    - **Mac**: sleep Roosters naar Apps, dan **rechtsklik → Open → Open**. Lukt dat niet:
      `xattr -dr com.apple.quarantine /Applications/Roosters.app`

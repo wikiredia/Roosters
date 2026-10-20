@@ -1,11 +1,13 @@
 name: Desktop-app bouwen
 
 # Bouwt de menubalk-app (Mac, .dmg) en de systeemvak-app (Windows, installer).
-# Download ze onderaan de run bij 'Artifacts'. Niet ondertekend: zie desktop/README.md.
+# Op main komen ze in de release 'desktop-latest' met vaste namen, zodat de knop in
+# Opties → Op je computer altijd de nieuwste geeft. Niet ondertekend: zie desktop/README.md.
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths: ["desktop/**", ".github/workflows/desktop.yml"]
   pull_request:
     paths: ["desktop/**", ".github/workflows/desktop.yml"]
@@ -55,3 +57,31 @@ jobs:
           name: roosters-${{ matrix.name }}
           path: ${{ matrix.bundle }}
           if-no-files-found: error
+
+  release:
+    # Enkel op main (niet bij een PR): de downloadknop op de site wijst naar deze release
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Vaste bestandsnamen
+        run: |
+          cp dist/roosters-mac/*.dmg Roosters-mac.dmg
+          cp dist/roosters-windows/*.exe Roosters-windows.exe
+      - name: Release 'desktop-latest' bijwerken
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          notes="Nieuwste build van de menubalk-/systeemvak-app (commit ${GITHUB_SHA::7}). Op je Roosters-server: Opties → Op je computer."
+          if gh release view desktop-latest >/dev/null 2>&1; then
+            gh release edit desktop-latest --notes "$notes"
+          else
+            gh release create desktop-latest --target "$GITHUB_SHA" --title "Desktop-app" --notes "$notes"
+          fi
+          gh release upload desktop-latest Roosters-mac.dmg Roosters-windows.exe --clobber

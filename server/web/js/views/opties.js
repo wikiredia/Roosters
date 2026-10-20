@@ -2,7 +2,7 @@
 import { api } from "../api.js";
 import {
   state, go, loadMe, myPerson, isApproved, isAdmin, isPending, toast, toastError, undoToast, sheet, closeSheet,
-  pushSupport, pushEnabled, enablePush, disablePush,
+  pushSupport, pushEnabled, enablePush, disablePush, compact,
 } from "../app.js";
 import { h, clear, ago, icon, store, isIOS, isStandalone } from "../util.js";
 import { sectionTitle } from "./common.js";
@@ -30,6 +30,7 @@ export async function render(root) {
   if (me && isApproved()) {
     root.append(await exportCard());
     root.append(linkDeviceCard());
+    if (!compact && !isIOS() && !/Android/.test(navigator.userAgent)) root.append(desktopCard());
     root.append(await devicesCard(reload));
   }
   root.append(startCard());
@@ -359,6 +360,31 @@ function linkDeviceCard() {
   } }, "Start koppelen");
   card.append(btn);
   return card;
+}
+
+// ---- Menubalk-/systeemvak-app (desktop/) ----------------------------------------
+// Gebouwd door de GitHub Action 'Desktop-app bouwen' en daar gepubliceerd onder de release 'desktop-latest'
+const DESKTOP_DOWNLOAD = "https://github.com/wikiredia/Roosters/releases/download/desktop-latest/";
+
+function desktopCard() {
+  const mac = /Mac/.test(navigator.platform), win = /Win/.test(navigator.platform);
+  const btn = (label, file, primary) => h("a", { class: `btn wide${primary ? " primary" : ""}`, href: DESKTOP_DOWNLOAD + file, rel: "noopener" }, label);
+  const server = location.origin;
+  return h("section", { class: "card" }, sectionTitle("Op je computer"),
+    h("p", { class: "muted small" }, "Roosters in je menubalk (Mac) of systeemvak (Windows): klik op het icoon en je rooster springt open."),
+    h("div", { class: "stack" },
+      mac || !win ? btn("Download voor Mac", "Roosters-mac.dmg", mac) : null,
+      win || !mac ? btn("Download voor Windows", "Roosters-windows.exe", win) : null),
+    h("ol", { class: "steps small desktop-steps" },
+      h("li", null, mac ? "Sleep Roosters naar Apps en open het met rechtsklik → Open (de app is niet ondertekend)."
+        : win ? "Open de installer; bij SmartScreen: Meer info → Toch uitvoeren (de app is niet ondertekend)."
+          : "Mac: rechtsklik → Open. Windows: Meer info → Toch uitvoeren (de app is niet ondertekend)."),
+      h("li", null, "Vul dit serveradres in:",
+        h("div", { class: "copy-row" }, h("input", { type: "text", readonly: true, value: server, "aria-label": "Serveradres" }),
+          h("button", { class: "icon-btn", "aria-label": "Kopiëren", onclick: async () => {
+            try { await navigator.clipboard.writeText(server); toast("Gekopieerd"); } catch { toast("Kopiëren lukte niet: selecteer en kopieer zelf."); }
+          } }, icon("copy")))),
+      h("li", null, "Koppel de app: hierboven 'Start koppelen' en tik in de app het getal aan (zelfde wifi).")));
 }
 
 async function devicesCard(reload) {
