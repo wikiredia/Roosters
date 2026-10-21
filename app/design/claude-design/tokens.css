@@ -1,0 +1,176 @@
+/* ==========================================================================
+   Roosters+ design tokens
+   Names map 1:1 to Tailwind v4 / NativeWind theme keys:
+   --color-*  -> bg-*, text-*, border-*   (e.g. bg-together, text-you-ink)
+   --font-*   -> font-ui, font-display
+   --text-* / --leading-* -> text-xs … text-4xl
+   --space-*  -> p-*, m-*, gap-* (4-pt grid: --space-4 = 16px)
+   --radius-* -> rounded-card, rounded-chip …
+   --shadow-sheet -> shadow-sheet (the ONLY shadow)
+   --duration-* / --ease-* -> duration-*, ease-*
+   Light is the default; dark is the same names re-pointed.
+   ========================================================================== */
+
+:root,
+.theme-light {
+  /* ---- Brand (fixed in both modes) ---- */
+  --color-navy: #161F2A;          /* ink in light, background in dark */
+  --color-you: #2E5BFF;           /* blue: you + primary action (fills, icons) */
+  --color-friend: #F0487A;        /* rose: friends / other people (fills) */
+  --color-together: #FFC21A;      /* yellow: shared breaks, matches. Use sparingly */
+  --color-danger: #E5484D;        /* cancelled (borders, fills) */
+  --color-success: #1F9D55;       /* accepted / ok (fills) */
+  --color-on-you: #FFFFFF;        /* text on blue fill — 5.2:1 */
+  --color-on-friend: #161F2A;     /* text on rose fill — 4.7:1 */
+  --color-on-together: #161F2A;   /* text on yellow — 10.3:1. Never white on yellow */
+
+  /* ---- Neutrals (warm) ---- */
+  --color-bg: #F4F3EF;
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #FFFFFF;   /* sheets, menus */
+  --color-surface-sunken: #ECEAE4;   /* wells, past lessons, segmented track */
+  --color-line: #E0DCD3;             /* hairlines, dividers */
+  --color-line-strong: #C9C4B8;      /* grabbers, empty borders */
+  --color-control-off: #8A857B;      /* toggle off track, input border — 3.7:1 */
+  --color-ink: #161F2A;              /* 15.4:1 on bg */
+  --color-ink-2: #5A574F;            /* secondary text — 6.5:1 on bg */
+  --color-ink-3: #6E6A62;            /* tertiary / meta — 4.9:1 on bg */
+  --color-ink-inverse: #FFFFFF;
+  --color-scrim: rgba(12, 18, 24, 0.48);
+
+  /* ---- Text-safe tints of the brand colors ---- */
+  --color-you-ink: #2449E0;          /* blue text/links — 6.1:1 on bg */
+  --color-you-soft: #E3E9FF;         /* your lessons, selected chips */
+  --color-friend-ink: #B8204F;       /* rose text — 6.3:1 on white */
+  --color-friend-soft: #FDE4EB;      /* friends' lessons */
+  --color-together-ink: #6B4E00;     /* text on together-soft — 6.8:1 */
+  --color-together-soft: #FFF1C4;    /* quiet "together" surfaces */
+  --color-danger-ink: #C42A30;       /* "Vervalt" text — 5.6:1 on white */
+  --color-danger-strong: #C42A30;    /* destructive button fill (white text 6.2:1) */
+  --color-danger-soft: #FDE6E6;
+  --color-success-ink: #157A41;      /* "Geaccepteerd" text — 5.4:1 */
+  --color-success-soft: #E1F4E8;
+
+  /* ---- Lesson types (every schedule shows a legend) ---- */
+  --color-theory: #2E5BFF;           /* theorie / hoorcollege — your blue */
+  --color-theory-soft: #E3E9FF;
+  --color-lab: #0E9F8A;              /* labo / practicum — teal */
+  --color-lab-ink: #0A6B5D;          /* 6.1:1 on white */
+  --color-lab-soft: #D6F2EC;
+  --color-skip: #8A857B;             /* "ik sla over" — your choice, not an error */
+  --color-skip-soft: #ECEAE4;
+
+  /* ---- Premium (only on paywall, Premium tags, success) ---- */
+  --color-premium: #C9971C;          /* gold fill — navy text on it */
+  --color-premium-light: #F6D77A;    /* gradient start */
+  --color-premium-deep: #A9780C;     /* gradient end */
+  --color-premium-ink: #7D5800;      /* gold text on light — 6.4:1 */
+  --color-premium-soft: #FBF1D6;
+  --gradient-premium: linear-gradient(135deg, #F6D77A 0%, #D9A520 55%, #A9780C 100%);  /* expo-linear-gradient */
+
+  /* ---- Avatar fills (user-picked; navy initials on all) ---- */
+  --color-avatar-blue: #2E5BFF;      /* "you" — white initial */
+  --color-avatar-rose: #F7A1BA;
+  --color-avatar-sky: #9EC2FF;
+  --color-avatar-mint: #8FD8B4;
+  --color-avatar-apricot: #FFC58F;
+  --color-avatar-sand: #E7D49B;
+  --color-avatar-aqua: #A8DDE6;
+  --color-avatar-coral: #F5B39E;
+
+  /* ---- Type ---- */
+  --font-ui: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Bricolage Grotesque", "Atkinson Hyperlegible Next", system-ui, sans-serif;
+  --font-features-numbers: "tnum" 1;  /* tabular figures for every time & number */
+
+  --text-xs: 13px;   --leading-xs: 18px;    /* meta, captions */
+  --text-sm: 15px;   --leading-sm: 20px;    /* secondary lines */
+  --text-base: 17px; --leading-base: 24px;  /* body (iOS Body) */
+  --text-lg: 20px;   --leading-lg: 26px;    /* card titles */
+  --text-xl: 24px;   --leading-xl: 30px;    /* display: sheet titles */
+  --text-2xl: 30px;  --leading-2xl: 36px;   /* display: screen titles */
+  --text-3xl: 40px;  --leading-3xl: 44px;   /* display: onboarding */
+  --text-4xl: 56px;  --leading-4xl: 56px;   /* display: big numbers */
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
+  --font-weight-display: 700;
+  --tracking-label: 0.08em;               /* uppercase section labels */
+
+  /* ---- Spacing: 4-pt grid ---- */
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;   /* screen side gutter */
+  --space-6: 24px;   /* between sections */
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --size-touch: 44px;   /* minimum touch target */
+  --size-button: 52px;  /* full-width button height */
+
+  /* ---- Radii ---- */
+  --radius-chip: 8px;
+  --radius-block: 8px;    /* timetable blocks */
+  --radius-card: 12px;
+  --radius-button: 12px;
+  --radius-sheet: 20px;   /* top corners of bottom sheets */
+  --radius-full: 9999px;  /* avatars, toggles */
+
+  /* ---- The one shadow (floating sheets & widgets only) ---- */
+  --shadow-sheet: 0 -2px 16px rgba(22, 31, 42, 0.12);
+
+  /* ---- Motion (all optional garnish) ---- */
+  --duration-fast: 120ms;    /* press states, toggles */
+  --duration-base: 200ms;    /* chips, banners */
+  --duration-slow: 320ms;    /* sheets */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.theme-dark {
+  --color-bg: #161F2A;
+  --color-surface: #1E2936;
+  --color-surface-raised: #243140;
+  --color-surface-sunken: #111821;
+  --color-line: #2F3D4D;
+  --color-line-strong: #3E4F62;
+  --color-control-off: #6F7C8A;
+  --color-ink: #F4F3EF;
+  --color-ink-2: #C4C0B6;
+  --color-ink-3: #9C978C;
+  --color-ink-inverse: #161F2A;
+  --color-scrim: rgba(0, 0, 0, 0.6);
+
+  --color-you-ink: #8EA8FF;
+  --color-you-soft: #1F2D57;
+  --color-friend-ink: #FF8FB0;
+  --color-friend-soft: #44202F;
+  --color-together-ink: #FFD24D;
+  --color-together-soft: #3A3115;
+  --color-danger-ink: #FF8A8D;
+  --color-danger-strong: #D93A40;
+  --color-danger-soft: #4A1F22;
+  --color-success-ink: #5ED38E;
+  --color-success-soft: #173A28;
+
+  --color-theory-soft: #23336A;
+  --color-lab-ink: #5FD6C2;
+  --color-lab-soft: #123B36;
+  --color-skip: #9C978C;
+  --color-skip-soft: #1A232E;
+  --color-premium-ink: #F2C766;
+  --color-premium-soft: #3A2E10;
+
+  --shadow-sheet: 0 -2px 16px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root, .theme-light, .theme-dark {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+}

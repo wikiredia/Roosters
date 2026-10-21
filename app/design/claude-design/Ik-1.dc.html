@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Ik: profiel en vrienden</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--color-surface-sunken);flex-shrink:0}
+.opt{display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:12px;border:1.5px solid var(--color-line-strong);width:100%;text-align:left}
+.opt.on{border:2px solid var(--color-you);background:var(--color-you-soft)}
+</style>
+</helmet>
+<div class="rp board" style="width: 1844px; height: 3500px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Ik · profiel en vrienden <span>{{t.label}}</span></h2>
+  <div class="shots">
+
+    <!-- I1 Me -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>A</b> Ik · volledige scroll</figcaption>
+      <div class="phone" style="height: 1480px">
+        <div class="safe"></div>
+        <header class="topbar"><h1 class="title">Ik</h1></header>
+        <div class="content" style="gap: 24px; padding: 0 16px 24px">
+          <div class="card" style="flex-direction: row; align-items: center; gap: 16px; padding: 16px">
+            <span class="av av-lg c-reda">R</span>
+            <div class="stack grow"><span class="t-lg b">Reda</span><span class="t-sm m2">AP Hogeschool · Spoor Noord</span><a class="link t-sm" href="#" style="margin-top: 4px">Profiel bewerken</a></div>
+          </div>
+
+          <a class="card" href="#" style="flex-direction: row; align-items: center; gap: 14px; padding: 16px; border: 2px solid var(--color-premium)">
+            <svg width="44" height="44" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22.5" fill="#161F2A"></rect><rect x="26" y="20" width="22" height="23" rx="5" fill="#2E5BFF"></rect><rect x="52" y="28" width="22" height="15" rx="5" fill="#F0487A"></rect><rect x="23" y="46" width="54" height="10" rx="5" fill="#FFC21A"></rect><rect x="26" y="59" width="22" height="21" rx="5" fill="#2E5BFF"></rect><rect x="52" y="59" width="22" height="13" rx="5" fill="#F0487A"></rect></svg>
+            <span class="stack grow"><span class="hstack g2"><span class="b">Roosters+</span><span class="tag tag-gold">Premium</span></span><span class="t-sm m2">Widgets, Live Activity, meer vrienden vergelijken</span></span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg>
+          </a>
+
+          <div class="card">
+            <a class="row" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11a7 7 0 0 1 14 0v9l-2.3-1.6L14.3 20 12 18.4 9.7 20l-2.4-1.6z"></path><circle cx="9.5" cy="11" r=".8" fill="currentColor"></circle><circle cx="14.5" cy="11" r=".8" fill="currentColor"></circle></svg></span><span class="row-main"><span class="row-title">Ghost mode</span><span class="row-sub">Verberg je even voor iedereen</span></span><span class="row-val">Uit</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+          </div>
+
+          <div class="stack">
+            <p class="list-head">Vrienden</p>
+            <div class="card">
+              <a class="row" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"></circle><path d="M3 19c.9-2.9 3.2-4.5 6-4.5s5.1 1.6 6 4.5"></path><path d="M15.5 5.7a3.5 3.5 0 0 1 0 6.6M17.5 14.8c1.6.6 2.8 2 3.5 4.2"></path></svg></span><span class="row-main"><span class="row-title">Vrienden</span></span><span class="row-val">7</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <a class="row" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18v2M18 14h2"></path></svg></span><span class="row-main"><span class="row-title">Vriend toevoegen</span><span class="row-sub">Link of QR-code</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+            </div>
+          </div>
+
+          <div class="stack">
+            <p class="list-head">Rooster en meldingen</p>
+            <div class="card">
+              <a class="row" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span><span class="row-main"><span class="row-title">Roosterbronnen</span><span class="row-sub">2 klassen · bijgewerkt 4 min geleden</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <a class="row" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg></span><span class="row-main"><span class="row-title">Meldingen</span><span class="row-sub">4 van 5 aan · stil 22:00–07:30</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <a class="row" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M3.5 12h17M12 3.5c2.5 2.5 3.5 5.3 3.5 8.5s-1 6-3.5 8.5c-2.5-2.5-3.5-5.3-3.5-8.5s1-6 3.5-8.5z"></path></svg></span><span class="row-main"><span class="row-title">Taal</span></span><span class="row-val">Nederlands</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+            </div>
+          </div>
+
+          <div class="stack">
+            <p class="list-head">Privacy en account</p>
+            <div class="card">
+              <a class="row" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"></rect><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"></path></svg></span><span class="row-main"><span class="row-title">Privacy</span><span class="row-sub">Wat je vrienden zien, wat wij bewaren</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <a class="row" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"></path></svg></span><span class="row-main"><span class="row-title">Download mijn gegevens</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <button class="row"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4.5H5.5v15H14M10 12h10M16.5 8.5 20 12l-3.5 3.5"></path></svg></span><span class="row-main"><span class="row-title">Uitloggen</span></span></button>
+              <button class="row"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4.5H5.5v15H14M10 12h10M16.5 8.5 20 12l-3.5 3.5"></path></svg></span><span class="row-main"><span class="row-title">Overal uitloggen</span><span class="row-sub">Op al je toestellen</span></span></button>
+              <a class="row bad-ink" href="#"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 6.5h15M9.5 6.5V4.5h5v2M6.5 6.5l1 13h9l1-13"></path></svg></span><span class="row-main"><span class="row-title">Account verwijderen</span></span></a>
+            </div>
+          </div>
+          <p class="t-xs m3" style="text-align: center">Roosters+ v1.0 · <a class="link" href="#">Voorwaarden</a> · <a class="link" href="#">Privacybeleid</a></p>
+        </div>
+        <nav class="tabbar" aria-label="Hoofdmenu">
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></span>Vandaag</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span>Rooster</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg><span class="badge">3</span></span>Chat</a>
+          <a class="tab on" href="#" aria-current="page"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="4"></circle><path d="M4.5 20c1.3-3.4 4.1-5 7.5-5s6.2 1.6 7.5 5"></path></svg></span>Ik</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- I2 Friends -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>B</b> Vrienden</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar"><button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button><span class="nav-title">Vrienden</span><span style="width: 44px"></span></div>
+        <div class="content" style="gap: 18px; padding: 8px 16px 24px">
+          <button class="btn btn-primary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Vriend toevoegen</button>
+          <div class="input"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" placeholder="Zoek in je vrienden" aria-label="Zoek in je vrienden"></div>
+          <div class="stack">
+            <p class="list-head">Vastgezet · bovenaan in Vandaag</p>
+            <div class="card">
+            <div class="row" style="padding-right: 6px"><span class="av c-kayra">K</span><a class="row-main" href="#"><span class="row-title">Kayra</span><span class="row-sub">Ziet je volledige rooster</span></a><button class="btn-icon" aria-label="Losmaken" aria-pressed="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="you-ink"><path d="M9.5 3.5h5l-.5 6 3 3v2h-10v-2l3-3z"></path><path d="M12 14.5v6" fill="none"></path></svg></button></div>
+            <div class="row" style="padding-right: 6px"><span class="av c-yeno">Y</span><a class="row-main" href="#"><span class="row-title">Yeno</span><span class="row-sub">Ziet je volledige rooster</span></a><button class="btn-icon" aria-label="Losmaken" aria-pressed="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="you-ink"><path d="M9.5 3.5h5l-.5 6 3 3v2h-10v-2l3-3z"></path><path d="M12 14.5v6" fill="none"></path></svg></button></div>
+            </div>
+          </div>
+          <div class="stack">
+            <p class="list-head">Alle vrienden</p>
+            <div class="card">
+            <div class="row" style="padding-right: 6px"><span class="av c-lotte">L</span><a class="row-main" href="#"><span class="row-title">Lotte</span><span class="row-sub">Ziet je volledige rooster</span></a><button class="btn-icon" aria-label="Vastzetten" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M9.5 3.5h5l-.5 6 3 3v2h-10v-2l3-3z"></path><path d="M12 14.5v6"></path></svg></button></div>
+            <div class="row" style="padding-right: 6px"><span class="av c-amir">A</span><a class="row-main" href="#"><span class="row-title">Amir</span><span class="row-sub">Ziet enkel vrij/bezet</span></a><button class="btn-icon" aria-label="Vastzetten" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M9.5 3.5h5l-.5 6 3 3v2h-10v-2l3-3z"></path><path d="M12 14.5v6"></path></svg></button></div>
+            <div class="row" style="padding-right: 6px"><span class="av c-sanne">S</span><a class="row-main" href="#"><span class="row-title">Sanne</span><span class="row-sub">Ziet enkel vrij/bezet</span></a><button class="btn-icon" aria-label="Vastzetten" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M9.5 3.5h5l-.5 6 3 3v2h-10v-2l3-3z"></path><path d="M12 14.5v6"></path></svg></button></div>
+            <div class="row" style="padding-right: 6px"><span class="av c-ilias">I</span><a class="row-main" href="#"><span class="row-title">Ilias</span><span class="row-sub">Ziet je volledige rooster</span></a><button class="btn-icon" aria-label="Vastzetten" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M9.5 3.5h5l-.5 6 3 3v2h-10v-2l3-3z"></path><path d="M12 14.5v6"></path></svg></button></div>
+            <div class="row" style="padding-right: 6px"><span class="av c-noor">N</span><a class="row-main" href="#"><span class="row-title">Noor</span><span class="row-sub">Ziet enkel vrij/bezet</span></a><button class="btn-icon" aria-label="Vastzetten" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M9.5 3.5h5l-.5 6 3 3v2h-10v-2l3-3z"></path><path d="M12 14.5v6"></path></svg></button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- I3 Friend detail -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>C</b> Vriend · wat ziet Kayra van jou?</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar"><button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button><span class="nav-title"></span><span style="width: 44px"></span></div>
+        <div class="content" style="gap: 18px; padding-top: 0">
+          <div class="stack g2" style="align-items: center; text-align: center">
+            <span class="av av-md c-kayra">K</span>
+            <span class="title">Kayra</span>
+            <span class="t-sm m2">2ITCSC1a · Spoor Noord · vrienden sinds september</span>
+          </div>
+          <div class="stack g3" role="radiogroup" aria-label="Wat ziet Kayra van jou?">
+            <div class="sec-head"><h2>Wat ziet Kayra van jou?</h2></div>
+            <button class="opt on" role="radio" aria-checked="true"><span class="radio on" style="margin-top: 2px"></span><span class="stack grow"><span class="b">Volledig rooster</span><span class="t-sm m2">Vakken, lokalen en tijden</span></span></button>
+            <button class="opt" role="radio" aria-checked="false"><span class="radio" style="margin-top: 2px"></span><span class="stack grow"><span class="b">Enkel vrij/bezet</span><span class="t-sm m2">Kayra ziet wanneer je vrij bent, niet welke les</span></span></button>
+          </div>
+          <button class="btn btn-secondary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg>Stuur bericht</button>
+          <div class="card">
+            <div class="row"><span class="row-main"><span class="row-title">Vastzetten</span><span class="row-sub">Kayra staat altijd bovenaan</span></span><button class="tgl on" role="switch" aria-checked="true" aria-label="Vastzetten"><span class="knob"></span></button></div>
+            <button class="row"><span class="row-main"><span class="row-title">Verwijder als vriend</span><span class="row-sub">Jullie zien elkaars rooster niet meer</span></span></button>
+            <button class="row bad-ink"><span class="row-main"><span class="row-title">Blokkeer Kayra</span><span class="row-sub">Kayra krijgt hiervan geen melding</span></span></button>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- I4 Add friend QR -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>D</b> Vriend toevoegen · link + QR</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar"><button class="btn-icon" aria-label="Sluiten"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button><span class="nav-title">Vriend toevoegen</span><span style="width: 44px"></span></div>
+        <div class="content" style="gap: 22px; padding-top: 8px">
+          <div class="seg" role="tablist"><button class="on" role="tab" aria-selected="true">Mijn code</button><button role="tab" aria-selected="false">Scan een code</button></div>
+          <div class="card" style="align-items: center; padding: 28px 20px; gap: 16px">
+            <div style="padding: 14px; border-radius: 12px; background: #FFFFFF; border: 1px solid #E0DCD3">
+              <svg width="196" height="196" viewBox="0 0 29 29" role="img" aria-label="QR-code (voorbeeld)" shape-rendering="crispEdges"><g fill="#161F2A"><path d="M0 0h7v7H0zM22 0h7v7h-7zM0 22h7v7H0z"></path></g><g fill="#FFFFFF"><path d="M1 1h5v5H1zM23 1h5v5h-5zM1 23h5v5H1z"></path></g><g fill="#161F2A"><path d="M2 2h3v3H2zM24 2h3v3h-3zM2 24h3v3H2z"></path><path d="M9 1h2v2H9zM12 0h1v4h-1zM15 2h3v1h-3zM19 1h1v3h-1zM9 5h3v1H9zM14 5h2v2h-2zM17 6h3v1h-3zM8 8h2v2H8zM11 9h3v1h-3zM16 8h1v3h-1zM19 9h4v1h-4zM25 8h2v2h-2zM0 9h2v1H0zM3 10h3v1H3zM1 12h1v3H1zM4 13h3v1H4zM9 12h2v2H9zM13 12h3v1h-3zM18 12h1v2h-1zM21 11h1v4h-1zM24 12h3v1h-3zM27 14h2v1h-2zM8 15h1v3H8zM11 16h4v1h-4zM16 15h2v2h-2zM20 17h3v1h-3zM24 16h1v3h-1zM2 17h3v1H2zM5 19h2v1H5zM10 19h2v2h-2zM14 19h1v3h-1zM17 19h3v1h-3zM22 20h2v1h-2zM26 19h2v2h-2zM9 23h3v1H9zM13 24h2v2h-2zM17 22h1v3h-1zM20 23h2v1h-2zM23 23h1v2h-1zM25 24h3v1h-3zM9 26h2v2H9zM12 27h4v1h-4zM18 26h2v2h-2zM21 26h1v3h-1zM24 27h3v1h-3z"></path></g><rect x="11.5" y="11.5" width="6" height="6" rx="1.5" fill="#FFC21A"></rect></svg>
+            </div>
+            <div class="stack" style="align-items: center"><span class="t-lg b">Reda</span><span class="t-sm m2">Laat een vriend dit scannen met de camera</span></div>
+          </div>
+          <div class="card card-pad">
+            <div class="hstack g3"><span class="stack grow"><span class="t-xs m2 b">Of stuur je link</span><span class="b">roosters.plus/r/reda</span></span><button class="btn btn-secondary btn-sm">Kopieer</button></div>
+          </div>
+          <button class="btn btn-primary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5v11M8 7.5l4-4 4 4M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12"></path></svg>Deel je link</button>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1844,"height":3500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

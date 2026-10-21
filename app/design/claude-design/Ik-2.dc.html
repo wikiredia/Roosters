@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Ik: instellingen</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.opt{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;border-radius:12px;border:1.5px solid var(--color-line-strong);width:100%;font-weight:700}
+.opt.on{border:2px solid var(--color-you);background:var(--color-you-soft)}
+.timebtn{flex:1;display:flex;flex-direction:column;padding:6px 14px;border-radius:12px;border:1.5px solid var(--color-control-off);background:var(--color-surface);min-height:52px}
+.bul{display:flex;gap:10px;align-items:flex-start}
+.bul i{width:6px;height:6px;border-radius:3px;background:var(--color-ink);margin-top:9px;flex-shrink:0}
+</style>
+</helmet>
+<div class="rp board" style="width: 2285px; height: 2200px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Ik · instellingen <span>{{t.label}}</span></h2>
+  <div class="shots">
+
+    <!-- Ghost -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>E</b> Ghost mode</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <header class="topbar"><h1 class="title">Ik</h1></header>
+        <div class="content" style="padding: 0 16px; gap: 24px">
+          <div class="card" style="flex-direction: row; align-items: center; gap: 16px; padding: 16px"><span class="av av-lg c-reda">R</span><div class="stack grow"><span class="t-lg b">Reda</span><span class="t-sm m2">AP Hogeschool · Spoor Noord</span></div></div>
+          <div class="card"><div class="row"><span class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11a7 7 0 0 1 14 0v9l-2.3-1.6L14.3 20 12 18.4 9.7 20l-2.4-1.6z"></path></svg></span><span class="row-main"><span class="row-title">Ghost mode</span></span><span class="row-val">Uit</span></div></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet" role="dialog" aria-label="Verberg me">
+          <span class="grab"></span>
+          <div class="sheet-head">
+            <div class="hstack g3"><span style="width: 44px; height: 44px; border-radius: 12px; background: var(--color-surface-sunken); display: flex; align-items: center; justify-content: center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11a7 7 0 0 1 14 0v9l-2.3-1.6L14.3 20 12 18.4 9.7 20l-2.4-1.6z"></path><circle cx="9.5" cy="11" r=".8" fill="currentColor"></circle><circle cx="14.5" cy="11" r=".8" fill="currentColor"></circle></svg></span><h3 class="title-sheet">Verberg me tot…</h3></div>
+            <button class="btn-icon filled" aria-label="Sluiten"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </div>
+          <p class="t-base m2">Je vrienden zien je als "niet beschikbaar". Jij ziet hen wel nog.</p>
+          <div class="stack g2" role="radiogroup" aria-label="Hoe lang?">
+            <button class="opt" role="radio" aria-checked="false"><span class="radio"></span><span class="grow">1 uur</span><span class="t-sm m2" style="font-weight: 400">tot 12:20</span></button>
+            <button class="opt on" role="radio" aria-checked="true"><span class="radio on"></span><span class="grow">Vandaag</span><span class="t-sm m2" style="font-weight: 400">tot middernacht</span></button>
+            <button class="opt" role="radio" aria-checked="false"><span class="radio"></span><span class="grow">Tot ik het uitzet</span></button>
+          </div>
+          <button class="btn btn-primary">Verberg me</button>
+        </div>
+      </div>
+    </figure>
+
+    <!-- Sources -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>F</b> Roosterbronnen · Untis even weg</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar"><button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button><span class="nav-title">Roosterbronnen</span><span style="width: 44px"></span></div>
+        <div class="content" style="gap: 22px; padding: 8px 16px 24px">
+          <div class="card card-pad" style="background: var(--color-danger-soft); border-color: transparent; gap: 10px">
+            <div class="hstack g3" style="align-items: flex-start"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="bad-ink"><path d="M12 4 21 19.5H3z"></path><path d="M12 10v4.5M12 17.2v.3"></path></svg><p class="grow">Untis is even niet bereikbaar. We tonen je laatst gekende rooster.</p></div>
+            <div class="hstack between" style="padding-left: 34px"><span class="t-sm m2">Bijgewerkt gisteren 18:04</span><button class="btn btn-secondary btn-sm">Opnieuw</button></div>
+          </div>
+          <div class="stack">
+            <p class="list-head">Klassen · AP Hogeschool</p>
+            <div class="card">
+              <a class="row" href="#"><span class="row-main"><span class="row-title">2ITCSC1a</span><span class="row-sub">5 van 6 vakken</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <a class="row" href="#"><span class="row-main"><span class="row-title">1IT7</span><span class="row-sub">1 van 1 vak</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <button class="row you-ink"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span class="row-title">Klas toevoegen</span></button>
+            </div>
+          </div>
+          <div class="stack">
+            <p class="list-head">Agendalinks</p>
+            <div class="card">
+              <a class="row" href="#"><span class="row-main"><span class="row-title">Sportclub</span><span class="row-sub">Bijgewerkt 2 uur geleden</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <button class="row"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" class="you-ink"><path d="M12 5v14M5 12h14"></path></svg><span class="row-title grow you-ink">Agendalink toevoegen</span><span class="tag tag-gold" style="align-self: center">Premium</span></button>
+            </div>
+            <p class="t-sm m2" style="padding: 8px 4px 0">Gratis: je schoolrooster + 1 agendalink.</p>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- Notifications -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>G</b> Meldingen</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar"><button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button><span class="nav-title">Meldingen</span><span style="width: 44px"></span></div>
+        <div class="content" style="gap: 22px; padding: 8px 16px 24px">
+          <div class="card">
+            <div class="row"><span class="row-main"><span class="row-title">Pauze met vrienden</span><span class="row-sub">Als jij en een vriend vrij zijn</span></span><button class="tgl on" role="switch" aria-checked="true" aria-label="Pauze met vrienden"><span class="knob"></span></button></div>
+            <div class="row"><span class="row-main"><span class="row-title">Verzoeken</span><span class="row-sub">Als iemand pauze met je wil</span></span><button class="tgl on" role="switch" aria-checked="true" aria-label="Verzoeken"><span class="knob"></span></button></div>
+            <div class="row"><span class="row-main"><span class="row-title">Roosterwijzigingen</span><span class="row-sub">Vervalt, verplaatst, extra les</span></span><button class="tgl on" role="switch" aria-checked="true" aria-label="Roosterwijzigingen"><span class="knob"></span></button></div>
+            <div class="row"><span class="row-main"><span class="row-title">Samen reizen</span><span class="row-sub">'s Avonds, voor morgen</span></span><button class="tgl" role="switch" aria-checked="false" aria-label="Samen reizen"><span class="knob"></span></button></div>
+            <div class="row"><span class="row-main"><span class="row-title">Chat</span><span class="row-sub">Enkel chats met een bel aan</span></span><button class="tgl on" role="switch" aria-checked="true" aria-label="Chat"><span class="knob"></span></button></div>
+          </div>
+          <div class="stack">
+            <p class="list-head">Stille uren</p>
+            <div class="card">
+              <div class="row"><span class="row-main"><span class="row-title">Stille uren</span><span class="row-sub">Geen seintjes, ook niet van vrienden</span></span><button class="tgl on" role="switch" aria-checked="true" aria-label="Stille uren"><span class="knob"></span></button></div>
+              <div class="row" style="gap: 8px"><button class="timebtn"><span class="t-xs m2 b">Van</span><span class="t-lg b">22:00</span></button><button class="timebtn"><span class="t-xs m2 b">Tot</span><span class="t-lg b">07:30</span></button></div>
+            </div>
+          </div>
+          <a class="card" href="#" style="flex-direction: row; align-items: center; gap: 12px; padding: 14px 16px"><span class="stack grow"><span class="b">Slimme regels</span><span class="t-sm m2">Bv. enkel als ik op de campus ben</span></span><span class="tag tag-gold" style="align-self: center">Premium</span></a>
+        </div>
+      </div>
+    </figure>
+
+    <!-- Language -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>H</b> Taal</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar"><button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button><span class="nav-title">Taal</span><span style="width: 44px"></span></div>
+        <div class="content" style="gap: 18px; padding: 8px 16px 24px">
+          <div class="card" role="radiogroup" aria-label="Taal">
+            <button class="row" role="radio" aria-checked="false" lang="nl"><span class="row-main"><span class="row-title">Zoals je telefoon</span><span class="row-sub">Nu: Nederlands</span></span><span class="radio"></span></button>
+            <button class="row" role="radio" aria-checked="true" lang="nl"><span class="row-main"><span class="row-title">Nederlands</span></span><span class="radio on"></span></button>
+            <button class="row" role="radio" aria-checked="false" lang="en"><span class="row-main"><span class="row-title">English</span></span><span class="radio"></span></button>
+          </div>
+          <p class="t-sm m2" style="padding: 0 4px">Vaknamen en lokalen komen uit je schoolrooster en blijven zoals ze zijn.</p>
+        </div>
+      </div>
+    </figure>
+
+    <!-- Delete -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>I</b> Account verwijderen · rustig bevestigen</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar"><button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button><span class="nav-title"></span><span style="width: 44px"></span></div>
+        <div class="content" style="gap: 24px; padding-top: 8px">
+          <h1 class="title">Account verwijderen?</h1>
+          <div class="stack g3">
+            <p class="b">Dit wissen we:</p>
+            <div class="bul"><i></i><span>Je profiel en je status</span></div>
+            <div class="bul"><i></i><span>Je vriendenlijst en verzoeken</span></div>
+            <div class="bul"><i></i><span>Je chats</span></div>
+            <div class="bul"><i></i><span>Je gekoppelde roosters en agendalinks</span></div>
+          </div>
+          <div class="card card-pad" style="gap: 8px">
+            <p class="t-base">Na <b>30 dagen</b> is alles definitief weg. Log je eerder opnieuw in, dan blijft je account bestaan.</p>
+            <p class="t-sm m2">Heb je Premium? Zeg dat apart op in de App Store of Google Play.</p>
+          </div>
+          <a class="link t-base" href="#">Eerst je gegevens downloaden</a>
+        </div>
+        <div style="padding: 12px 20px 34px; display: flex; flex-direction: column; gap: 8px">
+          <button class="btn btn-secondary">Toch niet</button>
+          <button class="btn btn-danger">Verwijder mijn account</button>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2285,"height":2200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Onboarding: welkom, login, school</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.prog{display:flex;gap:6px;flex:1;margin:0 12px 0 8px}
+.prog span{flex:1;height:8px;border-radius:4px;background:var(--color-line-strong)}
+.prog .done{background:var(--color-ink)}
+.prog .cur{background:var(--color-you)}
+.foot{padding:12px 20px 34px;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+</style>
+</helmet>
+<div class="rp board" style="width: 2285px; height: 2200px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Onboarding 1–3 <span>{{t.label}} · doel: eerste waarde binnen 60 seconden</span></h2>
+  <div class="shots">
+
+    <!-- 1 Welcome -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>1</b> Welkom</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="topbar"><span class="wordmark" style="font-size: 24px; line-height: 28px" aria-label="Roosters+">Roosters<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="margin-top: 2px"><rect x="9" y="2" width="6" height="20" rx="3" fill="#FFC21A"></rect><rect x="2" y="9" width="20" height="6" rx="3" fill="#FFC21A"></rect></svg></span></div>
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 20px 28px; gap: 28px">
+          <div style="display: flex; flex-direction: column; align-items: center; position: relative">
+            <svg class="mascot" width="168" height="179" viewBox="0 0 120 128" aria-hidden="true"><g class="comb"><rect x="45" y="11" width="10" height="21" rx="5" fill="#F0487A"></rect><rect x="55" y="4" width="11" height="28" rx="5.5" fill="#F0487A"></rect><rect x="66" y="11" width="10" height="21" rx="5" fill="#F0487A"></rect></g><rect class="wing-l" x="11" y="62" width="17" height="28" rx="8.5" fill="#1D3FD0"></rect><rect class="wing-r" x="92" y="62" width="17" height="28" rx="8.5" fill="#1D3FD0"></rect><rect x="40" y="102" width="14" height="10" rx="5" fill="#FFC21A"></rect><rect x="66" y="102" width="14" height="10" rx="5" fill="#FFC21A"></rect><rect x="22" y="26" width="76" height="80" rx="32" fill="#2E5BFF"></rect><rect x="38" y="72" width="44" height="28" rx="14" fill="#5B7EFF"></rect><g class="eye"><circle cx="46" cy="54" r="9" fill="#FFFFFF"></circle><circle cx="48" cy="56" r="5" fill="#161F2A"></circle><circle cx="50" cy="53.6" r="1.7" fill="#FFFFFF"></circle></g><g class="eye"><circle cx="74" cy="54" r="9" fill="#FFFFFF"></circle><circle cx="72" cy="56" r="5" fill="#161F2A"></circle><circle cx="74" cy="53.6" r="1.7" fill="#FFFFFF"></circle></g><circle cx="34" cy="70" r="4.5" fill="#F0487A"></circle><circle cx="86" cy="70" r="4.5" fill="#F0487A"></circle><rect x="54" y="66" width="12" height="5" rx="2.5" fill="#FFC21A"></rect><rect x="57.5" y="62.5" width="5" height="12" rx="2.5" fill="#FFC21A"></rect></svg>
+            <div style="width: 260px; height: 14px; border-radius: 7px; background: var(--color-together); margin-top: -2px"></div>
+          </div>
+          <div class="stack g3" style="align-items: center; text-align: center">
+            <h1 class="title-xl" style="text-wrap: balance">Zie wanneer je vrienden vrij zijn.</h1>
+            <p class="t-base m2" style="max-width: 320px">Koppel je lesrooster één keer. Wij zoeken de pauzes die je samen hebt.</p>
+          </div>
+        </div>
+        <div class="foot">
+          <button class="btn btn-ink"><span aria-hidden="true" title="Officieel Apple-logo uit de Sign in with Apple-kit" style="width: 22px; height: 22px; border-radius: 6px; border: 1.5px dashed currentColor; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; opacity: 0.8">LOGO</span>Doorgaan met Apple</button>
+          <button class="btn btn-secondary"><span aria-hidden="true" title="Officieel Google-logo uit de Google Sign-In-kit" style="width: 22px; height: 22px; border-radius: 11px; border: 1.5px dashed currentColor; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; opacity: 0.8">LOGO</span>Doorgaan met Google</button>
+          <button class="btn btn-secondary"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="2"></rect><path d="m4 6.5 8 6 8-6"></path></svg>Doorgaan met e-mail</button>
+          <p class="t-xs m2" style="text-align: center; padding-top: 6px">Door verder te gaan ga je akkoord met de <a class="link" href="#">voorwaarden</a> en het <a class="link" href="#">privacybeleid</a>.</p>
+        </div>
+      </div>
+    </figure>
+
+    <!-- 2a Email -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>2a</b> Inloggen met e-mail</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar">
+          <button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button>
+          <div class="prog" aria-label="Stap 1 van 6"><span class="cur"></span><span></span><span></span><span></span><span></span><span></span></div><span class="t-sm b m2" style="width: 36px; text-align: right; padding-right: 8px">1/6</span>
+        </div>
+        <div class="content" style="padding-top: 20px">
+          <div class="stack g2">
+            <h1 class="title">Wat is je e-mailadres?</h1>
+            <p class="t-base m2">We sturen je een code van 6 cijfers. Je hebt geen wachtwoord nodig.</p>
+          </div>
+          <div class="field">
+            <label for="ob-mail-{{t.id}}">E-mailadres</label>
+            <div class="input focus"><input id="ob-mail-{{t.id}}" type="email" value="reda@student.ap.be" autocomplete="email"></div>
+            <p class="t-sm m2">Gebruik liefst je schoolmail. Dan vinden klasgenoten je sneller.</p>
+          </div>
+          <button class="btn btn-primary">Stuur code</button>
+        </div>
+      </div>
+    </figure>
+
+    <!-- 2b Code -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>2b</b> Code van 6 cijfers</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar">
+          <button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button>
+          <div class="prog" aria-label="Stap 1 van 6"><span class="cur"></span><span></span><span></span><span></span><span></span><span></span></div><span class="t-sm b m2" style="width: 36px; text-align: right; padding-right: 8px">1/6</span>
+        </div>
+        <div class="content" style="padding-top: 20px">
+          <div class="stack g2">
+            <h1 class="title">Vul de code in</h1>
+            <p class="t-base m2">We stuurden een code naar <span class="b" style="color: var(--color-ink)">reda@student.ap.be</span>.</p>
+            <a class="link t-base" href="#">Ander e-mailadres</a>
+          </div>
+          <div class="stack g3">
+            <div class="code" role="group" aria-label="Code van 6 cijfers"><span class="code-box filled">4</span><span class="code-box filled">8</span><span class="code-box filled">2</span><span class="code-box filled">0</span><span class="code-box focus"></span><span class="code-box"></span></div>
+            <button class="btn btn-secondary btn-sm" style="align-self: flex-start"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="1.5"></rect><path d="M15.5 8.5V5.5A1.5 1.5 0 0 0 14 4H5.5A1.5 1.5 0 0 0 4 5.5V14a1.5 1.5 0 0 0 1.5 1.5h3"></path></svg>Plak code</button>
+          </div>
+          <div class="stack g1">
+            <p class="t-base m2">Code opnieuw sturen kan over <span class="b" style="color: var(--color-ink)">0:42</span></p>
+            <p class="t-sm m3">Niets gekregen? Kijk ook in je spam.</p>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- 3a School -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>3a</b> Kies je school</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar">
+          <button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button>
+          <div class="prog" aria-label="Stap 2 van 6"><span class="done"></span><span class="cur"></span><span></span><span></span><span></span><span></span></div><span class="t-sm b m2" style="width: 36px; text-align: right; padding-right: 8px">2/6</span>
+        </div>
+        <div class="content" style="padding-top: 20px; gap: 20px">
+          <h1 class="title">Waar studeer je?</h1>
+          <div class="input"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg><input type="search" placeholder="Zoek je school" aria-label="Zoek je school"></div>
+          <div class="stack">
+            <p class="list-head">Voorgesteld</p>
+            <div class="card">
+              <button class="row" role="radio" aria-checked="true"><span class="row-main"><span class="row-title">AP Hogeschool</span><span class="row-sub">Antwerpen · rooster via Untis</span></span><span class="radio on"></span></button>
+            </div>
+          </div>
+          <div class="stack">
+            <p class="list-head">Alle scholen</p>
+            <div class="card">
+              <button class="row" role="radio" aria-checked="false"><span class="row-main"><span class="row-title">Karel de Grote Hogeschool</span><span class="row-sub">Antwerpen</span></span><span class="radio"></span></button>
+              <button class="row" role="radio" aria-checked="false"><span class="row-main"><span class="row-title">Thomas More</span><span class="row-sub">Antwerpen · Mechelen · Geel</span></span><span class="radio"></span></button>
+              <button class="row" role="radio" aria-checked="false"><span class="row-main"><span class="row-title">Universiteit Antwerpen</span><span class="row-sub">Antwerpen</span></span><span class="radio"></span></button>
+              <button class="row" role="radio" aria-checked="false"><span class="row-main"><span class="row-title">Hogeschool Gent</span><span class="row-sub">Gent</span></span><span class="radio"></span></button>
+            </div>
+          </div>
+          <a class="link t-sm" href="#">Mijn school staat er niet bij</a>
+        </div>
+        <div class="foot"><button class="btn btn-primary">Verder</button></div>
+      </div>
+    </figure>
+
+    <!-- 3b Campus -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>3b</b> Kies je campus</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar">
+          <button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button>
+          <div class="prog" aria-label="Stap 2 van 6"><span class="done"></span><span class="cur"></span><span></span><span></span><span></span><span></span></div><span class="t-sm b m2" style="width: 36px; text-align: right; padding-right: 8px">2/6</span>
+        </div>
+        <div class="content" style="padding-top: 20px; gap: 20px">
+          <div class="stack g2">
+            <h1 class="title">Welke campus?</h1>
+            <p class="t-base m2">AP Hogeschool. Zo weten je vrienden of je dichtbij bent.</p>
+          </div>
+          <div class="card">
+            <button class="row" role="radio" aria-checked="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="you-ink"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"></path><circle cx="12" cy="10" r="2.3"></circle></svg><span class="row-main"><span class="row-title">Spoor Noord</span></span><span class="radio on"></span></button>
+            <button class="row" role="radio" aria-checked="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"></path><circle cx="12" cy="10" r="2.3"></circle></svg><span class="row-main"><span class="row-title">Meistraat</span></span><span class="radio"></span></button>
+            <button class="row" role="radio" aria-checked="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"></path><circle cx="12" cy="10" r="2.3"></circle></svg><span class="row-main"><span class="row-title">Mutsaard</span></span><span class="radio"></span></button>
+            <button class="row" role="radio" aria-checked="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"></path><circle cx="12" cy="10" r="2.3"></circle></svg><span class="row-main"><span class="row-title">Kronenburg</span></span><span class="radio"></span></button>
+            <button class="row" role="radio" aria-checked="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"></path><circle cx="12" cy="10" r="2.3"></circle></svg><span class="row-main"><span class="row-title">Wisselt of weet ik niet</span><span class="row-sub">Kan je later aanpassen</span></span><span class="radio"></span></button>
+          </div>
+        </div>
+        <div class="foot"><button class="btn btn-primary">Verder</button></div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2285,"height":2200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

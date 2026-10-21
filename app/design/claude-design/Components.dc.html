@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Roosters+ componenten</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.spec{background:var(--color-bg);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;border:1px solid var(--color-line)}
+.spec-l{font-size:13px;line-height:18px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--color-ink-2)}
+.col{flex:1;min-width:0;display:flex;flex-direction:column;gap:24px}
+</style>
+</helmet>
+<div class="rp board" style="width: 2000px; height: 3200px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Componenten <span>{{t.label}}</span></h2>
+  <div style="display: flex; gap: 32px; align-items: flex-start">
+
+    <!-- column 1 -->
+    <div class="col">
+      <div class="spec">
+        <p class="spec-l">Knoppen</p>
+        <button class="btn btn-primary">Vraag pauze samen</button>
+        <button class="btn btn-secondary">Ander uur</button>
+        <button class="btn btn-ghost">Niet nu</button>
+        <button class="btn btn-danger">Account verwijderen</button>
+        <button class="btn btn-gold">Neem Premium</button>
+        <div class="hstack g2">
+          <button class="btn btn-primary btn-sm">Ja</button>
+          <button class="btn btn-secondary btn-sm">Nee</button>
+          <button class="btn btn-secondary btn-sm">Vraag</button>
+          <button class="btn-icon filled" aria-label="Vriend toevoegen"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+        </div>
+        <p class="t-xs m3">Hoogte 52 (vol) of 44 (klein). Eén primaire knop per scherm.</p>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Chips</p>
+        <p class="t-xs m2 b">Status (één keuze, radio)</p>
+        <div class="status-grid" role="radiogroup" aria-label="Status"><button class="status-opt" role="radio" aria-checked="false"><span class="radio"></span>Ik chill nog</button><button class="status-opt on" role="radio" aria-checked="true"><span class="radio on"></span>Ik wil chillen</button></div>
+        <p class="t-xs m2 b">Wacht op antwoord</p>
+        <span class="pill-wait" style="align-self: flex-start"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>Gevraagd, wacht…</span>
+        <p class="t-xs m2 b">Vakken (aan · uit)</p>
+        <div class="chips">
+          <button class="chip sel"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>Databases</button>
+          <button class="chip off"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>DevOps</button>
+        </div>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Segmented control · toggle</p>
+        <div class="hstack g2"><div class="seg grow" role="tablist"><button class="on" role="tab" aria-selected="true">Dag</button><button role="tab" aria-selected="false">Week</button></div><div class="hstack" role="group" aria-label="Aantal dagen" style="border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-surface); padding: 2px; flex-shrink: 0"><button class="btn-icon" style="width: 40px; height: 40px; color: var(--color-ink-3)" aria-label="Eén dag minder" aria-disabled="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg></button><span class="t-sm b" style="min-width: 48px; text-align: center">1 dag</span><button class="btn-icon" style="width: 40px; height: 40px" aria-label="Eén dag meer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6v12M6 12h12"></path></svg></button></div></div>
+        <div class="hstack g4">
+          <button class="tgl on" role="switch" aria-checked="true" aria-label="Aan"><span class="knob"></span></button>
+          <button class="tgl" role="switch" aria-checked="false" aria-label="Uit"><span class="knob"></span></button>
+          <span class="t-sm m2">Aan · uit (uit-spoor 3,7:1)</span>
+        </div>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Tabbalk</p>
+        <nav class="tabbar" style="padding-bottom: 8px; border-radius: 12px; border: 1px solid var(--color-line)">
+          <a class="tab on" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></span>Vandaag</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span>Rooster</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg><span class="badge">3</span></span>Chat</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="4"></circle><path d="M4.5 20c1.3-3.4 4.1-5 7.5-5s6.2 1.6 7.5 5"></path></svg></span>Ik</a>
+        </nav>
+        <p class="t-xs m3">Actief: pil + kleur + vet label (nooit kleur alleen).</p>
+      </div>
+    </div>
+
+    <!-- column 2 -->
+    <div class="col">
+      <div class="spec">
+        <p class="spec-l">Lijstrijen</p>
+        <div class="card">
+          <div class="row">
+            <span class="av c-kayra">K</span>
+            <div class="row-main"><span class="row-title">Kayra</span><span class="row-sub"><span class="ok-ink b">Vrij</span> · heeft pauze tot 12:30</span></div>
+            <button class="btn btn-secondary btn-sm">Chillen?</button>
+          </div>
+          <div class="row">
+            <span class="av c-amir">A</span>
+            <div class="row-main"><span class="row-title">Amir</span><span class="row-sub">Nog les tot 11:45</span></div>
+          </div>
+          <div class="row">
+            <div class="row-main"><span class="row-title">Pauze met vrienden</span><span class="row-sub">Als een vriend vrij is en jij ook</span></div>
+            <button class="tgl on" role="switch" aria-checked="true" aria-label="Pauze met vrienden"><span class="knob"></span></button>
+          </div>
+          <a class="row" href="#">
+            <div class="row-main"><span class="row-title">Taal</span></div>
+            <span class="row-val">Nederlands</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Kaarten · samen pauze &amp; verzoek</p>
+        <div style="background: var(--color-together-soft); border: 1.5px solid var(--color-together); border-radius: 12px; overflow: hidden">
+          <div class="row"><span class="av-stack"><span class="av c-lotte" style="border-color: var(--color-together-soft)">L</span><span class="av c-amir" style="border-color: var(--color-together-soft)">A</span></span><span class="row-main"><span class="row-title">Lotte en Amir</span><span class="row-sub" style="color: var(--color-ink)">12:30 – 13:30</span></span><button class="btn btn-primary btn-sm">Vraag</button></div>
+        </div>
+        <div class="card card-pad">
+          <div class="hstack g3">
+            <span class="av av-md c-lotte">L</span>
+            <div class="stack grow"><p class="t-lg b">Lotte: pauze om 12:30?</p><p class="t-sm m2">Tot 13:30 · cafetaria</p></div>
+          </div>
+          <div class="btn-row"><button class="btn btn-primary btn-sm">Ja</button><button class="btn btn-secondary btn-sm">Nee</button><button class="btn btn-secondary btn-sm">Ander uur</button></div>
+        </div>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Avatar · avatar-stapel</p>
+        <div class="hstack g3">
+          <span class="av av-lg c-reda">R</span><span class="av av-md c-kayra">K</span><span class="av c-yeno">Y</span><span class="av av-sm c-lotte">L</span>
+          <span class="av-stack" style="margin-left: 12px"><span class="av c-amir">A</span><span class="av c-sanne">S</span><span class="av c-ilias">I</span><span class="av c-more">+2</span></span>
+        </div>
+        <p class="t-xs m3">Jij = blauw met witte letter. Vrienden kiezen hun kleur; altijd navy letter.</p>
+      </div>
+    </div>
+
+    <!-- column 3 -->
+    <div class="col">
+      <div class="spec">
+        <p class="spec-l">Lesblok · alle states</p>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <div class="blk blk-theory" style="position: relative"><span class="blk-t">Cloud Computing</span><span class="t-xs">Theorie · 13:30–15:30 · C102</span></div>
+          <div class="blk blk-lab" style="position: relative"><span class="blk-t">Web Frameworks</span><span class="t-xs">Labo · 15:45–17:45 · B204</span></div>
+          <div class="blk blk-lab blk-past" style="position: relative"><span class="blk-t">Python Advanced</span><span class="t-xs">Labo · voorbij</span></div>
+          <div class="blk blk-skip" style="position: relative"><div class="hstack between"><span class="blk-t">Network Security</span><span class="tag tag-n">Ik sla over</span></div><span class="t-xs">Theorie · 10:45–12:45</span></div>
+          <div class="blk blk-cancel" style="position: relative"><div class="hstack between"><span class="blk-t strike">Databases</span><span class="tag tag-bad">Vervalt</span></div><span class="t-xs strike">10:30–12:30 · B204</span></div>
+          <div class="blk blk-theory blk-changed" style="position: relative"><div class="hstack between"><span class="blk-t">Databases</span><span class="tag tag-ink">Gewijzigd</span></div><span class="t-xs"><span class="strike">10:30 · B204</span> → <span class="b">13:00 · C102</span></span></div>
+          <div class="blk blk-lab blk-extra" style="position: relative"><div class="hstack between"><span class="blk-t">DevOps</span><span class="tag tag-you">Extra les</span></div><span class="t-xs">Labo · 16:00–17:00</span></div>
+          <div class="blk blk-exam" style="position: relative"><div class="hstack between"><span class="blk-t">ICT Architecture</span><span class="tag" style="background: var(--color-bg); color: var(--color-ink)">Examen</span></div><span class="t-xs">09:00–12:00 · A.1.05</span></div>
+          <div class="blk blk-together" style="position: relative"><div class="hstack g2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg><span class="blk-t">Samen pauze</span></div><span class="t-xs">12:30–13:30 · Lotte, Amir</span></div>
+          <div class="blk blk-friend" style="position: relative"><span class="blk-t">Les</span><span class="t-xs">Kayra · 08:30–11:00</span></div>
+          <div class="legend"><span class="lg"><i class="lg-theory"></i>Theorie</span><span class="lg"><i class="lg-lab"></i>Labo</span><span class="lg"><i class="lg-skip"></i>Overslaan</span><span class="lg"><i class="lg-cancel"></i>Vervalt</span><span class="lg"><i class="lg-exam"></i>Examen</span><span class="lg"><i class="lg-tog"></i>Samen</span><span class="lg"><i class="lg-friend"></i>Les vriend</span></div>
+        </div>
+        <p class="t-xs m3">Elke state = kleur + vorm (stippel, kader, vul) + woord.</p>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Banner · toast</p>
+        <div class="banner banner-ink"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M8.5 16a5 5 0 0 1 7 0M5 12.5a10 10 0 0 1 5-2.6M14.5 10a10 10 0 0 1 4.5 2.5M2 9a15 15 0 0 1 4.6-2.8M11 5.6A15 15 0 0 1 22 9"></path></svg><span>Geen verbinding. Je ziet je laatst gekende rooster.</span></div>
+        <div class="banner banner-bad"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="bad-ink"><path d="M12 4 21 19.5H3z"></path><path d="M12 10v4.5M12 17.2v.3"></path></svg><span>Untis is even niet bereikbaar.</span></div>
+        <div class="banner"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg><span>Wordt verstuurd zodra je weer online bent</span></div>
+        <div class="toast"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg><span class="grow">Gevraagd aan Kayra</span><button class="b" style="min-height: 44px">Ongedaan</button></div>
+      </div>
+    </div>
+
+    <!-- column 4 -->
+    <div class="col">
+      <div class="spec">
+        <p class="spec-l">Invoer</p>
+        <div class="field"><label for="c-mail-{{t.id}}">E-mailadres</label><div class="input"><input id="c-mail-{{t.id}}" type="email" placeholder="naam@student.ap.be"></div></div>
+        <div class="field"><label for="c-mail2-{{t.id}}">E-mailadres</label><div class="input focus"><input id="c-mail2-{{t.id}}" type="email" value="reda@student.ap.be"></div></div>
+        <div class="field"><label for="c-mail3-{{t.id}}">E-mailadres</label><div class="input error"><input id="c-mail3-{{t.id}}" type="email" value="reda@student"></div><p class="t-sm bad-ink b">Dit e-mailadres is niet volledig.</p></div>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Code · 6 cijfers</p>
+        <div class="code"><span class="code-box filled">4</span><span class="code-box filled">8</span><span class="code-box filled">2</span><span class="code-box focus"></span><span class="code-box"></span><span class="code-box"></span></div>
+        <p class="t-sm m2">Plakken vult alle vakjes.</p>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Bottom sheet</p>
+        <div style="background: var(--color-surface-raised); border-radius: 20px 20px 0 0; box-shadow: var(--shadow-sheet); padding: 8px 20px 20px; display: flex; flex-direction: column; gap: 12px">
+          <span class="grab"></span>
+          <h3 class="title-sheet">Pauze samen?</h3>
+          <p class="t-sm m2">Kayra · 11:20–12:30 · Spoor Noord</p>
+          <button class="btn btn-primary">Vraag aan Kayra</button>
+        </div>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Lege state</p>
+        <div class="empty" style="padding: 8px">
+          <svg class="mascot" width="80" height="85" viewBox="0 0 120 128" aria-hidden="true"><g class="comb"><rect x="45" y="11" width="10" height="21" rx="5" fill="#F0487A"></rect><rect x="55" y="4" width="11" height="28" rx="5.5" fill="#F0487A"></rect><rect x="66" y="11" width="10" height="21" rx="5" fill="#F0487A"></rect></g><rect class="wing-l" x="11" y="62" width="17" height="28" rx="8.5" fill="#1D3FD0"></rect><rect class="wing-r" x="92" y="62" width="17" height="28" rx="8.5" fill="#1D3FD0"></rect><rect x="40" y="102" width="14" height="10" rx="5" fill="#FFC21A"></rect><rect x="66" y="102" width="14" height="10" rx="5" fill="#FFC21A"></rect><rect x="22" y="26" width="76" height="80" rx="32" fill="#2E5BFF"></rect><rect x="38" y="72" width="44" height="28" rx="14" fill="#5B7EFF"></rect><path d="M38 56q8 6 16 0M66 56q8 6 16 0" stroke="#161F2A" stroke-width="4.5" fill="none" stroke-linecap="round"></path><path d="M96 14h9l-9 10h9" stroke="#8A857B" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="34" cy="70" r="4.5" fill="#F0487A"></circle><circle cx="86" cy="70" r="4.5" fill="#F0487A"></circle><rect x="54" y="66" width="12" height="5" rx="2.5" fill="#FFC21A"></rect><rect x="57.5" y="62.5" width="5" height="12" rx="2.5" fill="#FFC21A"></rect></svg>
+          <h3>Geen pauzes samen vandaag</h3>
+          <p class="t-sm">Morgen wel: 2 pauzes samen.</p>
+          <button class="btn btn-secondary btn-sm">Bekijk morgen</button>
+        </div>
+      </div>
+
+      <div class="spec">
+        <p class="spec-l">Plan-kaart (paywall)</p>
+        <button class="card" style="border: 2.5px solid var(--color-you); padding: 16px; flex-direction: row; gap: 14px; align-items: flex-start; width: 100%">
+          <span class="radio on" style="margin-top: 2px"></span>
+          <span class="stack g1 grow"><span class="hstack between"><span class="b t-lg">Jaarlijks</span><span class="tag tag-you">Bespaar 44%</span></span><span class="t-base">€19,99 per jaar</span><span class="t-sm m2">€1,67 per maand</span></span>
+        </button>
+        <button class="card" style="padding: 16px; flex-direction: row; gap: 14px; align-items: flex-start; width: 100%">
+          <span class="radio" style="margin-top: 2px"></span>
+          <span class="stack g1 grow"><span class="b t-lg">Maandelijks</span><span class="t-base">€2,99 per maand</span></span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2000,"height":3200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

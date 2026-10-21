@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Chat</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.msgs{flex:1;min-height:0;padding:8px 16px 12px;display:flex;flex-direction:column;gap:10px;overflow:hidden;justify-content:flex-end}
+.in{align-self:flex-start;max-width:78%;display:flex;flex-direction:column;gap:2px}
+.in .bub{background:var(--color-surface);border:1px solid var(--color-line);border-radius:4px 16px 16px 16px;padding:8px 12px}
+.out{align-self:flex-end;max-width:78%;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.out .bub{background:var(--color-you);color:#FFFFFF;border-radius:16px 4px 16px 16px;padding:8px 12px}
+.who{display:flex;align-items:center;gap:6px;font-size:13px;line-height:18px;font-weight:700;color:var(--color-ink-2);padding-left:2px}
+.fail{position:relative}
+.fail-badge{position:absolute;left:-8px;top:-8px;width:22px;height:22px;border-radius:11px;background:var(--color-danger-strong);color:#FFFFFF;font-size:14px;font-weight:800;line-height:22px;text-align:center;border:2px solid var(--color-bg)}
+.meta{font-size:13px;line-height:18px;color:var(--color-ink-3);display:flex;align-items:center;gap:4px;padding:0 4px}
+.evt{align-self:center;display:flex;align-items:center;gap:6px;font-size:13px;line-height:18px;font-weight:700;color:var(--color-ink-2);padding:4px 10px;border-radius:999px;border:1px dashed var(--color-line-strong);text-align:center;max-width:90%}
+.evt.tog{background:var(--color-together);color:var(--color-on-together);border:0}
+.composer{display:flex;align-items:center;gap:8px;padding:8px 12px 30px;border-top:1px solid var(--color-line);background:var(--color-surface);flex-shrink:0}
+.composer .input{min-height:44px;border-radius:22px}
+.chatrow{display:flex;align-items:center;gap:12px;padding:10px 4px 10px 16px;min-height:72px}
+.chatrow + .chatrow{border-top:1px solid var(--color-line)}
+.unread .row-title{font-weight:800}
+.unread .row-sub{color:var(--color-ink);font-weight:700}
+.tile{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+</style>
+</helmet>
+<div class="rp board" style="width: 1403px; height: 2200px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Chat <span>{{t.label}}</span></h2>
+  <div class="shots">
+
+    <!-- C1 list -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>A</b> Chats · push per chat, standaard uit</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <header class="topbar"><h1 class="title">Chat</h1><button class="btn-icon filled" aria-label="Nieuwe chat"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button></header>
+        <div class="content" style="gap: 20px; padding: 0 16px">
+          <div class="stack">
+            <p class="list-head">Vastgezet</p>
+            <div class="card">
+              <div class="chatrow unread">
+                <span class="tile" style="background: var(--color-together)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#161F2A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3.5"></circle><path d="M3 19c.9-2.9 3.2-4.5 6-4.5s5.1 1.6 6 4.5"></path><path d="M15.5 5.7a3.5 3.5 0 0 1 0 6.6M17.5 14.8c1.6.6 2.8 2 3.5 4.2"></path></svg></span>
+                <a class="row-main" href="#"><span class="hstack between"><span class="row-title">De bende</span><span class="t-xs m3">11:20</span></span><span class="row-sub">Lotte: ja, cafetaria om half één</span></a>
+                <span class="dot-unread" aria-label="Ongelezen"></span>
+                <button class="btn-icon" aria-label="Meldingen staan aan. Tik om uit te zetten"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="you-ink"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg></button>
+              </div>
+              <div class="chatrow">
+                <span class="tile" style="background: var(--color-surface-sunken)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z"></path></svg></span>
+                <a class="row-main" href="#"><span class="hstack between"><span class="row-title">Thuisstad · Mechelen</span><span class="t-xs m3">09:41</span></span><span class="row-sub">Noor: trein van 17:12 iemand?</span></a>
+                <button class="btn-icon" aria-label="Meldingen staan uit. Tik om aan te zetten"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16"></path></svg></button>
+              </div>
+            </div>
+          </div>
+          <div class="stack">
+            <p class="list-head">Vrienden</p>
+            <div class="card">
+              <div class="chatrow unread">
+                <span class="av av-md c-kayra">K</span>
+                <a class="row-main" href="#"><span class="hstack between"><span class="row-title">Kayra</span><span class="t-xs m3">11:16</span></span><span class="row-sub">B-blok, aan de automaat</span></a>
+                <span class="dot-unread" aria-label="Ongelezen"></span>
+                <button class="btn-icon" aria-label="Meldingen staan uit. Tik om aan te zetten"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16"></path></svg></button>
+              </div>
+              <div class="chatrow">
+                <span class="av av-md c-lotte">L</span>
+                <a class="row-main" href="#"><span class="hstack between"><span class="row-title">Lotte</span><span class="t-xs m3">10:05</span></span><span class="row-sub">Jij: oké, tot straks</span></a>
+                <button class="btn-icon" aria-label="Meldingen staan uit. Tik om aan te zetten"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16"></path></svg></button>
+              </div>
+              <div class="chatrow">
+                <span class="av av-md c-yeno">Y</span>
+                <a class="row-main" href="#"><span class="hstack between"><span class="row-title">Yeno</span><span class="t-xs m3">gisteren</span></span><span class="row-sub">Morgen samen de tram?</span></a>
+                <button class="btn-icon" aria-label="Meldingen staan uit. Tik om aan te zetten"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16"></path></svg></button>
+              </div>
+              <div class="chatrow">
+                <span class="av av-md c-amir">A</span>
+                <a class="row-main" href="#"><span class="hstack between"><span class="row-title">Amir</span><span class="t-xs m3">ma</span></span><span class="row-sub">Heb je de slides van DevOps?</span></a>
+                <button class="btn-icon" aria-label="Meldingen staan uit. Tik om aan te zetten"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16"></path></svg></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <nav class="tabbar" aria-label="Hoofdmenu">
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></span>Vandaag</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span>Rooster</a>
+          <a class="tab on" href="#" aria-current="page"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg><span class="badge">3</span></span>Chat</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="4"></circle><path d="M4.5 20c1.3-3.4 4.1-5 7.5-5s6.2 1.6 7.5 5"></path></svg></span>Ik</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- C2 conversation -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>B</b> Gesprek · events + traag-wifi-states</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar" style="border-bottom: 1px solid var(--color-line); padding-bottom: 6px">
+          <button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button>
+          <div class="stack grow" style="align-items: center"><span class="b">De bende</span><span class="t-xs m2">5 leden · 2 nu vrij</span></div>
+          <button class="btn-icon" aria-label="Meldingen staan aan"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="you-ink"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0"></path></svg></button>
+        </div>
+        <div class="msgs">
+          <span class="evt" style="border: 0; padding: 0">Vandaag</span>
+          <span class="evt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg>Databases vervalt voor 2ITCSC1a</span>
+          <div class="in"><span class="who" none=""><span class="av av-xs c-kayra">K</span>Kayra</span><div class="bub">Databases valt weg, iemand koffie?</div><span class="meta">10:58</span></div>
+          <span class="evt"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>Kayra stopt nu met de les</span>
+          <div class="out"><div class="bub">Ik kom naar jou. B-blok?</div><span class="meta">11:05 · gelezen</span></div>
+          <div class="in"><span class="who" none=""><span class="av av-xs c-yeno">Y</span>Yeno</span><div class="bub">Ik zit op Meistraat, volgende keer!</div><span class="meta">11:12</span></div>
+          <span class="evt tog"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg>Lotte en Amir pakken samen pauze om 12:30</span>
+          <div class="in"><span class="who" none=""><span class="av av-xs c-lotte">L</span>Lotte</span><div class="bub">ja, cafetaria om half één</div><span class="meta">11:20</span></div>
+          <div class="out"><button class="bub fail" aria-label="Niet verstuurd: Ik kom ook! Tik om opnieuw te proberen" style="background: var(--color-surface); color: var(--color-ink); border: 1.5px solid var(--color-danger); text-align: left"><span class="fail-badge" aria-hidden="true">!</span>Ik kom ook!</button><span class="meta bad-ink b">Tik om opnieuw te proberen</span></div>
+          <div class="out"><div class="bub">Neem jij een tafel?</div><span class="meta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>Versturen…</span></div>
+        </div>
+        <div class="composer">
+          <div class="input grow"><input type="text" placeholder="Bericht" aria-label="Bericht"></div>
+          <button class="btn-icon" style="background: var(--color-you); color: #FFFFFF" aria-label="Verstuur"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12 20 4l-4 16-4-6.5z"></path><path d="M12 13.5 20 4"></path></svg></button>
+        </div>
+      </div>
+    </figure>
+
+    <!-- C3 long press -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>C</b> Lang drukken · melden of blokkeren</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar" style="border-bottom: 1px solid var(--color-line); padding-bottom: 6px">
+          <button class="btn-icon" aria-label="Terug"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5-7 7 7 7"></path></svg></button>
+          <div class="stack grow" style="align-items: center"><span class="b">De bende</span><span class="t-xs m2">5 leden · 2 nu vrij</span></div>
+          <span style="width: 44px"></span>
+        </div>
+        <div class="msgs" style="justify-content: flex-start; padding-top: 20px">
+          <div class="in"><span class="who" none=""><span class="av av-xs c-kayra">K</span>Kayra</span><div class="bub">Databases valt weg, iemand koffie?</div></div>
+        </div>
+        <div class="scrim"></div>
+        <div style="position: absolute; left: 16px; right: 16px; top: 300px; display: flex; flex-direction: column; gap: 10px">
+          <div class="in" style="max-width: 78%"><span class="who" style="color: #FFFFFF"><span class="av av-xs c-yeno">Y</span>Yeno</span><div class="bub" style="border-color: var(--color-line-strong)">Ik zit op Meistraat, volgende keer!</div></div>
+          <div class="menu" role="menu" style="width: 260px">
+            <button class="row" role="menuitem"><span class="grow">Kopieer</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="1.5"></rect><path d="M15.5 8.5V5.5A1.5 1.5 0 0 0 14 4H5.5A1.5 1.5 0 0 0 4 5.5V14a1.5 1.5 0 0 0 1.5 1.5h3"></path></svg></button>
+            <button class="row" role="menuitem"><span class="grow">Meld dit bericht</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 21V4.5M5.5 4.5h12l-2.5 4 2.5 4h-12"></path></svg></button>
+            <button class="row bad-ink" role="menuitem"><span class="grow">Blokkeer Yeno</span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M6 6l12 12"></path></svg></button>
+          </div>
+          <p class="t-sm" style="color: #FFFFFF; max-width: 280px">Yeno ziet niet dat je meldt of blokkeert.</p>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1403,"height":2200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

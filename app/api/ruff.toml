@@ -1,0 +1,6 @@
+# Same style as v1: 120 columns, short loop names like `l` for a lesson are fine.
+line-length = 120
+
+[lint]
+select = ["F", "I", "E", "W"]
+ignore = ["E741", "E501"]

@@ -1,0 +1,129 @@
+# Roosters+ v2 on your laptop: `cd app && cp .env.example .env && docker compose up --build`
+#
+#   API + docs      http://localhost:8000/api/docs   (your phone: http://<laptop-ip>:8000)
+#   Mail (codes)    http://localhost:8025            (Mailpit catches every e-mail)
+#   Slow school wifi: docker compose --profile slow up, then use port 8001 (see README)
+#
+# The same images run on the server later; only .env and the reverse proxy (Caddy) differ.
+name: roostersplus
+
+x-hardening: &hardening
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options: { max-size: "5m", max-file: "3" }
+
+x-app: &app
+  <<: *hardening
+  build: ./api
+  image: roostersplus-api
+  env_file: .env
+  environment:
+    DB_HOST: db
+    REDIS_URL: redis://redis:6379/0
+    SMTP_HOST: mailpit
+    SMTP_PORT: "1025"
+  read_only: true
+  tmpfs: [/tmp]
+  cap_drop: [ALL]
+  networks: [backend, egress]
+
+services:
+  db:
+    <<: *hardening
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: roosters
+      MYSQL_USER: roosters
+      MYSQL_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --skip-name-resolve
+      - --mysqlx=OFF
+    volumes:
+      - db:/var/lib/mysql
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # Valkey = the open-source (BSD) continuation of Redis; same protocol, same Python client
+  redis:
+    <<: *hardening
+    image: valkey/valkey:8.1-alpine
+    command: ["valkey-server", "--save", "", "--appendonly", "no"]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Runs the database migrations once, then stops. API and worker wait for it.
+  migrate:
+    <<: *app
+    command: ["python", "-m", "roosters.migrate"]
+    restart: "no"
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    <<: *app
+    # --reload + the mounted code: save a file and the API restarts by itself (laptop only)
+    command: ["uvicorn", "roosters.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-server-header"]
+    volumes:
+      - ./api/roosters:/app/roosters:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    networks: [backend, egress, frontend]
+
+  worker:
+    <<: *app
+    command: ["python", "-m", "roosters.worker"]
+    volumes:
+      - ./api/roosters:/app/roosters:ro
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  mailpit:
+    <<: *hardening
+    image: axllent/mailpit:v1.27
+    ports:
+      - "8025:8025"
+    networks: [backend, frontend]
+
+  # "School wifi" between the app and the API: port 8001 = the API, but slow and unreliable.
+  # Turn it on with: ./slow-wifi.sh on   (see README)
+  toxiproxy:
+    <<: *hardening
+    image: ghcr.io/shopify/toxiproxy:2.12.0
+    profiles: [slow]
+    command: ["-host", "0.0.0.0", "-config", "/config/toxiproxy.json"]
+    volumes:
+      - ./infra/toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - "8001:8001"
+      - "127.0.0.1:8474:8474"
+    networks: [frontend]
+
+networks:
+  # Database and Redis: no internet, no ports
+  backend:
+    internal: true
+  # Fetching timetables from Untis and calendar links
+  egress: {}
+  frontend: {}
+
+volumes:
+  db: {}

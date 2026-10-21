@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    # Enkel als de GitHub Pages-versie zelf verandert (niet bij server/, desktop/ of app/)
+    paths: ["site/**", "scripts/**", "config.json", ".github/workflows/pages.yml"]
 
 permissions:
   contents: read

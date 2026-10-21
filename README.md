@@ -24,3 +24,8 @@ Weekoverzicht van de lessen van Reda en Kayra, over elkaar gelegd: wanneer heeft
 In `server/` staat een uitgebreidere versie om zelf te hosten (Docker Compose, MySQL, Apache): iedereen
 voegt zijn eigen rooster toe (Untis, Google, iCloud, ...), met samen-pauze, afspreken en pushmeldingen.
 Die staat los van deze GitHub Pages-versie. Zie [server/README.md](server/README.md).
+
+## Roosters+ (v2, in opbouw)
+
+In `app/` staat de volledige app voor iedereen: iOS en Android (Expo), met een backend die van je laptop naar
+meerdere servers kan groeien. Zie [app/README.md](app/README.md). Bovenstaande versies blijven gewoon werken.
