@@ -1,0 +1,166 @@
+/* Roosters+ design tokens (from app/design/claude-design/tokens.css), as Tailwind v4 theme for Uniwind.
+   Names map 1:1: --color-together -> bg-together / text-together, --radius-card -> rounded-card.
+   Spacing uses Tailwind's default 4-pt scale (p-4 = 16px). Light and dark define the same names. */
+@import 'tailwindcss';
+@import 'uniwind';
+
+@theme {
+  /* Fonts: the loaded font names (see src/lib/fonts.ts). Regular and bold are separate files. */
+  --font-ui: 'AtkinsonHyperlegibleNext_400Regular';
+  --font-ui-bold: 'AtkinsonHyperlegibleNext_700Bold';
+  --font-display: 'BricolageGrotesque_700Bold';
+  --font-wordmark: 'BricolageGrotesque_800ExtraBold';
+
+  /* Type scale */
+  --text-xs: 13px;
+  --text-xs--line-height: 18px;
+  --text-sm: 15px;
+  --text-sm--line-height: 20px;
+  --text-base: 17px;
+  --text-base--line-height: 24px;
+  --text-lg: 20px;
+  --text-lg--line-height: 26px;
+  --text-xl: 24px;
+  --text-xl--line-height: 30px;
+  --text-2xl: 30px;
+  --text-2xl--line-height: 36px;
+  --text-3xl: 40px;
+  --text-3xl--line-height: 44px;
+  --text-4xl: 56px;
+  --text-4xl--line-height: 56px;
+
+  /* Radii */
+  --radius-chip: 8px;
+  --radius-block: 8px;
+  --radius-card: 12px;
+  --radius-button: 12px;
+  --radius-sheet: 20px;
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      /* Brand (same in both modes) */
+      --color-navy: #161F2A;
+      --color-you: #2E5BFF;
+      --color-friend: #F0487A;
+      --color-together: #FFC21A;
+      --color-danger: #E5484D;
+      --color-success: #1F9D55;
+      --color-on-you: #FFFFFF;
+      --color-on-friend: #161F2A;
+      --color-on-together: #161F2A;
+      --color-you-deep: #1D3FD0;
+
+      /* Neutrals (warm) */
+      --color-bg: #F4F3EF;
+      --color-surface: #FFFFFF;
+      --color-surface-raised: #FFFFFF;
+      --color-surface-sunken: #ECEAE4;
+      --color-line: #E0DCD3;
+      --color-line-strong: #C9C4B8;
+      --color-control-off: #8A857B;
+      --color-ink: #161F2A;
+      --color-ink-2: #5A574F;
+      --color-ink-3: #6E6A62;
+      --color-ink-inverse: #FFFFFF;
+      --color-scrim: rgba(12, 18, 24, 0.48);
+
+      /* Text-safe tints */
+      --color-you-ink: #2449E0;
+      --color-you-soft: #E3E9FF;
+      --color-friend-ink: #B8204F;
+      --color-friend-soft: #FDE4EB;
+      --color-together-ink: #6B4E00;
+      --color-together-soft: #FFF1C4;
+      --color-danger-ink: #C42A30;
+      --color-danger-strong: #C42A30;
+      --color-danger-soft: #FDE6E6;
+      --color-success-ink: #157A41;
+      --color-success-soft: #E1F4E8;
+
+      /* Lesson types */
+      --color-theory: #2E5BFF;
+      --color-theory-soft: #E3E9FF;
+      --color-lab: #0E9F8A;
+      --color-lab-ink: #0A6B5D;
+      --color-lab-soft: #D6F2EC;
+      --color-skip: #8A857B;
+      --color-skip-soft: #ECEAE4;
+
+      /* Premium */
+      --color-premium: #C9971C;
+      --color-premium-ink: #7D5800;
+      --color-premium-soft: #FBF1D6;
+
+      /* Avatars (navy initials on all, white on "you") */
+      --color-avatar-0: #2E5BFF;
+      --color-avatar-1: #F7A1BA;
+      --color-avatar-2: #9EC2FF;
+      --color-avatar-3: #8FD8B4;
+      --color-avatar-4: #FFC58F;
+      --color-avatar-5: #E7D49B;
+      --color-avatar-6: #A8DDE6;
+      --color-avatar-7: #F5B39E;
+    }
+
+    @variant dark {
+      --color-navy: #161F2A;
+      --color-you: #2E5BFF;
+      --color-friend: #F0487A;
+      --color-together: #FFC21A;
+      --color-danger: #E5484D;
+      --color-success: #1F9D55;
+      --color-on-you: #FFFFFF;
+      --color-on-friend: #161F2A;
+      --color-on-together: #161F2A;
+      --color-you-deep: #1D3FD0;
+
+      --color-bg: #161F2A;
+      --color-surface: #1E2936;
+      --color-surface-raised: #243140;
+      --color-surface-sunken: #111821;
+      --color-line: #2F3D4D;
+      --color-line-strong: #3E4F62;
+      --color-control-off: #6F7C8A;
+      --color-ink: #F4F3EF;
+      --color-ink-2: #C4C0B6;
+      --color-ink-3: #9C978C;
+      --color-ink-inverse: #161F2A;
+      --color-scrim: rgba(0, 0, 0, 0.6);
+
+      --color-you-ink: #8EA8FF;
+      --color-you-soft: #1F2D57;
+      --color-friend-ink: #FF8FB0;
+      --color-friend-soft: #44202F;
+      --color-together-ink: #FFD24D;
+      --color-together-soft: #3A3115;
+      --color-danger-ink: #FF8A8D;
+      --color-danger-strong: #D93A40;
+      --color-danger-soft: #4A1F22;
+      --color-success-ink: #5ED38E;
+      --color-success-soft: #173A28;
+
+      --color-theory: #2E5BFF;
+      --color-theory-soft: #23336A;
+      --color-lab: #0E9F8A;
+      --color-lab-ink: #5FD6C2;
+      --color-lab-soft: #123B36;
+      --color-skip: #9C978C;
+      --color-skip-soft: #1A232E;
+
+      --color-premium: #C9971C;
+      --color-premium-ink: #F2C766;
+      --color-premium-soft: #3A2E10;
+
+      --color-avatar-0: #2E5BFF;
+      --color-avatar-1: #F7A1BA;
+      --color-avatar-2: #9EC2FF;
+      --color-avatar-3: #8FD8B4;
+      --color-avatar-4: #FFC58F;
+      --color-avatar-5: #E7D49B;
+      --color-avatar-6: #A8DDE6;
+      --color-avatar-7: #F5B39E;
+    }
+  }
+}

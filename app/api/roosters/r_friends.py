@@ -118,6 +118,28 @@ def answer_request(request_id: int, action: Literal["accept", "decline", "cancel
     return _requests(ctx.uid)
 
 
+@router.get("/classmates")
+def classmates(ctx: Ctx = Depends(auth)):
+    """People who follow one of your classes and aren't your friends yet (onboarding: "Klasgenoten al op
+    Roosters+"). Only within your school; people who blocked you, or whom you blocked, never show up."""
+    rows = db.rows(
+        "SELECT u.id, u.display_name, u.avatar_color, GROUP_CONCAT(DISTINCT sc.name ORDER BY sc.name SEPARATOR ',') "
+        "AS classes FROM sources mine JOIN sources theirs ON theirs.school_class_id=mine.school_class_id "
+        "AND theirs.deleted_at IS NULL AND theirs.user_id<>mine.user_id JOIN users u ON u.id=theirs.user_id "
+        "JOIN school_classes sc ON sc.id=mine.school_class_id "
+        "WHERE mine.user_id=%s AND mine.deleted_at IS NULL AND mine.kind='untis' AND u.school_id=%s "
+        "AND NOT EXISTS (SELECT 1 FROM friendships f WHERE f.user_id=%s AND f.friend_id=u.id) "
+        "AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.user_id=%s AND b.blocked_id=u.id) "
+        "OR (b.user_id=u.id AND b.blocked_id=%s)) "
+        "GROUP BY u.id, u.display_name, u.avatar_color ORDER BY u.display_name LIMIT 200",
+        (ctx.uid, ctx.user["school_id"], ctx.uid, ctx.uid, ctx.uid))
+    asked = {r["to_id"] for r in db.rows("SELECT to_id FROM friend_requests WHERE from_id=%s AND status='pending'",
+                                         (ctx.uid,))}
+    return {"classmates": [{"id": r["id"], "display_name": r["display_name"], "avatar_color": r["avatar_color"],
+                            "classes": (r["classes"] or "").split(",") if r["classes"] else [],
+                            "requested": r["id"] in asked} for r in rows]}
+
+
 # ---- Invite links ----------------------------------------------------------------
 
 def _invite_out(inv: dict) -> dict:

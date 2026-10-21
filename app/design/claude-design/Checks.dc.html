@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Android, English, 200% tekst</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.tt .blk{left:44px;right:0}
+.days{display:flex;gap:4px}
+.day{flex:1;min-height:48px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;line-height:16px;font-weight:700;color:var(--color-ink-2)}
+.day b{font-size:17px;line-height:22px;color:var(--color-ink)}
+.day.on{background:var(--color-ink);color:var(--color-ink-inverse)}
+.day.on b{color:var(--color-ink-inverse)}
+.x2{font-size:34px;line-height:44px}
+.x2 .row-title{font-size:34px;line-height:42px}
+.x2 .row-sub{font-size:30px;line-height:38px}
+</style>
+</helmet>
+<div class="rp board" style="width: 2240px; height: 2200px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Controles <span>{{t.label}} · klein Android 360×800 · Engelse tekstlengte · 200% tekst</span></h2>
+  <div class="shots">
+
+    <!-- Android Today -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>Android</b> Vandaag · 360×800</figcaption>
+      <div class="phone android">
+        <div class="safe"></div>
+        <header class="topbar" style="align-items: flex-end; padding: 4px 16px 10px"><div class="stack"><p class="eyebrow">Dinsdag 20 oktober</p><h1 class="title">Vandaag</h1></div><p class="t-xs m3" style="padding-bottom: 6px">4 min geleden</p></header>
+        <div class="content" style="padding: 0 16px 16px; gap: 22px">
+          <div class="nowcard"><div class="hstack g3"><span class="now-pill">Nu</span><p class="title-sheet">Pauze tot 13:30</p></div><div class="hstack g3"><p class="t-sm grow">Volgende: Cloud Computing 13:30 · C102</p><button class="btn btn-sm" style="border: 1.5px solid rgba(255,255,255,0.7); color: #FFFFFF; padding: 0 10px; font-size: 13px" aria-label="Cloud Computing overslaan">Vak overslaan</button></div></div>
+          <section class="sec">
+            <div class="sec-head"><h2>Samen pauze vandaag</h2><span class="aside">2</span></div>
+            <div class="togcard">
+              <div class="row"><span class="av c-kayra">K</span><span class="row-main"><span class="row-title">Kayra</span><span class="row-sub">Nu · 11:20 – 12:30</span></span><button class="btn btn-primary btn-sm">Vraag</button></div>
+              <div class="row"><span class="av-stack"><span class="av c-lotte">L</span><span class="av c-amir">A</span></span><span class="row-main"><span class="row-title">Lotte en Amir</span><span class="row-sub">12:30 – 13:30</span></span><button class="btn btn-primary btn-sm">Vraag</button></div>
+            </div>
+          </section>
+          <div class="card card-pad">
+            <p class="b">Lotte wil pauze met jou om 12:30. Kan jij?</p>
+            <div class="btn-row"><button class="btn btn-primary btn-sm">Ja</button><button class="btn btn-secondary btn-sm">Nee</button><button class="btn btn-secondary btn-sm" style="padding: 0 10px">Ander uur</button></div>
+          </div>
+        </div>
+        <nav class="tabbar" aria-label="Hoofdmenu">
+          <a class="tab on" href="#" aria-current="page"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></span>Vandaag</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span>Rooster</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg><span class="badge">3</span></span>Chat</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="4"></circle><path d="M4.5 20c1.3-3.4 4.1-5 7.5-5s6.2 1.6 7.5 5"></path></svg></span>Ik</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- Android Rooster -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>Android</b> Rooster · 360×800</figcaption>
+      <div class="phone android">
+        <div class="safe"></div>
+        <header class="topbar" style="padding: 4px 16px 10px"><h1 class="title">Rooster</h1><button class="btn-icon filled" aria-label="Vrienden ernaast zetten"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button></header>
+        <div style="padding: 0 16px 10px; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0">
+          <div class="hstack g2"><div class="hstack" role="group" aria-label="Aantal dagen" style="border: 1px solid var(--color-line); border-radius: 12px; background: var(--color-surface); padding: 2px; flex-shrink: 0"><button class="btn-icon" style="width: 40px; height: 40px; color: var(--color-ink-3)" aria-label="Eén dag minder" aria-disabled="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg></button><span class="t-sm b" style="min-width: 48px; text-align: center">1 dag</span><button class="btn-icon" style="width: 40px; height: 40px" aria-label="Eén dag meer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 6v12M6 12h12"></path></svg></button></div><div class="seg grow" role="tablist"><button class="on" role="tab" aria-selected="true">Dag</button><button role="tab" aria-selected="false">Week</button></div></div>
+          <div class="days"><button class="day">Ma<b>19</b></button><button class="day on" aria-current="date">Di<b>20</b></button><button class="day">Wo<b>21</b></button><button class="day">Do<b>22</b></button><button class="day">Vr<b>23</b></button></div>
+        </div>
+        <div style="flex: 1; padding: 8px 16px 0; overflow: hidden">
+          <div class="tt" style="height: 440px">
+            <div class="tt-hour" style="top: 0"><span>08:00</span></div><div class="tt-hour" style="top: 44px"><span>09:00</span></div><div class="tt-hour" style="top: 88px"><span>10:00</span></div><div class="tt-hour" style="top: 132px"><span>11:00</span></div><div class="tt-hour" style="top: 176px"><span>12:00</span></div><div class="tt-hour" style="top: 220px"><span>13:00</span></div><div class="tt-hour" style="top: 264px"><span>14:00</span></div><div class="tt-hour" style="top: 308px"><span>15:00</span></div><div class="tt-hour" style="top: 352px"><span>16:00</span></div><div class="tt-hour" style="top: 396px"><span>17:00</span></div>
+            <button class="blk blk-lab blk-past" style="top: 23px; height: 85px"><span class="blk-t">Python Advanced</span><span class="t-xs">Labo · A.1.05</span></button>
+            <button class="blk blk-cancel" style="top: 111px; height: 85px; right: 47%"><span class="blk-t strike">Databases</span><span class="t-xs bad-ink b" style="margin-top: 8px">Vervalt</span></button>
+            <button class="blk blk-together" style="top: 133px; height: 63px; left: auto; width: 45%"><span class="blk-t">Samen</span><span class="t-xs">met Kayra</span></button>
+            <button class="blk blk-together" style="top: 199px; height: 41px; flex-direction: row; align-items: center; gap: 6px"><span class="blk-t">Samen pauze</span><span class="t-xs">met Lotte en Amir</span></button>
+            <button class="blk blk-theory" style="top: 243px; height: 85px"><span class="blk-t">Cloud Computing</span><span class="t-xs">Theorie · C102</span></button>
+            <button class="blk blk-lab blk-changed" style="top: 342px; height: 85px"><span class="hstack between"><span class="blk-t">Web Frameworks</span><span class="tag tag-ink">Gewijzigd</span></span><span class="t-xs">Labo · <span class="strike">B204</span> → <b>C102</b></span></button>
+            <div class="now-line" style="top: 147px; left: 44px"><span class="now-chip" style="left: -44px">11:20</span></div>
+          <div class="stack" role="group" aria-label="Aantal dagen naast elkaar" style="position: absolute; right: -16px; top: 0px; z-index: 2; width: 52px; padding: 8px 0 4px 6px; border-radius: 16px 0 0 16px; background: var(--color-you-soft); border: 1.5px solid var(--color-you); border-right: 0; box-shadow: var(--shadow-sheet); align-items: center; gap: 2px; color: var(--color-you-ink)"><span class="b" style="font-size: 11px; line-height: 14px">Dagen</span><button class="btn-icon" style="width: 44px; height: 40px" aria-label="Eén dag meer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 6v12M6 12h12"></path></svg></button><span class="b" style="font-size: 17px; line-height: 20px; color: var(--color-ink)">1</span><button class="btn-icon" style="width: 44px; height: 40px; opacity: 0.45" aria-label="Eén dag minder" aria-disabled="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"></path></svg></button></div></div>
+          <div class="legend" style="padding-top: 8px"><span class="lg"><i class="lg-theory"></i>Theorie</span><span class="lg"><i class="lg-lab"></i>Labo</span><span class="lg"><i class="lg-cancel"></i>Vervalt</span><span class="lg"><i class="lg-tog"></i>Samen</span></div>
+        </div>
+        <nav class="tabbar" aria-label="Hoofdmenu">
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></span>Vandaag</a>
+          <a class="tab on" href="#" aria-current="page"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span>Rooster</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg><span class="badge">3</span></span>Chat</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="4"></circle><path d="M4.5 20c1.3-3.4 4.1-5 7.5-5s6.2 1.6 7.5 5"></path></svg></span>Ik</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- English Today -->
+    <figure class="shot" lang="en">
+      <figcaption class="shot-cap"><b>English</b> Today</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <header class="topbar" style="align-items: flex-end"><div class="stack"><p class="eyebrow">Tuesday 20 October</p><h1 class="title">Today</h1></div><button class="statusbtn" aria-label="Your status: At school. Tap to switch to Home"><span class="dot"></span>At school<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"></path></svg></button></header>
+        <div class="content" style="gap: 24px; padding-top: 4px">
+          <div class="nowcard"><div class="hstack g3"><span class="now-pill">Now</span><p class="title-sheet">Break until 13:30</p></div><p class="t-sm">Databases is cancelled today. 2 h 10 min left.</p><div class="next"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg><span class="grow"><b>Next:</b> Cloud Computing · 13:30 · C102</span><button class="btn btn-sm" style="border: 1.5px solid rgba(255,255,255,0.7); color: #FFFFFF; padding: 0 12px" aria-label="Skip Cloud Computing">Skip class</button></div></div>
+          <section class="sec">
+            <div class="sec-head"><h2>Breaks together today</h2><span class="aside">2</span></div>
+            <div class="togcard">
+              <div class="row"><span class="av c-kayra">K</span><span class="row-main"><span class="row-title">Kayra</span><span class="row-sub">Now · 11:20 – 12:30</span></span><button class="btn btn-primary btn-sm">Ask</button></div>
+              <div class="row"><span class="av-stack"><span class="av c-lotte">L</span><span class="av c-amir">A</span></span><span class="row-main"><span class="row-title">Lotte and Amir</span><span class="row-sub">12:30 – 13:30</span></span><button class="btn btn-primary btn-sm">Ask</button></div>
+            </div>
+          </section>
+          <div class="card card-pad">
+            <p class="b">Lotte wants to take a break with you at 12:30. Can you?</p>
+            <div class="btn-row"><button class="btn btn-primary btn-sm">Yes</button><button class="btn btn-secondary btn-sm">No</button><button class="btn btn-secondary btn-sm">Other time</button></div>
+          </div>
+        </div>
+        <nav class="tabbar" aria-label="Main menu">
+          <a class="tab on" href="#" aria-current="page"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></span>Today</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span>Schedule</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg><span class="badge">3</span></span>Chat</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="4"></circle><path d="M4.5 20c1.3-3.4 4.1-5 7.5-5s6.2 1.6 7.5 5"></path></svg></span>Me</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- English paywall -->
+    <figure class="shot" lang="en">
+      <figcaption class="shot-cap"><b>English</b> Paywall (first screen)</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <div class="navbar"><button class="btn-icon filled" aria-label="Close"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button><span class="grow"></span><button class="btn btn-ghost btn-sm">Restore purchases</button></div>
+        <div class="content" style="gap: 18px; padding-top: 4px">
+          <div class="stack g2">
+            <p class="t-sm m2"><span class="b" style="color: var(--color-ink)">You want to add Ilias.</span> On the free plan you can compare with 3 friends at once.</p>
+            <h1 class="title">Roosters+ Premium</h1>
+          </div>
+          <div class="stack g2 t-base">
+            <div class="hstack g3"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>Compare with more friends</div>
+            <div class="hstack g3"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>Home and lock screen widgets</div>
+            <div class="hstack g3"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>Live Activity during a shared break</div>
+            <div class="hstack g3"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>Extra calendars, smart alerts, themes</div>
+          </div>
+          <div class="stack g2" role="radiogroup" aria-label="Choose a plan">
+            <button class="card" role="radio" aria-checked="true" style="border: 2.5px solid var(--color-you); padding: 14px 16px; flex-direction: row; gap: 14px; align-items: flex-start; width: 100%"><span class="radio on" style="margin-top: 2px"></span><span class="stack grow"><span class="hstack between"><span class="b t-lg">Yearly</span><span class="tag tag-you">Save 44%</span></span><span class="t-base">€19.99 per year</span><span class="t-sm m2">€1.67 per month</span></span></button>
+            <button class="card" role="radio" aria-checked="false" style="padding: 14px 16px; flex-direction: row; gap: 14px; align-items: flex-start; width: 100%"><span class="radio" style="margin-top: 2px"></span><span class="stack grow"><span class="b t-lg">Monthly</span><span class="t-base">€2.99 per month</span></span></button>
+          </div>
+          <button class="btn btn-primary">Get Premium · €19.99 per year</button>
+          <p class="t-xs m2" style="text-align: center">Renews every year until you cancel. Cancel anytime in App Store settings, at least 24 hours before renewal. <a class="link" href="#">Terms</a> · <a class="link" href="#">Privacy</a></p>
+        </div>
+      </div>
+    </figure>
+
+    <!-- 200% -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>200% tekst</b> rijen stapelen, niets afgekapt</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <header class="topbar" style="padding-bottom: 8px"><h1 class="title" style="font-size: 44px; line-height: 50px">Vandaag</h1></header>
+        <div class="content x2" style="gap: 28px; padding-top: 4px">
+          <div class="nowcard" style="gap: 8px">
+            <div class="hstack wrap" style="gap: 8px 12px"><span class="now-pill" style="height: 40px; font-size: 22px; padding: 0 14px; border-radius: 20px">Nu</span><p style="font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: 50px">Pauze tot 13:30</p></div>
+            <p style="font-size: 30px; line-height: 38px">Databases vervalt vandaag.</p>
+          </div>
+          <section class="sec">
+            <div class="sec-head" style="flex-direction: column; align-items: flex-start"><h2 style="font-size: 26px; line-height: 32px">Samen pauze vandaag</h2></div>
+            <div class="card">
+              <button class="row" style="flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px">
+                <span class="hstack g2" style="padding: 4px 12px; border-radius: 8px; background: var(--color-together); color: var(--color-on-together); font-weight: 700; font-size: 34px; line-height: 44px"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg>11:20–12:30</span>
+                <span class="row-title">Kayra</span>
+                <span class="row-sub">Spoor Noord</span>
+              </button>
+            </div>
+          </section>
+        </div>
+        <nav class="tabbar" aria-label="Hoofdmenu">
+          <a class="tab on" href="#" aria-current="page"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></span>Vandaag</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span>Rooster</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg><span class="badge">3</span></span>Chat</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="4"></circle><path d="M4.5 20c1.3-3.4 4.1-5 7.5-5s6.2 1.6 7.5 5"></path></svg></span>Ik</a>
+        </nav>
+      </div>
+    </figure>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2240,"height":2200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

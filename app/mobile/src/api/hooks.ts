@@ -1,0 +1,334 @@
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { api } from '@/lib/api';
+import { clearSession } from '@/lib/session';
+
+import type {
+  Campus,
+  Checkin,
+  Classmate,
+  Compare,
+  Courses,
+  Friend,
+  FriendSchedule,
+  Invite,
+  Requests,
+  Schedule,
+  School,
+  SchoolClass,
+  Source,
+  Today,
+  User,
+} from './types';
+
+/** Query keys in one place, so mutations invalidate exactly what they change. */
+export const keys = {
+  me: ['me'] as const,
+  today: (day?: string) => ['today', day ?? 'now'] as const,
+  schedule: (start: string, days: number) => ['schedule', start, days] as const,
+  sources: ['sources'] as const,
+  friends: ['friends'] as const,
+  requests: ['requests'] as const,
+  invite: ['invite'] as const,
+  friendSchedule: (id: number, start: string, days: number) => ['friend-schedule', id, start, days] as const,
+  compare: (ids: number[], day: string) => ['compare', ids.join(','), day] as const,
+  schools: ['schools'] as const,
+  campuses: (school: number) => ['campuses', school] as const,
+  classes: (school: number) => ['classes', school] as const,
+  courses: (school: number, cls: number) => ['courses', school, cls] as const,
+  classmates: ['classmates'] as const,
+};
+
+// ---- Reading ------------------------------------------------------------------------
+
+export function useMe(enabled = true) {
+  return useQuery({ queryKey: keys.me, queryFn: () => api.get<{ user: User }>('/api/v1/me').then((r) => r.user), enabled });
+}
+
+export function useToday(day?: string) {
+  return useQuery({
+    queryKey: keys.today(day),
+    queryFn: () => api.get<Today>(`/api/v1/me/today${day ? `?day=${day}` : ''}`),
+    refetchInterval: 60_000,
+  });
+}
+
+/** Several days of Today side by side (Rooster, 1–3 day columns). */
+export function useTodays(days: string[]) {
+  return useQueries({
+    queries: days.map((day) => ({
+      queryKey: keys.today(day),
+      queryFn: () => api.get<Today>(`/api/v1/me/today?day=${day}`),
+    })),
+  });
+}
+
+export function useSchedule(start: string, days: number) {
+  return useQuery({
+    queryKey: keys.schedule(start, days),
+    queryFn: () => api.get<Schedule>(`/api/v1/me/schedule?start=${start}&days=${days}`),
+  });
+}
+
+export function useSources() {
+  return useQuery({
+    queryKey: keys.sources,
+    queryFn: () => api.get<{ sources: Source[] }>('/api/v1/me/sources').then((r) => r.sources),
+    // While a class is being fetched for the first time, check again soon
+    refetchInterval: (q) => (q.state.data?.some((s) => s.syncing) ? 2500 : false),
+  });
+}
+
+export function useFriends() {
+  return useQuery({
+    queryKey: keys.friends,
+    queryFn: () => api.get<{ friends: Friend[] }>('/api/v1/friends').then((r) => r.friends),
+  });
+}
+
+export function useRequests() {
+  return useQuery({ queryKey: keys.requests, queryFn: () => api.get<Requests>('/api/v1/friends/requests') });
+}
+
+export function useInvite() {
+  return useQuery({
+    queryKey: keys.invite,
+    queryFn: () => api.post<{ invite: Invite }>('/api/v1/invites').then((r) => r.invite),
+    staleTime: 60 * 60_000,
+  });
+}
+
+export function useFriendSchedule(id: number, start: string, days: number) {
+  return useQuery({
+    queryKey: keys.friendSchedule(id, start, days),
+    queryFn: () => api.get<FriendSchedule>(`/api/v1/friends/${id}/schedule?start=${start}&days=${days}`),
+  });
+}
+
+export function useCompare(ids: number[], day: string) {
+  return useQuery({
+    queryKey: keys.compare(ids, day),
+    queryFn: () => api.get<Compare>(`/api/v1/compare?ids=${ids.join(',')}&day=${day}`),
+    enabled: ids.length > 0,
+  });
+}
+
+export function useSchools() {
+  return useQuery({
+    queryKey: keys.schools,
+    queryFn: () => api.get<{ schools: School[] }>('/api/v1/schools').then((r) => r.schools),
+    staleTime: 24 * 60 * 60_000,
+  });
+}
+
+export function useCampuses(school: number | null) {
+  return useQuery({
+    queryKey: keys.campuses(school ?? 0),
+    queryFn: () => api.get<{ campuses: Campus[] }>(`/api/v1/schools/${school}/campuses`).then((r) => r.campuses),
+    enabled: !!school,
+    staleTime: 24 * 60 * 60_000,
+  });
+}
+
+export function useClasses(school: number | null) {
+  return useQuery({
+    queryKey: keys.classes(school ?? 0),
+    queryFn: () => api.get<{ classes: SchoolClass[] }>(`/api/v1/schools/${school}/classes`).then((r) => r.classes),
+    enabled: !!school,
+    staleTime: 60 * 60_000,
+  });
+}
+
+export function useCourses(school: number | null, cls: number) {
+  return useQuery({
+    queryKey: keys.courses(school ?? 0, cls),
+    queryFn: () => api.get<Courses>(`/api/v1/schools/${school}/classes/${cls}/courses`),
+    enabled: !!school,
+    // A class never fetched before: the server fetches it now, we ask again every 2 s
+    refetchInterval: (q) => (q.state.data?.syncing ? 2000 : false),
+  });
+}
+
+export function useClassmates() {
+  return useQuery({
+    queryKey: keys.classmates,
+    queryFn: () => api.get<{ classmates: Classmate[] }>('/api/v1/classmates').then((r) => r.classmates),
+  });
+}
+
+// ---- Writing ------------------------------------------------------------------------
+
+export function useUpdateMe() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<Pick<User, 'display_name' | 'locale' | 'school_id' | 'campus_id' | 'avatar_color'>> & {
+      onboarded?: boolean;
+    }) => api.patch<{ user: User }>('/api/v1/me', body).then((r) => r.user),
+    onSuccess: (user) => qc.setQueryData(keys.me, user),
+  });
+}
+
+export function useCheckin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (status: Checkin['status'] | null) =>
+      api.put<{ checkin: Checkin | null }>('/api/v1/me/checkin', { status }).then((r) => r.checkin),
+    // Show the choice right away; the server confirms (or the retry does) later
+    onMutate: async (status) => {
+      await qc.cancelQueries({ queryKey: keys.today() });
+      const prev = qc.getQueryData<Today>(keys.today());
+      if (prev) {
+        qc.setQueryData<Today>(keys.today(), {
+          ...prev,
+          me: { ...prev.me, checkin: status ? { status, since_min: prev.now, until_min: null } : null },
+        });
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => ctx?.prev && qc.setQueryData(keys.today(), ctx.prev),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['today'] }),
+  });
+}
+
+export function useGhost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (minutes: number) => api.put<{ user: User }>('/api/v1/me/ghost', { minutes }).then((r) => r.user),
+    onSuccess: (user) => qc.setQueryData(keys.me, user),
+  });
+}
+
+export function useAddClass() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { class_id: number; include?: string[]; exclude?: string[] }) =>
+      api.post<{ source: Source }>('/api/v1/me/sources/untis', body).then((r) => r.source),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sources }),
+  });
+}
+
+export function useAddIcs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { url: string; label?: string }) =>
+      api.post<{ source: Source }>('/api/v1/me/sources/ics', body).then((r) => r.source),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sources }),
+  });
+}
+
+export function useUpdateSource() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: number; include?: string[]; exclude?: string[] }) =>
+      api.patch<{ source: Source }>(`/api/v1/me/sources/${id}`, body).then((r) => r.source),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.sources });
+      qc.invalidateQueries({ queryKey: ['schedule'] });
+      qc.invalidateQueries({ queryKey: ['today'] });
+    },
+  });
+}
+
+export function useDeleteSource() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.del(`/api/v1/me/sources/${id}`),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useRefresh() {
+  return useMutation({ mutationFn: () => api.post('/api/v1/me/refresh') });
+}
+
+export function useAcceptInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.post<{ friend: Friend }>(`/api/v1/invites/${encodeURIComponent(code)}/accept`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.friends });
+      qc.invalidateQueries({ queryKey: ['today'] });
+    },
+  });
+}
+
+export function useResetInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ invite: Invite }>('/api/v1/invites?reset=true').then((r) => r.invite),
+    onSuccess: (inv) => qc.setQueryData(keys.invite, inv),
+  });
+}
+
+export function useFriendRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: number) => api.post<Requests>('/api/v1/friends/requests', { user_id: userId }),
+    onSuccess: (r) => {
+      qc.setQueryData(keys.requests, r);
+      qc.invalidateQueries({ queryKey: keys.classmates });
+      qc.invalidateQueries({ queryKey: keys.friends });
+    },
+  });
+}
+
+export function useAnswerRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: number; action: 'accept' | 'decline' | 'cancel' }) =>
+      api.post<Requests>(`/api/v1/friends/requests/${id}/${action}`),
+    onSuccess: (r) => {
+      qc.setQueryData(keys.requests, r);
+      qc.invalidateQueries({ queryKey: keys.friends });
+      qc.invalidateQueries({ queryKey: ['today'] });
+    },
+  });
+}
+
+export function useSetVisibility() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, visibility }: { id: number; visibility: 'full' | 'freebusy' }) =>
+      api.patch(`/api/v1/friends/${id}`, { visibility }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.friends }),
+  });
+}
+
+export function useRemoveFriend() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.del(`/api/v1/friends/${id}`),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useBlock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.post('/api/v1/blocks', { user_id: id }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+// ---- Account ------------------------------------------------------------------------
+
+/** Sign out here (or on every device). Without network we still forget the tokens on this phone. */
+export async function signOut(everywhere = false) {
+  try {
+    await api.post(everywhere ? '/api/v1/auth/logout-all' : '/api/v1/auth/logout');
+  } catch {
+    if (everywhere) throw new Error('offline');
+  }
+  await clearSession();
+}
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: () => api.del('/api/v1/me'),
+    onSuccess: () => clearSession(),
+  });
+}
+
+export function exportData() {
+  return api.get<Record<string, unknown>>('/api/v1/me/export');
+}

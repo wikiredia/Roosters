@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Roosters+ design tokens</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.tok{font-size:13px;line-height:18px;font-weight:700}
+.hex{font-size:13px;line-height:18px;color:var(--color-ink-2)}
+.sw{width:44px;height:44px;border-radius:8px;border:1px solid var(--color-line-strong);flex-shrink:0}
+</style>
+</helmet>
+<div class="rp theme-light" style="width: 1840px; height: 2000px; background: #F4F3EF; padding: 72px 80px; display: flex; flex-direction: column; gap: 48px; box-sizing: border-box">
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 40px">
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <p class="eyebrow">tokens.css · 1:1 met Tailwind / NativeWind</p>
+      <h1 class="title-xl">Design tokens</h1>
+    </div>
+    <p class="t-base m2" style="max-width: 720px">Zelfde namen in licht en donker; enkel de waarden wisselen. <span class="b" style="color: #161F2A">--color-together</span> wordt <span class="b" style="color: #161F2A">bg-together</span>, <span class="b" style="color: #161F2A">--space-4</span> wordt <span class="b" style="color: #161F2A">p-4</span>, <span class="b" style="color: #161F2A">--radius-card</span> wordt <span class="b" style="color: #161F2A">rounded-card</span>.</p>
+  </div>
+
+  <div style="display: flex; gap: 24px">
+    <section class="theme-light" style="flex: 1; background: var(--color-bg); border: 1px solid var(--color-line-strong); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px; color: var(--color-ink)">
+      <div class="sec-head"><h2>Kleur · licht</h2><span class="aside">:root, .theme-light</span></div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px">
+        <sc-for list="{{colors}}" as="c" hint-placeholder-count="32">
+          <div style="display: flex; align-items: center; gap: 12px; min-height: 48px">
+            <div class="sw" style="background: var({{c.name}})"></div>
+            <div style="display: flex; flex-direction: column"><span class="tok">{{c.name}}</span><span class="hex">{{c.light}} · {{c.use}}</span></div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+    <section class="theme-dark" style="flex: 1; background: var(--color-bg); border: 1px solid var(--color-line-strong); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px; color: var(--color-ink)">
+      <div class="sec-head"><h2>Kleur · donker</h2><span class="aside">.theme-dark</span></div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px">
+        <sc-for list="{{colors}}" as="c" hint-placeholder-count="32">
+          <div style="display: flex; align-items: center; gap: 12px; min-height: 48px">
+            <div class="sw" style="background: var({{c.name}})"></div>
+            <div style="display: flex; flex-direction: column"><span class="tok">{{c.name}}</span><span class="hex">{{c.dark}} · {{c.use}}</span></div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: flex; gap: 24px; flex: 1; min-height: 0">
+    <section style="flex: 1.2; background: #FFFFFF; border: 1px solid #E0DCD3; border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 16px">
+      <div class="sec-head"><h2>Type</h2><span class="aside">Atkinson Hyperlegible Next · Bricolage Grotesque · tabelcijfers</span></div>
+      <div style="display: flex; align-items: baseline; gap: 20px"><span class="tok" style="width: 150px">--text-4xl · 56/56</span><span class="bignum">12:30</span><span class="hex">display, grote cijfers</span></div>
+      <div style="display: flex; align-items: baseline; gap: 20px"><span class="tok" style="width: 150px">--text-3xl · 40/44</span><span class="title-xl">Dit is je week</span></div>
+      <div style="display: flex; align-items: baseline; gap: 20px"><span class="tok" style="width: 150px">--text-2xl · 30/36</span><span class="title">Vandaag</span><span class="hex">schermtitel</span></div>
+      <div style="display: flex; align-items: baseline; gap: 20px"><span class="tok" style="width: 150px">--text-xl · 24/30</span><span class="title-sheet">Pauze samen?</span><span class="hex">sheet-titel</span></div>
+      <div style="display: flex; align-items: baseline; gap: 20px"><span class="tok" style="width: 150px">--text-lg · 20/26</span><span class="t-lg b">Samen pauze 12:30–13:30</span></div>
+      <div style="display: flex; align-items: baseline; gap: 20px"><span class="tok" style="width: 150px">--text-base · 17/24</span><span class="t-base">Kayra heeft pauze tot 12:30.</span><span class="hex">body, minimum voor lopende tekst</span></div>
+      <div style="display: flex; align-items: baseline; gap: 20px"><span class="tok" style="width: 150px">--text-sm · 15/20</span><span class="t-sm">Spoor Noord · B204</span></div>
+      <div style="display: flex; align-items: baseline; gap: 20px"><span class="tok" style="width: 150px">--text-xs · 13/18</span><span class="t-xs b" style="letter-spacing: 0.08em; text-transform: uppercase">Wie is er nu?</span><span class="hex">labels, nooit voor zinnen</span></div>
+      <p class="t-sm m2">Alles schaalt mee met de systeemtekstgrootte tot 200% (zie bord 70). Geen vaste hoogtes op tekstcontainers.</p>
+    </section>
+
+    <section style="flex: 1; background: #FFFFFF; border: 1px solid #E0DCD3; border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 24px">
+      <div class="sec-head"><h2>Ruimte · 4-pt raster</h2><span class="aside">--space-*</span></div>
+      <div style="display: flex; align-items: flex-end; gap: 22px">
+        <sc-for list="{{spaces}}" as="s" hint-placeholder-count="10">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+            <div style="width: {{s.px}}px; height: {{s.px}}px; background: #2E5BFF; border-radius: 2px"></div>
+            <span class="tok">{{s.n}}</span><span class="hex">{{s.px}}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div class="sec-head"><h2>Hoeken · schaduw</h2><span class="aside">--radius-* · --shadow-sheet</span></div>
+      <div style="display: flex; gap: 20px; align-items: flex-end">
+        <div style="display: flex; flex-direction: column; gap: 6px; align-items: center"><div style="width: 64px; height: 44px; border-radius: 8px; border: 2px solid #161F2A"></div><span class="tok">chip · block</span><span class="hex">8</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; align-items: center"><div style="width: 80px; height: 64px; border-radius: 12px; border: 2px solid #161F2A"></div><span class="tok">card · button</span><span class="hex">12</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; align-items: center"><div style="width: 96px; height: 64px; border-radius: 20px 20px 0 0; border: 2px solid #161F2A; border-bottom: 0"></div><span class="tok">sheet</span><span class="hex">20 boven</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; align-items: center"><div style="width: 44px; height: 44px; border-radius: 22px; border: 2px solid #161F2A"></div><span class="tok">full</span><span class="hex">avatars</span></div>
+        <div style="display: flex; flex-direction: column; gap: 6px; align-items: center; margin-left: 16px"><div style="width: 120px; height: 64px; border-radius: 20px 20px 0 0; background: #FFFFFF; box-shadow: 0 -2px 16px rgba(22,31,42,0.12)"></div><span class="tok">--shadow-sheet</span><span class="hex">0 -2 16 · 12%</span></div>
+      </div>
+      <div class="sec-head"><h2>Beweging</h2><span class="aside">altijd optioneel</span></div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; gap: 16px"><span class="tok" style="width: 180px">--duration-fast</span><span class="hex">120 ms · drukken, toggles</span></div>
+        <div style="display: flex; gap: 16px"><span class="tok" style="width: 180px">--duration-base</span><span class="hex">200 ms · chips, banners</span></div>
+        <div style="display: flex; gap: 16px"><span class="tok" style="width: 180px">--duration-slow</span><span class="hex">320 ms · sheets</span></div>
+        <div style="display: flex; gap: 16px"><span class="tok" style="width: 180px">--ease-standard</span><span class="hex">cubic-bezier(0.2, 0, 0, 1)</span></div>
+        <p class="t-sm m2">Verminderde beweging: alle duurtijden 0 ms. Niets wordt enkel via animatie uitgelegd.</p>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1840,"height":2000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const colors = [
+      ['--color-bg','#F4F3EF','#161F2A','achtergrond'],
+      ['--color-surface','#FFFFFF','#1E2936','kaarten'],
+      ['--color-surface-raised','#FFFFFF','#243140','sheets'],
+      ['--color-surface-sunken','#ECEAE4','#111821','putjes'],
+      ['--color-line','#E0DCD3','#2F3D4D','lijnen'],
+      ['--color-line-strong','#C9C4B8','#3E4F62','randen'],
+      ['--color-control-off','#8A857B','#6F7C8A','toggle uit, input'],
+      ['--color-ink','#161F2A','#F4F3EF','tekst'],
+      ['--color-ink-2','#5A574F','#C4C0B6','tekst 2'],
+      ['--color-ink-3','#6E6A62','#9C978C','meta'],
+      ['--color-you','#2E5BFF','#2E5BFF','jij · knop'],
+      ['--color-you-ink','#2449E0','#8EA8FF','blauwe tekst'],
+      ['--color-you-soft','#E3E9FF','#1F2D57','jouw lessen'],
+      ['--color-friend','#F0487A','#F0487A','vrienden'],
+      ['--color-friend-ink','#B8204F','#FF8FB0','roze tekst'],
+      ['--color-friend-soft','#FDE4EB','#44202F','hun lessen'],
+      ['--color-together','#FFC21A','#FFC21A','samen'],
+      ['--color-together-ink','#6B4E00','#FFD24D','gele tekst'],
+      ['--color-together-soft','#FFF1C4','#3A3115','stil samen'],
+      ['--color-on-together','#161F2A','#161F2A','tekst op geel'],
+      ['--color-danger','#E5484D','#E5484D','vervalt'],
+      ['--color-danger-ink','#C42A30','#FF8A8D','rode tekst'],
+      ['--color-danger-soft','#FDE6E6','#4A1F22','rode vlak'],
+      ['--color-success','#1F9D55','#1F9D55','ok'],
+      ['--color-success-ink','#157A41','#5ED38E','groene tekst'],
+      ['--color-success-soft','#E1F4E8','#173A28','groen vlak'],
+      ['--color-theory-soft','#E3E9FF','#23336A','theorie'],
+      ['--color-lab','#0E9F8A','#0E9F8A','labo rand'],
+      ['--color-lab-soft','#D6F2EC','#123B36','labo'],
+      ['--color-skip-soft','#ECEAE4','#1A232E','overslaan'],
+      ['--color-premium','#C9971C','#C9971C','premium goud'],
+      ['--color-premium-soft','#FBF1D6','#3A2E10','premium vlak']
+    ].map(([name, light, dark, use]) => ({ name, light, dark, use }));
+    const spaces = [[1,4],[2,8],[3,12],[4,16],[5,20],[6,24],[8,32],[10,40],[12,48],[16,64]].map(([n, px]) => ({ n: String(n), px }));
+    return { colors, spaces };
+  }
+}
+</script>
+</body>
+</html>

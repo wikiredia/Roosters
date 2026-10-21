@@ -3,6 +3,7 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -23,6 +24,16 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 app.add_middleware(IdempotencyMiddleware)
+if config.CORS_ORIGINS:
+    # Bearer tokens, no cookies: allowing the dev web build's origin is safe
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=config.CORS_ORIGINS,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "If-None-Match", "Accept-Language"],
+        expose_headers=["ETag", "Retry-After", "Idempotent-Replayed"],
+        max_age=600,
+    )
 
 
 @app.middleware("http")

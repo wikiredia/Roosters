@@ -1,0 +1,30 @@
+name: Roosters+ app (v2)
+
+on:
+  push:
+    branches: [main]
+    paths: ["app/mobile/**", ".github/workflows/app-mobile.yml"]
+  pull_request:
+    paths: ["app/mobile/**", ".github/workflows/app-mobile.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/mobile/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx expo-doctor
+      # Builds every screen: catches broken imports and routes
+      - run: npx expo export --platform web --output-dir /tmp/web

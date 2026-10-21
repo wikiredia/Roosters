@@ -147,3 +147,18 @@ def test_adding_a_class_requires_a_school(client, mails, school):
     other_class = db.run("INSERT INTO school_classes (school_id, untis_id, name) VALUES (%s, 1, 'X')", (other_school,))
     r = client.post("/api/v1/me/sources/untis", headers=noor["headers"], json={"class_id": other_class})
     assert r.json()["code"] == "class_unknown"
+
+
+def test_classmates_are_people_in_your_classes_who_arent_friends_yet(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    lotte = login(client, "lotte@example.com", mails)
+    onboard(client, lotte, school, school["classes"][0])     # same class as Reda
+    amir = login(client, "amir@example.com", mails)
+    onboard(client, amir, school, school["classes"][0])
+    client.post("/api/v1/blocks", headers=amir["headers"], json={"user_id": reda["user_id"]})
+    mates = client.get("/api/v1/classmates", headers=reda["headers"]).json()["classmates"]
+    # Kayra is already a friend (other class anyway), Amir blocked Reda: only Lotte
+    assert [(m["id"], m["classes"], m["requested"]) for m in mates] == [(lotte["user_id"], ["2ITCSC1a"], False)]
+    client.post("/api/v1/friends/requests", headers=reda["headers"], json={"user_id": lotte["user_id"]})
+    mates = client.get("/api/v1/classmates", headers=reda["headers"]).json()["classmates"]
+    assert mates[0]["requested"] is True

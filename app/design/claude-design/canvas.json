@@ -1,0 +1,18 @@
+{"v":3,"createdOnFiles":{"v":1,"at":"2026-10-20T09:30:00Z"},"title":"Roosters+ app design","launch":{"view":"canvas"},"pages":[],"boards":{
+"Main.dc.html":{"x":0,"y":0,"w":1840,"h":1200,"title":"00 · Roosters+ merk"},
+"Tokens.dc.html":{"x":1920,"y":0,"w":1840,"h":2000,"title":"01 · Design tokens"},
+"Components.dc.html":{"x":3840,"y":0,"w":2000,"h":3200,"title":"02 · Componenten"},
+"Onboarding-1.dc.html":{"x":0,"y":3320,"w":2285,"h":2200,"title":"10 · Onboarding 1–3"},
+"Onboarding-2.dc.html":{"x":2365,"y":3320,"w":2285,"h":2200,"title":"11 · Onboarding 4–8"},
+"Today.dc.html":{"x":0,"y":5640,"w":1403,"h":4560,"title":"20 · Vandaag"},
+"Today-states.dc.html":{"x":1483,"y":5640,"w":2726,"h":2200,"title":"21 · Vandaag: states"},
+"System.dc.html":{"x":4289,"y":5640,"w":2285,"h":2200,"title":"60 · Systeemstates"},
+"Rooster.dc.html":{"x":1483,"y":7960,"w":3167,"h":2300,"title":"30 · Rooster"},
+"Chat.dc.html":{"x":4730,"y":7960,"w":1403,"h":2200,"title":"40 · Chat"},
+"Ik-1.dc.html":{"x":0,"y":10380,"w":1844,"h":3500,"title":"50 · Ik 1"},
+"Ik-2.dc.html":{"x":1924,"y":10380,"w":2285,"h":2200,"title":"51 · Ik 2"},
+"Premium.dc.html":{"x":4289,"y":10380,"w":1403,"h":3000,"title":"55 · Premium"},
+"Widgets.dc.html":{"x":0,"y":14000,"w":1600,"h":1500,"title":"56 · Widgets"},
+"Push.dc.html":{"x":1680,"y":14000,"w":1600,"h":1500,"title":"61 · Pushmeldingen"},
+"Checks.dc.html":{"x":3360,"y":14000,"w":2240,"h":2200,"title":"70 · Android · English · 200%"}
+},"order":["Main.dc.html","Tokens.dc.html","Components.dc.html","Onboarding-1.dc.html","Onboarding-2.dc.html","Today.dc.html","Today-states.dc.html","System.dc.html","Rooster.dc.html","Chat.dc.html","Ik-1.dc.html","Ik-2.dc.html","Premium.dc.html","Widgets.dc.html","Push.dc.html","Checks.dc.html"],"notes":{},"designSystems":[]}

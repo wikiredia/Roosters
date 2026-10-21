@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Vandaag</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.togcard{background:var(--color-together-soft);border:1.5px solid var(--color-together);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.togcard .row + .row{border-top:1px solid var(--color-together)}
+.togicon{width:28px;height:28px;border-radius:14px;background:var(--color-together);color:#161F2A;display:flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div class="rp board" style="width: 1403px; height: 4560px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Vandaag <span>{{t.label}} · dinsdag 20 oktober, 11:20 · laadt meteen uit cache</span></h2>
+  <div class="shots">
+
+    <!-- A full scroll -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>A</b> Vandaag · volledige scroll</figcaption>
+      <div class="phone" style="height: 2080px">
+        <div class="safe"></div>
+        <header class="topbar" style="align-items: flex-end">
+          <div class="stack"><p class="eyebrow">Dinsdag 20 oktober</p><h1 class="title">Vandaag</h1></div><button class="statusbtn" aria-label="Jouw status: Op school. Tik om te wisselen naar Thuis"><span class="dot"></span>Op school<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"></path></svg></button></header>
+        <div class="content" style="gap: 32px; padding-top: 4px">
+
+          <div class="nowcard">
+            <div class="hstack g3"><span class="now-pill">Nu</span><p class="title-sheet">Pauze tot 13:30</p></div>
+            <p class="t-sm">Databases vervalt vandaag.</p>
+            <div class="next"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg><span class="grow"><b>Volgende:</b> Cloud Computing · 13:30 · C102</span><button class="btn btn-sm" style="border: 1.5px solid rgba(255,255,255,0.7); color: #FFFFFF; padding: 0 12px" aria-label="Cloud Computing overslaan">Vak overslaan</button></div>
+            <a class="btn btn-sm" href="#" style="width: 100%; background: #FFFFFF; color: #1D3FD0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg>Open je rooster</a>
+          </div>
+
+          <section class="sec">
+            <div class="sec-head"><h2>Voor jou</h2><span class="aside">1 vraag</span></div>
+            <div class="card card-pad">
+              <div class="hstack g3">
+                <span class="av av-md c-lotte">L</span>
+                <div class="stack grow"><p class="t-lg b">Lotte: pauze om 12:30?</p><p class="t-sm m2">Tot 13:30 · "Broodje in de cafetaria?"</p></div>
+              </div>
+              <div class="btn-row"><button class="btn btn-primary btn-sm">Ja</button><button class="btn btn-secondary btn-sm">Nee</button><button class="btn btn-secondary btn-sm">Ander uur</button></div>
+            </div>
+          </section>
+
+          <section class="sec">
+            <div class="sec-head"><h2><span class="togicon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg></span>Pak je pauze met:</h2><span class="aside">vandaag</span></div>
+            <div class="togcard">
+              <div class="row" style="align-items: flex-start">
+                <span class="av c-kayra">K<span class="pres"></span></span>
+                <span class="row-main"><span class="row-title">Kayra</span><span class="row-sub">Nu tot 12:30 · net uit B204</span><span class="hstack g1 t-sm" style="color: var(--color-ink-2); margin-top: 2px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>Wacht op antwoord</span><span class="hstack g1 t-sm" style="color: var(--color-ink-2)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"></path><path d="M10 20.5a2 2 0 0 0 4 0M4 4l16 16"></path></svg>Kayra heeft meldingen uit</span></span>
+                <button class="btn-icon filled" aria-label="Chat met Kayra"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg></button>
+              </div>
+              <div class="row" style="align-items: flex-start">
+                <span class="av-stack" style="padding-top: 6px"><span class="av av-sm c-lotte">L</span><span class="av av-sm c-amir">A</span></span>
+                <span class="row-main"><span class="row-title">Lotte en Amir</span><span class="row-sub">12:30–13:30</span><span class="row-sub">uit C102, A.1.05</span></span>
+                <div class="hstack g2"><button class="btn btn-primary btn-sm" style="padding: 0 12px">Vraag</button><button class="btn-icon filled" aria-label="Chat met Lotte en Amir"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg></button></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="sec">
+            <div class="sec-head"><h2>Wie is er nu?</h2><span class="aside">vrij eerst</span></div>
+            <div class="card">
+              <div class="row"><span class="av c-kayra">K<span class="pres"></span></span><span class="row-main"><span class="row-title">Kayra</span><span class="row-sub"><b class="ok-ink">Vrij</b> tot 12:30</span></span></div>
+              <div class="row"><span class="av c-ilias">I<span class="pres"></span></span><span class="row-main"><span class="row-title">Ilias</span><span class="row-sub"><b class="ok-ink">Vrij</b> · wil chillen</span></span><button class="btn btn-secondary btn-sm">Vraag</button></div>
+              <div class="row"><span class="av c-amir">A<span class="pres busy"></span></span><span class="row-main"><span class="row-title">Amir</span><span class="row-sub">Les tot 11:45</span></span></div>
+              <div class="row"><span class="av c-lotte">L<span class="pres busy"></span></span><span class="row-main"><span class="row-title">Lotte</span><span class="row-sub">Les tot 12:30</span></span></div>
+              <div class="row"><span class="av c-yeno">Y<span class="pres busy"></span></span><span class="row-main"><span class="row-title">Yeno</span><span class="row-sub">Les tot 12:30 · Meistraat</span></span></div>
+              <button class="row" aria-expanded="false" style="min-height: 56px">
+                <span class="av-stack"><span class="av av-sm c-sanne">S</span><span class="av av-sm c-noor">N</span></span>
+                <span class="grow t-sm m2"><b style="color: var(--color-ink)">2 niet op school</b> · Sanne, Noor</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m2"><path d="m5 9 7 7 7-7"></path></svg>
+              </button>
+            </div>
+          </section>
+
+          <section class="sec">
+            <div class="sec-head"><h2>Wat is je plan deze middag?</h2><span class="tag tag-you" style="align-self: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>Geldt tot 13:30</span></div>
+            <div class="status-grid" role="radiogroup" aria-label="Wat is je plan deze middag?">
+              <button class="status-opt" role="radio" aria-checked="false"><span class="radio"></span>Ik chill nog</button>
+              <button class="status-opt on" role="radio" aria-checked="true"><span class="radio on"></span>Ik wil chillen</button>
+              <button class="status-opt" role="radio" aria-checked="false"><span class="radio"></span>Ik ga naar huis</button>
+              <button class="status-opt" role="radio" aria-checked="false"><span class="radio"></span>Ik ben er niet</button>
+            </div>
+            <div class="hstack g2 t-sm" style="padding: 10px 12px; border-radius: 10px; background: var(--color-surface-sunken)"><span class="grow">Kies er één. Om <b>13:30</b>, als je middagpauze stopt, verdwijnt je status vanzelf.</span><button class="link" style="min-height: 44px">Langer</button></div>
+          </section>
+
+          <section class="sec">
+            <div class="sec-head"><h2>Roosterwijzigingen</h2></div>
+            <div class="card">
+              <a class="row" href="#"><span class="row-main"><span class="hstack g2"><span class="tag tag-bad">Vervalt</span><span class="t-sm m2">vandaag</span></span><span class="t-base b strike" style="margin-top: 4px">Databases 10:30–12:30</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+              <a class="row" href="#"><span class="row-main"><span class="hstack g2"><span class="tag tag-n tag-line">Gewijzigd</span><span class="t-sm m2">morgen</span></span><span class="t-base b" style="margin-top: 4px">Databases 10:30 → 13:00</span><span class="row-sub">B204 → C102</span></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="m3"><path d="m9 5 7 7-7 7"></path></svg></a>
+            </div>
+          </section>
+
+        </div>
+        <nav class="tabbar" aria-label="Hoofdmenu">
+          <a class="tab on" href="#" aria-current="page"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"></path></svg></span>Vandaag</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M3.5 9.5h17M8 3v4M16 3v4"></path></svg></span>Rooster</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 17.5 4 20.5V6a1.5 1.5 0 0 1 1.5-1.5h13A1.5 1.5 0 0 1 20 6v10a1.5 1.5 0 0 1-1.5 1.5z"></path></svg><span class="badge">3</span></span>Chat</a>
+          <a class="tab" href="#"><span class="tab-ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8.5" r="4"></circle><path d="M4.5 20c1.3-3.4 4.1-5 7.5-5s6.2 1.6 7.5 5"></path></svg></span>Ik</a>
+        </nav>
+      </div>
+    </figure>
+
+    <!-- B ask sheet -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>B</b> Tik op een samen-pauze → vragen</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <header class="topbar" style="align-items: flex-end"><div class="stack"><p class="eyebrow">Dinsdag 20 oktober</p><h1 class="title">Vandaag</h1></div><button class="statusbtn" aria-label="Jouw status: Op school. Tik om te wisselen naar Thuis"><span class="dot"></span>Op school<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"></path></svg></button></header>
+        <div class="content" style="gap: 32px; padding-top: 4px">
+          <div class="nowcard"><div class="hstack g3"><span class="now-pill">Nu</span><p class="title-sheet">Pauze tot 13:30</p></div><p class="t-sm">Databases vervalt vandaag.</p></div>
+          <div class="togcard"><div class="row"><span class="av c-kayra">K</span><span class="row-main"><span class="row-title">Kayra</span><span class="row-sub" style="color: var(--color-ink)">Nu · tot 12:30</span></span><button class="btn btn-primary btn-sm">Vraag</button></div></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet" role="dialog" aria-label="Pauze met Kayra?">
+          <span class="grab"></span>
+          <div class="sheet-head">
+            <div class="hstack g3"><span class="av av-md c-kayra">K</span><div class="stack"><h3 class="title-sheet">Pauze met Kayra?</h3><p class="t-sm m2">Kayra is vrij tot 12:30</p></div></div>
+            <button class="btn-icon filled" aria-label="Sluiten"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg></button>
+          </div>
+          <div class="stack g2" role="radiogroup" aria-label="Waar?">
+            <p class="field-label">Waar?</p>
+            <button class="opt on" role="radio" aria-checked="true"><span class="radio on"></span>Ik kom naar jou</button>
+            <button class="opt" role="radio" aria-checked="false"><span class="radio"></span>Jij komt naar mij</button>
+            <button class="opt" role="radio" aria-checked="false"><span class="radio"></span>Afspreken op…</button>
+          </div>
+          <div class="stack g2">
+            <p class="field-label">Wanneer?</p>
+            <div class="hstack g2">
+              <button class="timebtn" aria-label="Van: nu, 11:20, tik om aan te passen"><span class="t-xs m2 b">Van</span><span class="t-lg b">Nu</span><span class="t-xs m2">11:20</span></button>
+              <button class="timebtn" aria-label="Tot: einde van de pauze, 12:30, tik om aan te passen"><span class="t-xs m2 b">Tot</span><span class="t-lg b">Einde pauze</span><span class="t-xs m2">12:30</span></button>
+            </div>
+            <p class="t-xs m2">Tik op een tijd om zelf een uur te kiezen.</p>
+          </div>
+          <div class="field"><label for="ask-note-{{t.id}}">Berichtje <span class="m3" style="font-weight: 400">(mag leeg)</span></label><div class="input"><input id="ask-note-{{t.id}}" type="text" placeholder="Bv. koffie aan de automaat?"></div></div>
+          <button class="btn btn-primary">Vraag aan Kayra</button>
+        </div>
+      </div>
+    </figure>
+
+    <!-- C success -->
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>C</b> Succes: Kayra zegt ja</figcaption>
+      <div class="phone">
+        <div class="safe"></div>
+        <header class="topbar" style="align-items: flex-end"><div class="stack"><p class="eyebrow">Dinsdag 20 oktober</p><h1 class="title">Vandaag</h1></div><button class="statusbtn" aria-label="Jouw status: Op school. Tik om te wisselen naar Thuis"><span class="dot"></span>Op school<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"></path></svg></button></header>
+        <div class="content" style="gap: 32px; padding-top: 4px">
+          <div class="nowcard"><div class="hstack g3"><span class="now-pill">Nu</span><p class="title-sheet">Pauze tot 13:30</p></div><p class="t-sm">Databases vervalt vandaag.</p></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet" role="dialog" aria-label="Kayra zegt ja" style="align-items: center; text-align: center; gap: 16px; padding-top: 8px; overflow: hidden">
+          <div class="confetti" aria-hidden="true">
+            <i style="left: 8%; background: #2E5BFF; animation-delay: 0s"></i><i style="left: 20%; background: #FFC21A; animation-delay: .6s"></i><i style="left: 33%; background: #F0487A; animation-delay: 1.2s"></i><i style="left: 64%; background: #2E5BFF; animation-delay: .3s"></i><i style="left: 76%; background: #FFC21A; animation-delay: 1.5s"></i><i style="left: 90%; background: #F0487A; animation-delay: .9s"></i>
+          </div>
+          <span class="grab"></span>
+          <svg class="mascot happy" width="112" height="119" viewBox="0 0 120 128" aria-hidden="true"><g class="comb"><rect x="45" y="11" width="10" height="21" rx="5" fill="#F0487A"></rect><rect x="55" y="4" width="11" height="28" rx="5.5" fill="#F0487A"></rect><rect x="66" y="11" width="10" height="21" rx="5" fill="#F0487A"></rect></g><rect class="wing-l" x="11" y="62" width="17" height="28" rx="8.5" fill="#1D3FD0"></rect><rect class="wing-r" x="92" y="62" width="17" height="28" rx="8.5" fill="#1D3FD0"></rect><rect x="40" y="102" width="14" height="10" rx="5" fill="#FFC21A"></rect><rect x="66" y="102" width="14" height="10" rx="5" fill="#FFC21A"></rect><rect x="22" y="26" width="76" height="80" rx="32" fill="#2E5BFF"></rect><rect x="38" y="72" width="44" height="28" rx="14" fill="#5B7EFF"></rect><path d="M38 57q8-11 16 0M66 57q8-11 16 0" stroke="#161F2A" stroke-width="5" fill="none" stroke-linecap="round"></path><circle cx="34" cy="70" r="4.5" fill="#F0487A"></circle><circle cx="86" cy="70" r="4.5" fill="#F0487A"></circle><rect x="54" y="66" width="12" height="5" rx="2.5" fill="#FFC21A"></rect><rect x="57.5" y="62.5" width="5" height="12" rx="2.5" fill="#FFC21A"></rect></svg>
+          <h3 class="title-sheet">Kayra zegt ja!</h3>
+          <div class="hstack g3" style="width: 100%; padding: 14px 16px; border-radius: 12px; background: var(--color-together); color: var(--color-on-together); text-align: left">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg>
+            <div class="stack grow"><span class="t-lg b">11:30 – 12:30</span><span class="t-sm">Jij gaat naar Kayra · B-blok</span></div>
+          </div>
+          <p class="t-sm m2">Om 11:25 krijg je een seintje.</p>
+          <div class="stack g2" style="width: 100%">
+            <button class="btn btn-primary">Stuur Kayra een bericht</button>
+            <button class="btn btn-ghost">Klaar</button>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1403,"height":4560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

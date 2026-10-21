@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Widgets</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.plate{border-radius:28px;padding:36px;display:flex;flex-direction:column;gap:24px}
+.wg{background:var(--color-surface);border-radius:22px;padding:16px;display:flex;flex-direction:column;box-shadow:var(--shadow-sheet);color:var(--color-ink)}
+.lockw{color:#FFFFFF}
+.lockw .m{color:rgba(255,255,255,0.78)}
+</style>
+</helmet>
+<div class="rp board" style="width: 1600px; height: 1500px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Widgets <span>{{t.label}} · Premium · dinsdag 11:20</span></h2>
+  <div class="shots" style="gap: 40px">
+
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>Beginscherm</b> klein (170) en middel (364)</figcaption>
+      <div class="plate" style="width: 640px; background: {{t.home}}">
+        <div class="hstack g6" style="align-items: flex-start">
+          <!-- small -->
+          <div class="wg" style="width: 170px; height: 170px; justify-content: space-between">
+            <div class="stack">
+              <span class="t-xs b m2" style="letter-spacing: 0.06em; text-transform: uppercase">Volgende</span>
+              <span class="b" style="font-size: 17px; line-height: 21px">Cloud Computing</span>
+              <span class="t-sm m2">13:30 · C102</span>
+            </div>
+            <div class="hstack" style="gap: 6px; padding: 6px 8px; border-radius: 8px; background: var(--color-together); color: var(--color-on-together)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg><span class="t-xs b">Vrij met Kayra tot 12:30</span></div>
+          </div>
+          <span class="t-sm" style="color: {{t.plateInk}}; padding-top: 6px; max-width: 300px">Klein: volgende les + eerstvolgende samen-pauze. Tik opent Vandaag.</span>
+        </div>
+        <!-- medium -->
+        <div class="wg" style="width: 364px; height: 170px; flex-direction: row; gap: 14px">
+          <div class="stack grow" style="justify-content: space-between">
+            <div class="stack">
+              <span class="t-xs b m2" style="letter-spacing: 0.06em; text-transform: uppercase">Nu</span>
+              <span class="b" style="font-size: 20px; line-height: 24px; font-family: var(--font-display)">Pauze tot 13:30</span>
+            </div>
+            <div class="stack">
+              <span class="t-xs b m2" style="letter-spacing: 0.06em; text-transform: uppercase">Volgende</span>
+              <span class="t-sm b">Cloud Computing</span>
+              <span class="t-xs m2">13:30 · C102</span>
+            </div>
+          </div>
+          <div style="width: 1px; background: var(--color-line)"></div>
+          <div class="stack g2" style="width: 150px">
+            <span class="t-xs b m2" style="letter-spacing: 0.06em; text-transform: uppercase">Samen</span>
+            <div class="hstack g2" style="padding: 6px 8px; border-radius: 8px; background: var(--color-together); color: var(--color-on-together)"><span class="t-xs b">11:20</span><span class="t-xs">Kayra</span></div>
+            <div class="hstack g2" style="padding: 6px 8px; border-radius: 8px; background: var(--color-together); color: var(--color-on-together)"><span class="t-xs b">12:30</span><span class="t-xs">Lotte, Amir</span></div>
+            <span class="t-xs m2">+ Ilias wil chillen</span>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>Vergrendelscherm</b> inline · rechthoek · Live Activity</figcaption>
+      <div class="plate" style="width: 560px; background: {{t.lock}}">
+        <div class="lockw hstack g2" style="justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg><span class="t-sm b">Vrij met Kayra tot 12:30</span></div>
+        <div class="hstack g4" style="justify-content: center">
+          <div class="lockw stack" style="width: 172px; height: 76px; padding: 8px 10px; border-radius: 16px; background: rgba(255,255,255,0.16)">
+            <span class="t-xs b m" style="letter-spacing: 0.04em">VOLGENDE</span>
+            <span class="t-sm b">Cloud Computing</span>
+            <span class="t-xs m">13:30 · C102</span>
+          </div>
+          <div class="lockw stack" style="width: 172px; height: 76px; padding: 8px 10px; border-radius: 16px; background: rgba(255,255,255,0.16)">
+            <span class="t-xs b m" style="letter-spacing: 0.04em">SAMEN PAUZE</span>
+            <span class="t-sm b">Kayra · nu</span>
+            <span class="t-xs m">tot 12:30 · B-blok</span>
+          </div>
+        </div>
+        <p class="t-xs" style="color: rgba(255,255,255,0.78); text-align: center">Vergrendelscherm-widgets zijn monochroom: vorm en woorden dragen de betekenis.</p>
+        <!-- Live Activity -->
+        <p class="t-xs b" style="color: rgba(255,255,255,0.78); letter-spacing: 0.06em; text-transform: uppercase">Live Activity · 15:05, tijdens de les</p>
+        <div class="stack g3" style="background: {{t.la}}; border-radius: 22px; padding: 16px; color: #FFFFFF">
+          <div class="hstack g3">
+            <svg width="32" height="32" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22.5" fill="#161F2A"></rect><rect x="26" y="20" width="22" height="23" rx="5" fill="#2E5BFF"></rect><rect x="52" y="28" width="22" height="15" rx="5" fill="#F0487A"></rect><rect x="23" y="46" width="54" height="10" rx="5" fill="#FFC21A"></rect><rect x="26" y="59" width="22" height="21" rx="5" fill="#2E5BFF"></rect><rect x="52" y="59" width="22" height="13" rx="5" fill="#F0487A"></rect></svg>
+            <div class="stack grow"><span class="b">Cloud Computing</span><span class="t-sm" style="color: rgba(255,255,255,0.78)">Theorie · C102</span></div>
+            <span class="stack" style="align-items: flex-end"><span class="b" style="font-family: var(--font-display); font-size: 28px; line-height: 30px">nog 25 min</span></span>
+          </div>
+          <div style="height: 8px; border-radius: 4px; background: rgba(255,255,255,0.22); position: relative; overflow: hidden"><div style="position: absolute; left: 0; top: 0; bottom: 0; width: 79%; background: #2E5BFF; border-radius: 4px"></div></div>
+          <div class="hstack between t-xs b"><span>13:30</span><span>15:30</span></div>
+          <div style="height: 1px; background: rgba(255,255,255,0.18)"></div>
+          <div class="hstack g3 t-sm"><span style="color: rgba(255,255,255,0.78); width: 88px">Volgende</span><span class="b grow">Web Frameworks</span><span>15:45 · C102</span></div>
+          <div class="hstack g3 t-sm"><span style="width: 88px; display: flex"><span class="hstack g1" style="padding: 2px 6px; border-radius: 6px; background: #FFC21A; color: #161F2A"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg><b>Samen</b></span></span><span class="b grow">Ilias</span><span>15:30 – 15:45</span></div>
+        </div>
+      </div>
+    </figure>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht', home: '#C9D3DE', plateInk: '#161F2A', lock: '#33465A', la: '#161F2A' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker', home: '#1B2733', plateInk: '#F4F3EF', lock: '#0F1720', la: '#1E2936' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

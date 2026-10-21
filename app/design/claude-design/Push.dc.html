@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Pushmeldingen</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./tokens.css">
+<link rel="stylesheet" href="./ui.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;0,800;1,400&amp;family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2449E0}a:hover{color:#161F2A}
+.plate{border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:14px;width:640px}
+.ios{background:var(--color-surface);border-radius:20px;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;color:var(--color-ink)}
+.ios-act{background:var(--color-surface);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;width:260px;margin-left:auto}
+.ios-act button{min-height:46px;padding:0 16px;font-size:17px;text-align:left;color:var(--color-ink)}
+.ios-act button + button{border-top:1px solid var(--color-line)}
+.and{background:var(--color-surface);border-radius:24px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;color:var(--color-ink)}
+.and-act{display:flex;gap:8px;padding-top:6px}
+.and-act button{min-height:40px;padding:0 16px;border-radius:20px;background:var(--color-surface-sunken);font-size:15px;font-weight:700}
+.glyph{width:22px;height:22px;border-radius:11px;background:var(--color-ink);color:var(--color-ink-inverse);display:flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div class="rp board" style="width: 1600px; height: 1500px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<section class="band {{t.cls}}">
+  <h2 class="band-head">Pushmeldingen <span>{{t.label}} · iOS en Android</span></h2>
+  <div class="shots" style="gap: 40px">
+
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>iOS</b> lang drukken toont Ja / Nee</figcaption>
+      <div class="plate" style="background: {{t.wall}}">
+        <div class="ios">
+          <svg width="38" height="38" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22.5" fill="#161F2A"></rect><rect x="26" y="20" width="22" height="23" rx="5" fill="#2E5BFF"></rect><rect x="52" y="28" width="22" height="15" rx="5" fill="#F0487A"></rect><rect x="23" y="46" width="54" height="10" rx="5" fill="#FFC21A"></rect><rect x="26" y="59" width="22" height="21" rx="5" fill="#2E5BFF"></rect><rect x="52" y="59" width="22" height="13" rx="5" fill="#F0487A"></rect></svg>
+          <div class="stack grow"><div class="hstack between"><span class="t-sm b">Pauze samen?</span><span class="t-xs m3">nu</span></div><span class="t-sm">Lotte wil pauze met jou om 12:30. Kan jij?</span></div>
+        </div>
+        <div class="ios-act" role="group" aria-label="Acties"><button class="b">Ja</button><button>Nee</button><button>Ander uur…</button></div>
+        <div class="ios">
+          <svg width="38" height="38" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22.5" fill="#161F2A"></rect><rect x="26" y="20" width="22" height="23" rx="5" fill="#2E5BFF"></rect><rect x="52" y="28" width="22" height="15" rx="5" fill="#F0487A"></rect><rect x="23" y="46" width="54" height="10" rx="5" fill="#FFC21A"></rect><rect x="26" y="59" width="22" height="21" rx="5" fill="#2E5BFF"></rect><rect x="52" y="59" width="22" height="13" rx="5" fill="#F0487A"></rect></svg>
+          <div class="stack grow"><div class="hstack between"><span class="t-sm b">Kayra is nu vrij tot 12:30</span><span class="t-xs m3">11:00</span></div><span class="t-sm">Jij ook. Tik om pauze samen te vragen.</span></div>
+        </div>
+        <div class="ios">
+          <svg width="38" height="38" viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22.5" fill="#161F2A"></rect><rect x="26" y="20" width="22" height="23" rx="5" fill="#2E5BFF"></rect><rect x="52" y="28" width="22" height="15" rx="5" fill="#F0487A"></rect><rect x="23" y="46" width="54" height="10" rx="5" fill="#FFC21A"></rect><rect x="26" y="59" width="22" height="21" rx="5" fill="#2E5BFF"></rect><rect x="52" y="59" width="22" height="13" rx="5" fill="#F0487A"></rect></svg>
+          <div class="stack grow"><div class="hstack between"><span class="t-sm b">Roosterwijziging morgen</span><span class="t-xs m3">18:04</span></div><span class="t-sm">Databases verplaatst: 10:30 → 13:00, B204 → C102.</span></div>
+        </div>
+      </div>
+    </figure>
+
+    <figure class="shot">
+      <figcaption class="shot-cap"><b>Android</b> acties altijd zichtbaar</figcaption>
+      <div class="plate" style="background: {{t.wall}}">
+        <div class="and">
+          <div class="hstack g2"><span class="glyph"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg></span><span class="t-xs m2">Roosters+ · nu</span></div>
+          <span class="b">Pauze samen?</span>
+          <span class="t-sm">Lotte wil pauze met jou om 12:30. Kan jij?</span>
+          <div class="and-act"><button>Ja</button><button>Nee</button><button>Ander uur</button></div>
+        </div>
+        <div class="and">
+          <div class="hstack g2"><span class="glyph"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg></span><span class="t-xs m2">Roosters+ · 11:00</span></div>
+          <span class="b">Kayra is nu vrij tot 12:30</span>
+          <span class="t-sm">Jij ook. Pauze samen?</span>
+          <div class="and-act"><button>Vraag Kayra</button></div>
+        </div>
+        <div class="and">
+          <div class="hstack g2"><span class="glyph"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 9.5h11.5v4.5a5 5 0 0 1-5 5h-1.5a5 5 0 0 1-5-5z"></path><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v3M12 3.5v3"></path></svg></span><span class="t-xs m2">Roosters+ · 18:04</span></div>
+          <span class="b">Roosterwijziging morgen</span>
+          <span class="t-sm">Databases verplaatst: 10:30 → 13:00, B204 → C102.</span>
+        </div>
+        <p class="t-xs" style="color: {{t.plateInk}}">Android-icoon: monochroom "samen"-glyph. Kanalen = de categorieën uit Meldingen.</p>
+      </div>
+    </figure>
+
+  </div>
+</section>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [
+      { id: 'l', cls: 'theme-light', label: 'Licht', wall: '#C9D3DE', plateInk: '#161F2A' },
+      { id: 'd', cls: 'theme-dark', label: 'Donker', wall: '#0F1720', plateInk: '#F4F3EF' }
+    ] };
+  }
+}
+</script>
+</body>
+</html>

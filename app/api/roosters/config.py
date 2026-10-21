@@ -27,6 +27,8 @@ REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
 
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:8000").rstrip("/")
+# Web origins that may call the API from a browser (the native app needs none). "*" only on the laptop.
+CORS_ORIGINS = _list("CORS_ORIGINS")
 
 # Login
 ACCESS_TTL = int(os.environ.get("ACCESS_TTL", str(15 * 60)))  # seconds

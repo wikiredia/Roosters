@@ -6,8 +6,8 @@ to several servers. The existing versions (`site/`, `server/`, `desktop/`) stay 
 ```
 app/
   api/            Python backend (FastAPI): API + worker, same Docker image
-  mobile/         Expo app (coming after the designs are done)
-  design/         The prompt for Claude Design, later the design tokens
+  mobile/         Expo app (iOS + Android; the web build is only for testing)
+  design/         The Claude Design prompt and its result (claude-design/: boards, tokens.css, ui.css)
   infra/          Server pieces (toxiproxy for "school wifi"; Caddy for production later)
   docker-compose.yml        Everything on your laptop
   docker-compose.test.yml   Only MySQL + Valkey, for running the tests
@@ -54,6 +54,23 @@ docker compose exec api python -m roosters.cli schools
 
 Code changes in `api/roosters/` are picked up by the API automatically (`--reload`); restart the worker
 with `docker compose restart worker`. Start over with an empty database: `docker compose down -v`.
+
+### The app
+
+Needs Node 20+. On your phone: install **Expo Go** (App Store / Play Store), same wifi as your laptop.
+
+```bash
+cd app/mobile
+npm install
+npx expo start          # scan the QR code with your camera (iPhone) or Expo Go (Android)
+npx expo start --web    # or in the browser (needs CORS_ORIGINS=* in app/.env)
+```
+
+The app finds the API on port 8000 of the computer that runs `expo start`. Somewhere else:
+`EXPO_PUBLIC_API_URL=http://192.168.1.20:8000 npx expo start`. Sign in with any e-mail address;
+the code shows up in Mailpit (http://localhost:8025).
+
+Sign in with Apple only works in a development build (`npx expo run:ios`), not in Expo Go.
 
 ### Feel the school wifi
 
@@ -112,11 +129,12 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 | Schools | `GET /api/v1/schools`, `/schools/{id}/campuses`, `/schools/{id}/classes`, `/schools/{id}/classes/{id}/courses` |
 | Friends | `GET /api/v1/friends`, `PATCH/DELETE /friends/{id}`, `GET/POST /friends/requests`, `POST /friends/requests/{id}/accept\|decline\|cancel`, `POST /invites`, `GET /invites/{code}`, `POST /invites/{code}/accept`, `GET/POST /blocks`, `DELETE /blocks/{id}`, `GET /friends/{id}/schedule`, `GET /compare` |
 
-The OpenAPI schema (`/api/openapi.json`) is always on: the app generates its typed client from it.
+The OpenAPI schema (`/api/openapi.json`) is always on. The app's types live in `mobile/src/api/types.ts`.
 
 ## Next
 
-1. Break requests ("Pauze samen?"), chat with moderation (report/block, required by the stores), push notifications (Expo Push)
-2. The Expo app, built on the Claude Design result
+1. Break requests ("Pauze samen?", "Voor jou"), chat with moderation (report/block, required by the stores),
+   push notifications (Expo Push) and their settings, skipping one lesson ("Vak overslaan")
+2. In the app after that: Google Sign-In (needs client IDs), QR codes, pinned friends, the notifications step in onboarding
 3. Premium (RevenueCat), widgets
 4. Server: Caddy (HTTPS, HTTP/3) + backups + monitoring on Hetzner
