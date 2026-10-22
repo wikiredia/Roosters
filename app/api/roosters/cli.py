@@ -4,11 +4,13 @@
     add-campus ap "Spoor Noord"
     schools
     sync-class <class id>
+    debug                    mail settings, SMTP reachable?, worker running?, last login mails
+    test-mail you@example.com  send a mail right away and show the SMTP error, if any
 """
 import argparse
 import json
 
-from . import db, jobs, sync
+from . import db, debug, jobs, sync
 
 
 def add_school(a):
@@ -42,6 +44,14 @@ def sync_class(a):
     print(json.dumps(sync.sync_class(a.class_id), default=str, ensure_ascii=False, indent=1))
 
 
+def show_debug(_a):
+    print(json.dumps(debug.diagnose(), default=str, ensure_ascii=False, indent=1))
+
+
+def test_mail(a):
+    print(json.dumps(debug.send_test_mail(a.email), ensure_ascii=False, indent=1))
+
+
 def main():
     p = argparse.ArgumentParser(prog="roosters.cli")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -61,6 +71,10 @@ def main():
     sc = sub.add_parser("sync-class")
     sc.add_argument("class_id", type=int)
     sc.set_defaults(fn=sync_class)
+    sub.add_parser("debug").set_defaults(fn=show_debug)
+    tm = sub.add_parser("test-mail")
+    tm.add_argument("email")
+    tm.set_defaults(fn=test_mail)
     a = p.parse_args()
     a.fn(a)
 

@@ -1,8 +1,8 @@
-import Constants from 'expo-constants';
 import * as Crypto from 'expo-crypto';
-import { Platform } from 'react-native';
 
+import { logRequest, type RequestLog } from './debuglog';
 import { reportResult } from './net';
+import { apiBase } from './server';
 import { accessToken, clearSession, refreshToken, saveTokens, type Tokens } from './session';
 
 /**
@@ -12,18 +12,8 @@ import { accessToken, clearSession, refreshToken, saveTokens, type Tokens } from
  * - ETag: when nothing changed the server answers an empty 304 and we reuse what we had
  * - the school wifi login page (HTML instead of JSON) is recognised and reported, not shown as an error
  * - an expired access token is refreshed once (one refresh at a time, shared by all requests)
+ * - every attempt is kept in a short log for the debug screen (lib/debuglog.ts)
  */
-
-export function apiBase(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL;
-  if (fromEnv) return fromEnv.replace(/\/$/, '');
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:8000`;
-  }
-  // Laptop setup: the API runs next to the Expo dev server, on port 8000
-  const host = Constants.expoConfig?.hostUri?.split(':')[0];
-  return `http://${host ?? 'localhost'}:8000`;
-}
 
 export class ApiError extends Error {
   constructor(
@@ -38,7 +28,11 @@ export class ApiError extends Error {
 
 /** No answer from our server: offline, timeout, school wifi login page, or a network that blocks us. */
 export class NetworkError extends Error {
-  constructor(public kind: 'offline' | 'timeout' | 'captive') {
+  constructor(
+    public kind: 'offline' | 'timeout' | 'captive',
+    /** What exactly happened, for the debug screen and error details */
+    public log?: RequestLog,
+  ) {
     super(kind);
   }
 }
@@ -79,6 +73,12 @@ async function once(method: string, path: string, opts: Options, idemKey: string
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? (method === 'GET' ? 8000 : 15000));
+  const started = Date.now();
+  const entry = (outcome: string, more: Partial<RequestLog> = {}): RequestLog => {
+    const e = { at: started, method, url, ms: Date.now() - started, outcome, ...more };
+    logRequest(e);
+    return e;
+  };
   let res: Response;
   try {
     res = await fetch(url, {
@@ -89,28 +89,37 @@ async function once(method: string, path: string, opts: Options, idemKey: string
     });
   } catch (e) {
     reportResult('network');
-    throw new NetworkError(controller.signal.aborted ? 'timeout' : 'offline');
+    const kind = controller.signal.aborted ? 'timeout' : 'offline';
+    throw new NetworkError(kind, entry(kind, { snippet: e instanceof Error ? e.message : String(e) }));
   } finally {
     clearTimeout(timer);
   }
 
   if (res.status === 304 && cached) {
     reportResult('ok');
+    entry('ok', { status: 304 });
     return cached.data;
   }
   const type = res.headers.get('content-type') ?? '';
   // School wifi that isn't logged in answers every request with its own HTML page
+  // (or, on a test server, another program answers on the API's port)
   if (res.status !== 204 && !type.includes('application/json')) {
     reportResult('captive');
-    throw new NetworkError('captive');
+    const snippet = await res.text().then((t) => t.replace(/\s+/g, ' ').trim().slice(0, 160), () => '');
+    throw new NetworkError('captive', entry('not_json', { status: res.status, contentType: type, snippet }));
   }
   reportResult('ok');
-  if (res.status === 204) return null;
+  if (res.status === 204) {
+    entry('ok', { status: 204 });
+    return null;
+  }
   const data = await res.json();
   if (!res.ok) {
     const { code = 'server', message = '', ...extra } = (data ?? {}) as Record<string, unknown>;
+    entry(String(code), { status: res.status, contentType: type, snippet: String(message) });
     throw new ApiError(res.status, String(code), String(message), extra);
   }
+  entry('ok', { status: res.status });
   const tag = res.headers.get('etag');
   if (opts.etag && tag) etags.set(url, { tag, data });
   return data;

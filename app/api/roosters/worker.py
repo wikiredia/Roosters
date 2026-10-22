@@ -10,7 +10,7 @@ import time
 import pymysql
 import redis
 
-from . import config, db, idempotency, jobs, mailer, redisx, sync  # noqa: F401 (mailer, sync: register their jobs)
+from . import config, db, debug, idempotency, jobs, mailer, redisx, sync  # noqa: F401 (mailer, sync: register their jobs)
 from .migrate import wait_for_db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -56,10 +56,14 @@ def main():
     signal.signal(signal.SIGTERM, _on_signal)
     signal.signal(signal.SIGINT, _on_signal)
     wait_for_db(120)
-    log.info("worker %s started", jobs.WORKER_ID)
-    last_tick = 0.0
+    log.info("worker %s started (ENV=%s, MAIL_MODE=%s, SMTP %s:%s)", jobs.WORKER_ID, config.ENV, config.MAIL_MODE,
+             config.SMTP_HOST, config.SMTP_PORT)
+    last_tick = last_beat = 0.0
     while not _stop:
         try:
+            if time.time() - last_beat >= 10:
+                last_beat = time.time()
+                debug.worker_heartbeat(jobs.WORKER_ID)
             if time.time() - last_tick >= TICK:
                 last_tick = time.time()
                 schedule_round()

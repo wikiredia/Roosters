@@ -67,8 +67,33 @@ npx expo start --web    # or in the browser (needs CORS_ORIGINS=* in app/.env)
 ```
 
 The app finds the API on port 8000 of the computer that runs `expo start`. Somewhere else:
-`EXPO_PUBLIC_API_URL=http://192.168.1.20:8000 npx expo start`. Sign in with any e-mail address;
+`EXPO_PUBLIC_API_URL=http://192.168.1.20:8000 npx expo start -c` (`-c`: these variables are baked in
+when Metro builds, so clear its cache after changing them). Sign in with any e-mail address;
 the code shows up in Mailpit (http://localhost:8025).
+
+### Sign-in or mail doesn't work
+
+"That didn't work. Check your connection" when sending a code almost always means the app doesn't
+reach the API, so no mail is sent at all.
+
+1. **In the app:** development builds have a **Server & debug** screen (top right on the welcome screen,
+   under the error on the e-mail screen, and in Ik). It shows which address the app uses, lets you
+   change it without rebuilding, tests the connection, asks the server about the mail setup and sends
+   a test mail. It also lists the app's last requests with what came back.
+2. **Port 8000 already taken** on that machine: set `API_PORT=8010` in `.env`, `docker compose up -d`,
+   then point the app at it: `EXPO_PUBLIC_API_PORT=8010 npx expo start -c` (or set the address on
+   the debug screen).
+3. **On the server:**
+
+   ```bash
+   docker compose exec api python -m roosters.cli debug                  # mail settings, SMTP reachable?, worker running?, last login mails + hints
+   docker compose exec api python -m roosters.cli test-mail you@example.com  # sends right away, shows the SMTP error
+   docker compose logs -f api worker   # "login code … queued as job N", then "mail … handed to mailpit:1025"
+   ```
+
+   With `ENV=dev` the worker also logs the code itself (`DEV login code for …`), so you can sign in
+   while you fix the mail. `GET /api/v1/debug` gives the same report as the `debug` command; both
+   debug endpoints answer 404 unless `ENV=dev`.
 
 Sign in with Apple only works in a development build (`npx expo run:ios`), not in Expo Go.
 

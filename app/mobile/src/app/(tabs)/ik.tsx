@@ -11,6 +11,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { langPref, useT } from '@/i18n';
+import { debugEnabled } from '@/lib/server';
 import { hhmm, minutesAgo, nowMin } from '@/lib/time';
 
 const LEGAL_URL = process.env.EXPO_PUBLIC_LEGAL_URL ?? 'https://github.com/wikiredia/Roosters';
@@ -146,6 +147,12 @@ export default function IkScreen() {
           <Row left={<IconTile name="trash" tone="danger-ink" />} title={t('me.delete')} tone="danger" chevron onPress={() => router.push('/settings/delete')} />
         </Card>
       </View>
+
+      {debugEnabled ? (
+        <Card>
+          <Row first left={<IconTile name="wifi" />} title="Server & debug" sub="Development builds only" chevron onPress={() => router.push('/debug')} />
+        </Card>
+      ) : null}
 
       <Text variant="xs" tone="ink3" className="text-center">
         Roosters+ v1.0 ·{' '}
