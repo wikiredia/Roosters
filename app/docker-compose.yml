@@ -73,6 +73,9 @@ services:
     <<: *app
     command: ["python", "-m", "roosters.migrate"]
     restart: "no"
+    # Same mounted code as api/worker/admin: a git pull is enough for new migrations (no stale image)
+    volumes:
+      - ./api/roosters:/app/roosters:ro
     depends_on:
       db: { condition: service_healthy }
 
