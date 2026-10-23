@@ -1,4 +1,7 @@
-"""Friends, friend requests, invite links, blocking, a friend's timetable and Compare."""
+"""Friends, friend requests, invite links, blocking, a friend's timetable and Compare.
+
+All of it needs a signed-in account (deps.verified): guests get 403 verify_required, except the
+invite preview, so a guest who opens an invite link sees who invited them before signing in."""
 import datetime as dt
 import secrets
 from typing import Literal
@@ -7,7 +10,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 
 from . import config, db, friends, logic, redisx, schedule
-from .deps import Ctx, auth, etag_json, parse_day
+from .deps import Ctx, auth, etag_json, parse_day, verified
 from .errors import ApiError
 
 router = APIRouter(prefix="/api/v1", tags=["friends"])
@@ -25,7 +28,7 @@ def _user_card(u: dict) -> dict:
 # ---- Friends ---------------------------------------------------------------------
 
 @router.get("/friends")
-def list_friends(ctx: Ctx = Depends(auth)):
+def list_friends(ctx: Ctx = Depends(verified)):
     return {"friends": [friends.friend_out(m) for m in friends.visible_friends(ctx.uid)]}
 
 
@@ -34,7 +37,7 @@ class VisibilityIn(BaseModel):
 
 
 @router.patch("/friends/{friend_id}")
-def set_visibility(friend_id: int, body: VisibilityIn, ctx: Ctx = Depends(auth)):
+def set_visibility(friend_id: int, body: VisibilityIn, ctx: Ctx = Depends(verified)):
     """What I show this friend: my full timetable, or only when I'm free/busy."""
     if friends.friendship(ctx.uid, friend_id) is None:
         raise ApiError(404, "not_friends")
@@ -43,7 +46,7 @@ def set_visibility(friend_id: int, body: VisibilityIn, ctx: Ctx = Depends(auth))
 
 
 @router.delete("/friends/{friend_id}", status_code=204)
-def remove_friend(friend_id: int, ctx: Ctx = Depends(auth)):
+def remove_friend(friend_id: int, ctx: Ctx = Depends(verified)):
     with db.tx() as c:
         friends.disconnect(c, ctx.uid, friend_id)
     return Response(status_code=204)
@@ -72,17 +75,18 @@ def _requests(user_id: int) -> dict:
 
 
 @router.get("/friends/requests")
-def requests(ctx: Ctx = Depends(auth)):
+def requests(ctx: Ctx = Depends(verified)):
     return _requests(ctx.uid)
 
 
 @router.post("/friends/requests", status_code=201)
-def send_request(body: RequestIn, ctx: Ctx = Depends(auth)):
+def send_request(body: RequestIn, ctx: Ctx = Depends(verified)):
     """Ask someone from your school to be friends (they still have to accept)."""
     redisx.rate_limit(f"friend-request:{ctx.uid}", 30, 3600)
     other = db.one("SELECT * FROM users WHERE id=%s", (body.user_id,))
     # Only within your own school: no searching strangers elsewhere
-    if other is None or other["id"] == ctx.uid or not ctx.user["school_id"] or other["school_id"] != ctx.user["school_id"]:
+    if (other is None or other["id"] == ctx.uid or other["is_guest"] or not ctx.user["school_id"]
+            or other["school_id"] != ctx.user["school_id"]):
         raise ApiError(404, "not_found")
     with db.tx() as c:
         if friends.blocked_between(ctx.uid, other["id"], c):
@@ -103,7 +107,7 @@ def send_request(body: RequestIn, ctx: Ctx = Depends(auth)):
 
 
 @router.post("/friends/requests/{request_id}/{action}")
-def answer_request(request_id: int, action: Literal["accept", "decline", "cancel"], ctx: Ctx = Depends(auth)):
+def answer_request(request_id: int, action: Literal["accept", "decline", "cancel"], ctx: Ctx = Depends(verified)):
     with db.tx() as c:
         r = db.one("SELECT * FROM friend_requests WHERE id=%s AND status='pending' FOR UPDATE", (request_id,), c)
         mine_to_answer = r is not None and r["to_id"] == ctx.uid and action in ("accept", "decline")
@@ -119,7 +123,7 @@ def answer_request(request_id: int, action: Literal["accept", "decline", "cancel
 
 
 @router.get("/classmates")
-def classmates(ctx: Ctx = Depends(auth)):
+def classmates(ctx: Ctx = Depends(verified)):
     """People who follow one of your classes and aren't your friends yet (onboarding: "Klasgenoten al op
     Roosters+"). Only within your school; people who blocked you, or whom you blocked, never show up."""
     rows = db.rows(
@@ -127,7 +131,7 @@ def classmates(ctx: Ctx = Depends(auth)):
         "AS classes FROM sources mine JOIN sources theirs ON theirs.school_class_id=mine.school_class_id "
         "AND theirs.deleted_at IS NULL AND theirs.user_id<>mine.user_id JOIN users u ON u.id=theirs.user_id "
         "JOIN school_classes sc ON sc.id=mine.school_class_id "
-        "WHERE mine.user_id=%s AND mine.deleted_at IS NULL AND mine.kind='untis' AND u.school_id=%s "
+        "WHERE mine.user_id=%s AND mine.deleted_at IS NULL AND mine.kind='untis' AND u.school_id=%s AND u.is_guest=0 "
         "AND NOT EXISTS (SELECT 1 FROM friendships f WHERE f.user_id=%s AND f.friend_id=u.id) "
         "AND NOT EXISTS (SELECT 1 FROM blocks b WHERE (b.user_id=%s AND b.blocked_id=u.id) "
         "OR (b.user_id=u.id AND b.blocked_id=%s)) "
@@ -152,7 +156,7 @@ def _new_code() -> str:
 
 
 @router.post("/invites")
-def my_invite(ctx: Ctx = Depends(auth), reset: bool = False):
+def my_invite(ctx: Ctx = Depends(verified), reset: bool = False):
     """Your invite link (the same one until it expires; reset=true makes a new one and stops the old)."""
     with db.tx() as c:
         if reset:
@@ -190,7 +194,7 @@ def invite_preview(code: str, ctx: Ctx = Depends(auth)):
 
 
 @router.post("/invites/{code}/accept")
-def accept_invite(code: str, ctx: Ctx = Depends(auth)):
+def accept_invite(code: str, ctx: Ctx = Depends(verified)):
     redisx.rate_limit(f"invite-accept:{ctx.uid}", 30, 3600)
     with db.tx() as c:
         inv = _valid_invite(code, c)
@@ -206,14 +210,14 @@ def accept_invite(code: str, ctx: Ctx = Depends(auth)):
 # ---- Blocking --------------------------------------------------------------------
 
 @router.get("/blocks")
-def blocks(ctx: Ctx = Depends(auth)):
+def blocks(ctx: Ctx = Depends(verified)):
     return {"blocked": [_user_card(u) for u in db.rows(
         "SELECT u.* FROM blocks b JOIN users u ON u.id=b.blocked_id WHERE b.user_id=%s ORDER BY u.display_name",
         (ctx.uid,))]}
 
 
 @router.post("/blocks", status_code=201)
-def block(body: RequestIn, ctx: Ctx = Depends(auth)):
+def block(body: RequestIn, ctx: Ctx = Depends(verified)):
     """Blocking ends the friendship and open requests; they can't send you new ones."""
     if body.user_id == ctx.uid or not db.one("SELECT id FROM users WHERE id=%s", (body.user_id,)):
         raise ApiError(404, "not_found")
@@ -227,7 +231,7 @@ def block(body: RequestIn, ctx: Ctx = Depends(auth)):
 
 
 @router.delete("/blocks/{user_id}", status_code=204)
-def unblock(user_id: int, ctx: Ctx = Depends(auth)):
+def unblock(user_id: int, ctx: Ctx = Depends(verified)):
     db.run("DELETE FROM blocks WHERE user_id=%s AND blocked_id=%s", (ctx.uid, user_id))
     return Response(status_code=204)
 
@@ -236,7 +240,7 @@ def unblock(user_id: int, ctx: Ctx = Depends(auth)):
 
 @router.get("/friends/{friend_id}/schedule")
 def friend_schedule(friend_id: int, request: Request, start: str | None = None, days: int = 7,
-                    ctx: Ctx = Depends(auth)):
+                    ctx: Ctx = Depends(verified)):
     m = friends.friendship(ctx.uid, friend_id)
     if m is None:
         raise ApiError(404, "not_friends")
@@ -252,7 +256,7 @@ def friend_schedule(friend_id: int, request: Request, start: str | None = None, 
 
 
 @router.get("/compare")
-def compare(request: Request, ids: str, day: str | None = None, ctx: Ctx = Depends(auth)):
+def compare(request: Request, ids: str, day: str | None = None, ctx: Ctx = Depends(verified)):
     """You + up to 3 friends (more = Premium, later): when are you free together?"""
     try:
         wanted = list(dict.fromkeys(int(x) for x in ids.split(",") if x.strip()))

@@ -6,7 +6,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from . import config, crypto, db, friends, logic, netfetch, notifications, redisx, schedule, sync
+from . import accounts, config, crypto, db, friends, logic, netfetch, notifications, redisx, schedule, sync
 from .deps import Ctx, auth, etag_json, parse_day
 from .errors import ApiError
 
@@ -20,7 +20,7 @@ def user_out(u: dict) -> dict:
     return {"id": u["id"], "display_name": u["display_name"], "email": u["email"], "locale": u["locale"],
             "school_id": u["school_id"], "campus_id": u["campus_id"], "avatar_color": u["avatar_color"],
             "ghost_until": u["ghost_until"].isoformat() + "Z" if u["ghost_until"] else None,
-            "onboarded": u["onboarded_at"] is not None}
+            "onboarded": u["onboarded_at"] is not None, "guest": bool(u["is_guest"])}
 
 
 def _ts(v):
@@ -373,22 +373,6 @@ def export(ctx: Ctx = Depends(auth)):
 @router.delete("", status_code=204)
 def delete_account(ctx: Ctx = Depends(auth)):
     """Deletes your account and everything linked to it, right away (App Store + GDPR)."""
-    uid = ctx.uid
     with db.tx() as c:
-        for sql in (
-            "DELETE FROM source_lessons WHERE user_id=%s",
-            "DELETE FROM sources WHERE user_id=%s",
-            "DELETE FROM hidden_courses WHERE user_id=%s",
-            "DELETE FROM checkins WHERE user_id=%s",
-            "DELETE FROM notifications WHERE user_id=%s",
-            "DELETE FROM idempotency_keys WHERE user_id=%s",
-            "DELETE FROM invites WHERE user_id=%s",
-            "DELETE FROM auth_identities WHERE user_id=%s",
-            "DELETE FROM sessions WHERE user_id=%s",
-        ):
-            db.run(sql, (uid,), c)
-        db.run("DELETE FROM friendships WHERE user_id=%s OR friend_id=%s", (uid, uid), c)
-        db.run("DELETE FROM friend_requests WHERE from_id=%s OR to_id=%s", (uid, uid), c)
-        db.run("DELETE FROM blocks WHERE user_id=%s OR blocked_id=%s", (uid, uid), c)
-        db.run("DELETE FROM users WHERE id=%s", (uid,), c)
+        accounts.delete_user(c, ctx.uid)
     return Response(status_code=204)

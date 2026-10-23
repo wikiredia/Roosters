@@ -3,7 +3,7 @@ import datetime as dt
 import hashlib
 from dataclasses import dataclass
 
-from fastapi import Request, Response
+from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse
 
 from . import db, i18n, tokens
@@ -28,12 +28,31 @@ def auth(request: Request) -> Ctx:
     # The session must still exist: "log out everywhere" and account deletion work immediately
     row = db.one(
         "SELECT u.*, sch.tz FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN schools sch ON sch.id=u.school_id "
-        "WHERE s.id=%s AND s.user_id=%s AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP()",
+        "WHERE s.id=%s AND s.user_id=%s AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP() "
+        "AND u.disabled_at IS NULL",
         (session_id, user_id))
     if row is None:
         raise ApiError(401, "auth_required")
     request.state.lang = row["locale"]
     return Ctx(row, session_id)
+
+
+def optional_auth(request: Request) -> Ctx | None:
+    """The signed-in user if the request carries a valid token, else None (sign-in routes: a guest adding e-mail)."""
+    if not (request.headers.get("authorization") or "").lower().startswith("bearer "):
+        return None
+    try:
+        return auth(request)
+    except ApiError:
+        return None
+
+
+def verified(ctx: Ctx = Depends(auth)) -> Ctx:
+    """Like auth, but guests are refused: friends, invites and being visible to others need a sign-in method
+    (otherwise anyone could pose as anyone)."""
+    if ctx.user["is_guest"]:
+        raise ApiError(403, "verify_required")
+    return ctx
 
 
 def lang(request: Request) -> str:
