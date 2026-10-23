@@ -1,11 +1,13 @@
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { View } from 'react-native';
 
 import { useMe, useSources } from '@/api/hooks';
 import { Mascot } from '@/components/ui/Brand';
+import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { session } from '@/lib/session';
+import { debugEnabled } from '@/lib/server';
+import { clearSession, session } from '@/lib/session';
 
 /** Where to start: welcome, the first unfinished onboarding step (until it's finished or skipped), or Today. */
 export default function Gate() {
@@ -31,6 +33,13 @@ export default function Gate() {
       <Text tone="ink2" className="text-center">
         {me.isError ? t('gate.offline') : t('gate.loading')}
       </Text>
+      {me.isError ? (
+        // Stuck without a connection: a way out (wrong server address, or start over)
+        <View className="flex-row gap-2">
+          {debugEnabled ? <Button variant="secondary" size="sm" icon="wifi" label="Server & debug" onPress={() => router.push('/debug')} /> : null}
+          <Button variant="ghost" size="sm" label={t('gate.signOut')} onPress={() => clearSession()} />
+        </View>
+      ) : null}
     </View>
   );
 }
