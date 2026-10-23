@@ -18,6 +18,7 @@ export const en: Record<Key, string> = {
   'onboarding.step': 'Step {n} of {of}',
   'gate.loading': 'Getting your timetable…',
   'gate.offline': "No connection. We'll try again in a moment.",
+  'gate.signOut': 'Sign out',
 
   'welcome.title': 'See when your friends are free',
   'welcome.body': 'Your timetable comes straight from school. You see right away who you can take a break with.',

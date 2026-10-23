@@ -19,6 +19,7 @@ export const nl = {
   'onboarding.step': 'Stap {n} van {of}',
   'gate.loading': 'Even je rooster ophalen…',
   'gate.offline': 'Geen verbinding. We proberen het zo opnieuw.',
+  'gate.signOut': 'Afmelden',
 
   'welcome.title': 'Zie wanneer je vrienden vrij zijn',
   'welcome.body': 'Je rooster komt rechtstreeks van school. Je ziet meteen met wie je pauze kan nemen.',
