@@ -10,7 +10,7 @@ import time
 import pymysql
 import redis
 
-from . import config, db, debug, idempotency, jobs, mailer, redisx, sync  # noqa: F401 (mailer, sync: register their jobs)
+from . import accounts, config, db, debug, idempotency, jobs, mailer, redisx, sync  # noqa: F401 (mailer, sync: register their jobs)
 from .migrate import wait_for_db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -50,6 +50,12 @@ def _cleanup(_p: dict):
            "OR expires_at < UTC_TIMESTAMP() - INTERVAL 30 DAY")
     db.run("DELETE FROM notifications WHERE created_at < UTC_TIMESTAMP() - INTERVAL 30 DAY")
     db.run("DELETE FROM checkins WHERE day < UTC_DATE() - INTERVAL 7 DAY")
+    # Guests whose phone is gone: no session left (they expire after REFRESH_TTL_DAYS without use)
+    for g in db.rows("SELECT id FROM users u WHERE is_guest=1 AND created_at < UTC_TIMESTAMP() - INTERVAL 7 DAY "
+                     "AND NOT EXISTS (SELECT 1 FROM sessions s WHERE s.user_id=u.id AND s.revoked_at IS NULL "
+                     "AND s.expires_at > UTC_TIMESTAMP())"):
+        with db.tx() as c:
+            accounts.delete_user(c, g["id"])
 
 
 def main():

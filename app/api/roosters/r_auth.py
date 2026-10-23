@@ -1,4 +1,8 @@
-"""Signing in: a 6-digit code by e-mail, Sign in with Apple, Sign in with Google. No passwords."""
+"""Signing in: a 6-digit code by e-mail, Sign in with Apple, Sign in with Google. No passwords.
+
+Or not signing in at all (yet): a guest account made on the phone. When a guest later signs in, the
+same account gets that sign-in method (nothing is lost); if the address already has an account,
+that account wins and the guest is folded into it (accounts.fold_guest)."""
 import datetime as dt
 import logging
 import re
@@ -8,8 +12,8 @@ import pymysql
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from . import config, crypto, db, jobs, providers, redisx, tokens
-from .deps import Ctx, auth, lang
+from . import accounts, config, crypto, db, jobs, providers, redisx, tokens
+from .deps import Ctx, auth, lang, optional_auth
 from .errors import ApiError
 from .mailer import mask_address
 
@@ -62,25 +66,54 @@ def _client_ip(request: Request) -> str:
         request.client.host if request.client else "?")
 
 
-def _new_user(c, name: str | None, email: str | None, lang_: str) -> int:
+def _new_user(c, name: str | None, email: str | None, lang_: str, guest: bool = False) -> int:
     name = (name or "").strip()[:60] or (email.split("@")[0][:60] if email else "Student")
-    return db.run("INSERT INTO users (display_name, email, locale, avatar_color) VALUES (%s,%s,%s,%s)",
-                  (name, email, lang_, secrets.randbelow(8)), c)
+    return db.run("INSERT INTO users (display_name, email, is_guest, locale, avatar_color) VALUES (%s,%s,%s,%s,%s)",
+                  (name, email, int(guest), lang_, secrets.randbelow(8)), c)
+
+
+def _guest_id(request: Request) -> int | None:
+    """The guest account this sign-in should upgrade: only when the request carries a guest's token."""
+    ctx = optional_auth(request)
+    return ctx.uid if ctx and ctx.user["is_guest"] else None
+
+
+def _existing(c, user_id: int, guest_id: int | None) -> tuple[int, bool]:
+    """Signing in to an account that already exists: refused if it was turned off; a guest on this
+    phone is folded into it."""
+    if db.one("SELECT disabled_at FROM users WHERE id=%s", (user_id,), c)["disabled_at"]:
+        raise ApiError(403, "account_disabled")
+    if guest_id and guest_id != user_id:
+        accounts.fold_guest(c, guest_id, user_id)
+    return user_id, False
 
 
 def _sign_in(c, provider: str, subject: str, email: str | None, email_verified: bool, name: str | None,
-             lang_: str) -> tuple[int, bool]:
+             lang_: str, guest_id: int | None = None) -> tuple[int, bool]:
     """Finds or creates the account for this identity. -> (user_id, is_new).
-    A verified e-mail address links Apple/Google/e-mail to the same account."""
+    A verified e-mail address links Apple/Google/e-mail to the same account. With guest_id and no
+    account yet, the guest account becomes the account (keeps its school, timetable and settings)."""
     ident = db.one("SELECT * FROM auth_identities WHERE provider=%s AND subject=%s FOR UPDATE", (provider, subject), c)
     if ident:
         db.run("UPDATE auth_identities SET last_used_at=UTC_TIMESTAMP() WHERE id=%s", (ident["id"],), c)
-        return ident["user_id"], False
+        return _existing(c, ident["user_id"], guest_id)
     user = None
     if email and email_verified:
         user = db.one("SELECT id FROM users WHERE email=%s FOR UPDATE", (email,), c)
-    is_new = user is None
-    user_id = _new_user(c, name, email if email_verified else None, lang_) if is_new else user["id"]
+    if user:
+        user_id, is_new = _existing(c, user["id"], guest_id)
+    elif guest_id:
+        user_id, is_new = guest_id, False
+        current = db.one("SELECT display_name FROM users WHERE id=%s", (guest_id,), c)["display_name"]
+        # A guest who never picked a name gets one like a new account would (Apple's name, or from the address)
+        new_name = (name or "").strip()[:60] or (
+            email.split("@")[0][:60] if current == "Student" and email and email_verified else current)
+        db.run("UPDATE users SET is_guest=0, email=%s, display_name=%s WHERE id=%s",
+               (email if email_verified else None, new_name, guest_id), c)
+        # The guest's own session ends: the phone gets a fresh one with this answer
+        db.run("UPDATE sessions SET revoked_at=UTC_TIMESTAMP() WHERE user_id=%s AND revoked_at IS NULL", (guest_id,), c)
+    else:
+        user_id, is_new = _new_user(c, name, email if email_verified else None, lang_), True
     db.run("INSERT INTO auth_identities (user_id, provider, subject, email, last_used_at) "
            "VALUES (%s,%s,%s,%s,UTC_TIMESTAMP())", (user_id, provider, subject, email), c)
     return user_id, is_new
@@ -90,6 +123,15 @@ def _answer(user_id: int, is_new: bool, body: Device, c) -> dict:
     out = tokens.start_session(user_id, body.device_name, body.platform, c)
     out["is_new"] = is_new
     return out
+
+
+@router.post("/guest")
+def guest(body: Device, request: Request):
+    """Start without signing in: a guest account on this phone. Timetable yes, friends not yet."""
+    redisx.rate_limit(f"guest-ip:{_client_ip(request)}", 60, 600)  # a whole school shares one IP
+    with db.tx() as c:
+        user_id = _new_user(c, None, None, lang(request), guest=True)
+        return _answer(user_id, True, body, c)
 
 
 @router.post("/email/start", status_code=204)
@@ -128,16 +170,17 @@ def email_verify(body: EmailVerify, request: Request):
             c.commit()
             raise ApiError(400, "code_invalid")
         db.run("UPDATE login_codes SET used_at=UTC_TIMESTAMP() WHERE id=%s", (row["id"],), c)
-        user_id, is_new = _sign_in(c, "email", email, email, True, None, lang(request))
+        user_id, is_new = _sign_in(c, "email", email, email, True, None, lang(request), _guest_id(request))
         return _answer(user_id, is_new, body, c)
 
 
 def _provider_login(ident: providers.Identity, name: str | None, body: Device, request: Request) -> dict:
+    guest_id = _guest_id(request)
     for attempt in range(2):
         try:
             with db.tx() as c:
                 user_id, is_new = _sign_in(c, ident.provider, ident.subject, ident.email, ident.email_verified, name,
-                                           lang(request))
+                                           lang(request), guest_id)
                 return _answer(user_id, is_new, body, c)
         except pymysql.err.IntegrityError as e:
             # Two simultaneous first logins (double tap on slow wifi): the second one finds the account

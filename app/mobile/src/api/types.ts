@@ -12,6 +12,8 @@ export type User = {
   avatar_color: number;
   ghost_until: string | null;
   onboarded: boolean;
+  /** Started without signing in: own timetable yes, friends after adding an e-mail address */
+  guest: boolean;
 };
 
 export type LessonState = 'normal' | 'cancelled' | 'changed' | 'extra' | 'exam' | 'removed';

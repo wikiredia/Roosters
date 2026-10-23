@@ -1,7 +1,7 @@
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { View } from 'react-native';
 
 import type { Tokens } from '@/api/types';
 import { Button } from '@/components/ui/Button';
@@ -10,13 +10,14 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError, NetworkError } from '@/lib/api';
-import { saveTokens } from '@/lib/session';
+import { afterSignIn, device, freshenGuestToken, startAsGuest } from '@/lib/onboarding';
 
 const RESEND_AFTER = 60;
 
 export default function CodeLogin() {
   const { t } = useT();
-  const { email } = useLocalSearchParams<{ email: string }>();
+  const { email, from } = useLocalSearchParams<{ email: string; from?: string }>();
+  const inApp = from === 'steps';
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,12 +41,10 @@ export default function CodeLogin() {
     setBusy(true);
     setError(null);
     try {
-      const tokens = await api.post<Tokens>(
-        '/api/v1/auth/email/verify',
-        { email, code: value, platform: Platform.OS, device_name: Platform.OS === 'ios' ? 'iPhone' : Platform.OS === 'android' ? 'Android' : 'Web' },
-        { auth: false },
-      );
-      await saveTokens(tokens);
+      // A guest sends their token along: the server then upgrades that account (nothing is lost)
+      await freshenGuestToken();
+      const tokens = await api.post<Tokens>('/api/v1/auth/email/verify', { email, code: value, ...device });
+      await afterSignIn(tokens);
       router.replace('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : e instanceof NetworkError ? t('common.offline') : t('common.tryAgain'));
@@ -62,6 +61,23 @@ export default function CodeLogin() {
     if (digits) setCode(digits);
   }
 
+  /** The mail is slow or stuck: go in as a guest now (or back to the app if you already are one) */
+  async function later() {
+    if (inApp) {
+      router.replace('/today');
+      return;
+    }
+    setBusy(true);
+    try {
+      await startAsGuest();
+      router.replace('/');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('common.offline'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function resend() {
     setWait(RESEND_AFTER);
     try {
@@ -73,7 +89,12 @@ export default function CodeLogin() {
 
   const mm = `${Math.floor(wait / 60)}:${String(wait % 60).padStart(2, '0')}`;
   return (
-    <Screen back progress={[1, 6]} noBanner>
+    <Screen
+      back
+      progress={inApp ? undefined : [1, 6]}
+      navRight={<Button variant="ghost" size="sm" label={inApp ? t('login.later') : t('common.skip')} onPress={later} />}
+      noBanner
+    >
       <View className="gap-2">
         <Text variant="title" accessibilityRole="header">
           {t('login.codeTitle')}
@@ -109,6 +130,9 @@ export default function CodeLogin() {
         )}
         <Text variant="sm" tone="ink3">
           {t('login.spam')}
+        </Text>
+        <Text variant="sm" tone="ink3">
+          {inApp ? t('login.laterInApp') : t('login.skipBody')}
         </Text>
       </View>
     </Screen>

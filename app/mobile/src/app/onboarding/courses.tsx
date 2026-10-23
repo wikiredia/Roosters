@@ -10,6 +10,7 @@ import { Section, SectionHead } from '@/components/ui/Layout';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
+import { useFinishOnboarding } from '@/lib/onboarding';
 
 /** Step 4: all courses on; tap the ones you don't take. From settings (source=<id>) for one class. */
 export default function CoursesStep() {
@@ -22,6 +23,7 @@ export default function CoursesStep() {
   const del = useDeleteSource();
   const classes = (sources.data ?? []).filter((s) => s.kind === 'untis' && (!onlySource || String(s.id) === onlySource));
   const [excluded, setExcluded] = useState<Record<number, string[]>>({});
+  const { finish } = useFinishOnboarding();
 
   useEffect(() => {
     // Start from what is saved (coming back to this step keeps your choices)
@@ -52,6 +54,7 @@ export default function CoursesStep() {
     <Screen
       back
       progress={settings ? undefined : [4, 6]}
+      navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       navTitle={settings ? t('courses.editTitle') : undefined}
       footer={<Button label={settings ? t('common.save') : t('courses.next')} loading={update.isPending} onPress={save} disabled={classes.length === 0} />}
     >

@@ -30,6 +30,10 @@ PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:8000").rstrip("/")
 # Web origins that may call the API from a browser (the native app needs none). "*" only on the laptop.
 CORS_ORIGINS = _list("CORS_ORIGINS")
 
+# Management console (roosters.admin, the Smart-Room console's Roosters+ tab). At least 32 characters;
+# empty = the admin API refuses everything.
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "")
+
 # Login
 ACCESS_TTL = int(os.environ.get("ACCESS_TTL", str(15 * 60)))  # seconds
 REFRESH_TTL_DAYS = int(os.environ.get("REFRESH_TTL_DAYS", "180"))

@@ -1,4 +1,4 @@
-"""WebUntis: list a school's classes and fetch class timetables (public view, no login).
+"""WebUntis: find a school, list its classes and fetch class timetables (public view, no login).
 
 Compared to v1: one fetch per class for everyone who follows it, all requests to one Untis server
 spaced out across all workers, and only what the app needs (no teachers, no free text)."""
@@ -56,6 +56,32 @@ def _get_json(server: str, path: str, login: str | None = None):
         return json.loads(data)
     except ValueError:
         raise UntisError("Untis didn't answer with JSON")
+
+
+def search_schools(query: str) -> list[dict]:
+    """Untis' own school search (what the Untis app uses): name, address, server and login name.
+    Used by the management console to add a school. Too many matches -> Untis answers an error -> []."""
+    query = (query or "").strip()
+    if len(query) < 3:
+        return []
+    body = json.dumps({"id": "roosters", "method": "searchSchool", "params": [{"search": query[:80]}],
+                       "jsonrpc": "2.0"}).encode()
+    try:
+        status, _, data = fetch("https://mobile.webuntis.com/ms/schoolquery2", method="POST", body=body,
+                                headers={"Accept": "application/json", "Content-Type": "application/json"},
+                                max_bytes=2 * 1024 * 1024)
+        res = json.loads(data) if status == 200 else {}
+    except (FetchError, ValueError) as e:
+        raise UntisError(str(e))
+    out = []
+    for s in ((res or {}).get("result") or {}).get("schools", [])[:25]:
+        try:
+            server = check_server(s.get("server", ""))
+        except UntisError:
+            continue
+        out.append({"name": s.get("displayName") or s.get("loginName"), "address": s.get("address") or "",
+                    "server": server, "login": s.get("loginName")})
+    return out
 
 
 def list_classes(server: str, login: str) -> list[dict]:

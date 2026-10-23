@@ -7,6 +7,7 @@ to several servers. The existing versions (`site/`, `server/`, `desktop/`) stay 
 app/
   api/            Python backend (FastAPI): API + worker, same Docker image
   mobile/         Expo app (iOS + Android; the web build is only for testing)
+  docs/           Docs service: live architecture docs (hub, guides, every file and function), content/ in git
   design/         The Claude Design prompt and its result (claude-design/: boards, tokens.css, ui.css)
   infra/          Server pieces (toxiproxy for "school wifi"; Caddy for production later)
   docker-compose.yml        Everything on your laptop
@@ -42,9 +43,12 @@ docker compose up --build
 | --- | --- |
 | API docs (try every endpoint) | http://localhost:8000/api/docs |
 | Mails (login codes) | http://localhost:8025 |
+| Admin API (console only) | http://127.0.0.1:8090/admin/v1 (`ADMIN_TOKEN` in `.env`) |
+| Docs service | http://127.0.0.1:8095/docs/v1/hub (`DOCS_TOKEN` in `.env` to edit) |
 | From your phone (same wifi) | `http://<your-laptop-ip>:8000` (Mac: `ipconfig getifaddr en0`) |
 
-Add AP (once): the worker then fetches its class list from Untis.
+Add AP (once): the worker then fetches its class list from Untis. Easiest from the Smart-Room console:
+**Roosters+ → Schools & classes → + Add school** (search Untis by name). Or from a terminal:
 
 ```bash
 docker compose exec api python -m roosters.cli add-school ap "AP Hogeschool" --short AP --untis ap.webuntis.com --login ap
@@ -125,6 +129,8 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 ## How the backend works
 
 - **Accounts:** sign in with a 6-digit code by e-mail, Sign in with Apple or Google. No passwords.
+  Or don't sign in yet: a **guest** account (own timetable yes, friends after confirming an e-mail); signing
+  in later keeps everything. Every onboarding step can be skipped; Today lists what's left.
   The app gets a short access token (15 min) and a refresh token that changes on every use; a stolen
   old refresh token ends the session. "Log out everywhere" and deleting your account work immediately.
 - **One fetch per class:** if 200 students follow class 2ITCSC1a, Untis is asked once, not 200 times.
@@ -147,7 +153,7 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 
 | Area | Endpoints |
 | --- | --- |
-| Sign in | `POST /api/v1/auth/email/start`, `/email/verify`, `/apple`, `/google`, `/refresh`, `/logout`, `/logout-all`, `GET /auth/sessions` |
+| Sign in | `POST /api/v1/auth/guest`, `/email/start`, `/email/verify`, `/apple`, `/google`, `/refresh`, `/logout`, `/logout-all`, `GET /auth/sessions` |
 | Me | `GET/PATCH/DELETE /api/v1/me`, `PUT /me/ghost`, `GET /me/export` |
 | Timetable | `GET /me/sources`, `POST /me/sources/untis`, `POST /me/sources/ics`, `PATCH/DELETE /me/sources/{id}`, `POST /me/refresh`, `PUT /me/hidden-courses`, `GET /me/schedule` |
 | Today | `GET /me/today`, `PUT /me/checkin`, `GET /me/notifications`, `POST /me/notifications/read` |
@@ -155,6 +161,15 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 | Friends | `GET /api/v1/friends`, `PATCH/DELETE /friends/{id}`, `GET/POST /friends/requests`, `POST /friends/requests/{id}/accept\|decline\|cancel`, `POST /invites`, `GET /invites/{code}`, `POST /invites/{code}/accept`, `GET/POST /blocks`, `DELETE /blocks/{id}`, `GET /friends/{id}/schedule`, `GET /compare` |
 
 The OpenAPI schema (`/api/openapi.json`) is always on. The app's types live in `mobile/src/api/types.ts`.
+Every route with its file and a description: the docs (console → Roosters+ → Documentation → API routes & jobs).
+
+## Management console and docs
+
+The Smart-Room console (port 8443) has a **Roosters+** tab: the documentation hub (architecture, guides,
+every file and function, editable live with history), overview and health, schools/campuses/classes,
+users, background jobs, a read-only database browser and the activity log. It talks to two services that
+listen on this laptop only: the admin API (`api/roosters/admin.py`, `ADMIN_TOKEN`) and the docs service
+(`docs/`, `DOCS_TOKEN`). Changing code? Update its docs in the same change: `docs/README.md`.
 
 ## Next
 

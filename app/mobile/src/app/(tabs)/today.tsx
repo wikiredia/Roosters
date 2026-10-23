@@ -3,11 +3,12 @@ import { View } from 'react-native';
 
 import { useCheckin, useToday } from '@/api/hooks';
 import type { Checkin, Friend, Notification, Today } from '@/api/types';
+import { SetupSteps } from '@/components/SetupSteps';
 import { isOff } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, StatusOption, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
-import { Empty, Screen, Skeleton } from '@/components/ui/Screen';
+import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
 import { currentLesson, isAway, joinNames, nextLesson, statusLine } from '@/lib/status';
@@ -49,24 +50,14 @@ export default function TodayScreen() {
         <>
           <SyncNote d={d} t={t} />
           <NowCard d={d} t={t} />
-          {d.friends.length === 0 ? (
-            <Empty
-              title={t('today.noFriendsTitle')}
-              body={t('today.noFriendsBody')}
-              mood="happy"
-              action={
-                <View className="self-stretch gap-2 pt-2">
-                  <Button icon="share" label={t('today.shareLink')} onPress={() => router.push('/friends/add')} />
-                  <Button variant="secondary" icon="users" label={t('today.findClassmates')} onPress={() => router.push('/friends/add')} />
-                </View>
-              }
-            />
-          ) : (
+          {/* Skipped in onboarding (e-mail, school, timetable, friends): finish it here */}
+          <SetupSteps d={d} />
+          {d.friends.length > 0 ? (
             <>
               <Together d={d} t={t} />
               <Board d={d} t={t} />
             </>
-          )}
+          ) : null}
           <Plan d={d} t={t} onPick={(s) => checkin.mutate(d.me.checkin?.status === s ? null : s)} />
           <Changes changes={d.changes} today={d.day} t={t} lang={lang} />
           <Updated at={d.sources.updated_at} t={t} />
@@ -95,9 +86,6 @@ function Loading() {
 /** "Bijgewerkt 4 min geleden" or a calm note when Untis didn't answer. */
 function SyncNote({ d, t }: { d: Today; t: T }) {
   const s = d.sources;
-  if (s.count === 0) {
-    return <Banner icon="calendar" title={t('today.noSources')} action={<Button variant="ghost" size="sm" label={t('today.addClass')} onPress={() => router.push('/onboarding/classes?from=settings')} />} />;
-  }
   if (s.errors.length > 0) {
     return <Banner kind="neutral" icon="refresh" title={t('today.untisDown')} body={t('today.lastKnown')} />;
   }

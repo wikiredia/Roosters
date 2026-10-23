@@ -3,7 +3,7 @@ import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 
-import { useAcceptInvite } from '@/api/hooks';
+import { useAcceptInvite, useMe } from '@/api/hooks';
 import { Avatar } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Empty, Screen } from '@/components/ui/Screen';
@@ -28,11 +28,14 @@ export default function InviteScreen() {
     retry: false,
   });
   const accept = useAcceptInvite();
+  const me = useMe(signedIn);
+  const guest = !!me.data?.guest;
 
   // Not signed in yet: remember the code, accept it after onboarding
+  // A guest: remember it too, it's accepted right after they confirm their e-mail (lib/onboarding.ts)
   useEffect(() => {
-    if (s.status === 'signedOut' && code) setPendingInvite(code);
-  }, [s.status, code]);
+    if ((s.status === 'signedOut' || guest) && code) setPendingInvite(code);
+  }, [s.status, guest, code]);
 
   if (s.status === 'loading') return null;
   if (!signedIn) return <Redirect href="/welcome" />;
@@ -53,6 +56,8 @@ export default function InviteScreen() {
           </Text>
           {p.already_friends ? (
             <Button label={t('common.next')} onPress={() => router.replace('/')} />
+          ) : guest ? (
+            <Button icon="mail" label={t('invite.verifyToAccept')} onPress={() => router.push({ pathname: '/login/email', params: { from: 'steps' } })} />
           ) : (
             <Button
               label={t('invite.accept')}

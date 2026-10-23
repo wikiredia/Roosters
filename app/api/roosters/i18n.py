@@ -36,6 +36,9 @@ ERRORS = {
     "request_exists": ("Er staat al een vriendschapsverzoek open.", "There's already an open friend request."),
     "compare_limit": ("Met Premium kan je meer mensen tegelijk vergelijken.", "With Premium you can compare more people at once."),
     "day_invalid": ("Ongeldige dag.", "Invalid day."),
+    "verify_required": ("Bevestig eerst je e-mailadres om vrienden toe te voegen.",
+                        "Confirm your e-mail address first to add friends."),
+    "account_disabled": ("Dit account is uitgeschakeld.", "This account has been turned off."),
 }
 
 

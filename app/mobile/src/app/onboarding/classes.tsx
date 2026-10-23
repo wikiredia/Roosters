@@ -11,6 +11,7 @@ import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { ApiError } from '@/lib/api';
+import { useFinishOnboarding } from '@/lib/onboarding';
 
 /** Step 3: one or more classes. Also used from Ik → Roosterbronnen (from=settings). */
 export default function ClassesStep() {
@@ -24,6 +25,7 @@ export default function ClassesStep() {
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { finish } = useFinishOnboarding();
 
   const have = useMemo(() => new Set((sources.data ?? []).map((s) => s.class_id).filter(Boolean) as number[]), [sources.data]);
   const byId = useMemo(() => new Map((classes.data ?? []).map((c) => [c.id, c])), [classes.data]);
@@ -54,6 +56,7 @@ export default function ClassesStep() {
     <Screen
       back
       progress={settings ? undefined : [3, 6]}
+      navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       navTitle={settings ? t('classes.addTitle') : undefined}
       footer={<Button label={label} disabled={settings ? picked.length === 0 : chosen.length === 0} loading={add.isPending} onPress={next} />}
     >

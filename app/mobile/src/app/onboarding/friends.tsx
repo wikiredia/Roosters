@@ -1,7 +1,6 @@
-import { router } from 'expo-router';
 import { View } from 'react-native';
 
-import { useAcceptInvite, useClassmates, useFriendRequest, useUpdateMe } from '@/api/hooks';
+import { useClassmates, useFriendRequest } from '@/api/hooks';
 import { InviteCard } from '@/components/InviteCard';
 import { Avatar, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
@@ -9,29 +8,21 @@ import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { takePendingInvite } from '@/lib/invite';
+import { useFinishOnboarding } from '@/lib/onboarding';
 
 /** Step 6: send your link, or add classmates who are already on Roosters+. Skipping is fine. */
 export default function FriendsStep() {
   const { t } = useT();
   const mates = useClassmates();
   const ask = useFriendRequest();
-  const update = useUpdateMe();
-  const accept = useAcceptInvite();
-
-  async function finish() {
-    await update.mutateAsync({ onboarded: true });
-    const code = await takePendingInvite();
-    if (code) accept.mutate(code);
-    router.replace('/today');
-  }
+  const { finish, busy } = useFinishOnboarding();
 
   return (
     <Screen
       back
       progress={[6, 6]}
       navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
-      footer={<Button label={t('common.next')} loading={update.isPending} onPress={finish} />}
+      footer={<Button label={t('common.next')} loading={busy} onPress={finish} />}
     >
       <View className="gap-2">
         <Text variant="title" accessibilityRole="header">

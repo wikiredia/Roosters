@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -34,7 +34,8 @@ export default function SourcesScreen() {
   const sources = useSources();
   const refresh = useRefresh();
   const del = useDeleteSource();
-  const [adding, setAdding] = useState(false);
+  // ?add=link: opened from "Can't find your school?" with the link sheet already open
+  const [adding, setAdding] = useState(useLocalSearchParams<{ add?: string }>().add === 'link');
   const list = sources.data ?? [];
   const classes = list.filter((s) => s.kind === 'untis');
   const links = list.filter((s) => s.kind === 'ics');
