@@ -1,5 +1,6 @@
 """Signing in: a 6-digit code by e-mail, Sign in with Apple, Sign in with Google. No passwords."""
 import datetime as dt
+import logging
 import re
 import secrets
 
@@ -10,6 +11,9 @@ from pydantic import BaseModel, Field
 from . import config, crypto, db, jobs, providers, redisx, tokens
 from .deps import Ctx, auth, lang
 from .errors import ApiError
+from .mailer import mask_address
+
+log = logging.getLogger("roosters.auth")
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -101,7 +105,8 @@ def email_start(body: EmailStart, request: Request):
         db.run("INSERT INTO login_codes (email_hash, code_hash, expires_at) VALUES (%s,%s,%s)",
                (email_hash, crypto.keyed_hash("login-code", f"{email}:{code}"),
                 db.utcnow() + dt.timedelta(seconds=config.LOGIN_CODE_TTL)), c)
-        jobs.enqueue("send_login_code", {"email": email, "code": code, "lang": lang(request)}, priority=0, c=c)
+        job = jobs.enqueue("send_login_code", {"email": email, "code": code, "lang": lang(request)}, priority=0, c=c)
+    log.info("login code for %s queued as job %s", mask_address(email), job)
     return Response(status_code=204)
 
 

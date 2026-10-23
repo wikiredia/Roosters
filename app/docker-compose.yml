@@ -81,7 +81,8 @@ services:
     volumes:
       - ./api/roosters:/app/roosters:ro
     ports:
-      - "8000:8000"
+      # Port 8000 taken on this machine? Set API_PORT=8010 in .env (and point the app at it)
+      - "${API_PORT:-8000}:8000"
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }

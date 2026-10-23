@@ -19,7 +19,7 @@ const TABS: Record<string, { icon: IconName; label: Key }> = {
   ik: { icon: 'user', label: 'tabs.me' },
 };
 
-function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
+function TabBar({ state, navigation }: BottomTabBarProps) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
   return (
@@ -39,8 +39,8 @@ function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
             accessibilityState={{ selected: on }}
             accessibilityLabel={t(tab.label)}
             onPress={() => {
-              const e = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!on && !e.defaultPrevented) navigateToTab(route.key);
+              const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!on && !e.defaultPrevented) navigation.navigate(route.name, route.params);
             }}
             className="flex-1 items-center justify-center gap-0.5 min-h-[52px]"
           >

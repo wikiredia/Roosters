@@ -13,6 +13,7 @@ import { loadLanguage } from '@/i18n';
 import { fonts } from '@/lib/fonts';
 import { startNetworkWatch } from '@/lib/net';
 import { persister, queryClient, startFocusWatch } from '@/lib/query';
+import { loadServer } from '@/lib/server';
 import { loadSession, session } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -25,7 +26,7 @@ export default function RootLayout() {
   useEffect(() => {
     startNetworkWatch();
     startFocusWatch();
-    Promise.all([loadSession(), loadLanguage()]).finally(() => setReady(true));
+    Promise.all([loadServer(), loadSession(), loadLanguage()]).finally(() => setReady(true));
     // Signing out: forget everything that was cached for that account
     return session.subscribe(() => {
       if (session.get().status === 'signedOut') queryClient.clear();
