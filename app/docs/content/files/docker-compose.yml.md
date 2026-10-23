@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-23T23:05:00Z
 ---
 
 **The whole Roosters+ stack** (compose project `roostersplus`): `cd app && cp .env.example .env &&
@@ -41,7 +41,7 @@ Catches every mail on the laptop: http://localhost:8025.
 
 ## `migrate`
 
-Runs the migrations once and exits; api, worker and admin wait until it succeeded.
+Runs the migrations once and exits; api, worker and admin wait until it succeeded. On the laptop it reads the mounted code like api/worker/admin, so new migrations from a `git pull` run without rebuilding the image.
 
 ## `redis`
 
