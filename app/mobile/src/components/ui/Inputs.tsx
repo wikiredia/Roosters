@@ -62,17 +62,28 @@ export function Input({ label, hint, error, icon, className, onFocus, onBlur, ..
 export function CodeInput({ value, onChange, length = 6, error }: { value: string; onChange: (v: string) => void; length?: number; error?: boolean }) {
   const ref = useRef<React.ComponentRef<typeof TextInput>>(null);
   const [focus, setFocus] = useState(true);
+  // Box width from the measured row: flex-1 alone left the boxes 0 wide on some layouts
+  const [rowW, setRowW] = useState(0);
+  const gap = 8;
+  const boxW = rowW ? Math.min(52, (rowW - gap * (length - 1)) / length) : 44;
   return (
-    <Pressable onPress={() => ref.current?.focus()} accessible={false}>
-      <View className="flex-row gap-2" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+    <Pressable onPress={() => ref.current?.focus()} accessible={false} className="self-stretch">
+      <View
+        className="flex-row"
+        style={{ gap }}
+        onLayout={(e) => setRowW(e.nativeEvent.layout.width)}
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+      >
         {Array.from({ length }, (_, i) => {
           const ch = value[i] ?? '';
           const cur = focus && i === Math.min(value.length, length - 1);
           return (
             <View
               key={i}
+              style={{ width: boxW }}
               className={cn(
-                'flex-1 max-w-[52px] h-[62px] rounded-card bg-surface items-center justify-center',
+                'h-[62px] rounded-card bg-surface items-center justify-center',
                 error ? 'border-2 border-danger' : cur ? 'border-[2.5px] border-you' : ch ? 'border-[1.5px] border-ink' : 'border-[1.5px] border-control-off',
               )}
             >
