@@ -34,7 +34,11 @@ export default function CampusStep() {
 
   const options = [...(campuses.data ?? []).map((c) => ({ id: c.id, name: c.name })), { id: UNKNOWN, name: t('campus.unknown') }];
   return (
-    <Screen back progress={settings ? undefined : [2, 6]} footer={<Button label={settings ? t('common.save') : t('common.next')} disabled={picked == null} loading={update.isPending} onPress={next} />}>
+    <Screen
+      back
+      progress={settings ? undefined : [2, 6]}
+      navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={() => router.push('/onboarding/classes')} />}
+      footer={<Button label={settings ? t('common.save') : t('common.next')} disabled={picked == null} loading={update.isPending} onPress={next} />}>
       <Text variant="title" accessibilityRole="header">
         {t('campus.title')}
       </Text>

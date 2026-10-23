@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
 
-import { useSchedule, useSources } from '@/api/hooks';
+import { useMe, useSchedule, useSources } from '@/api/hooks';
 import { Legend } from '@/components/timetable/Timetable';
 import { WeekView } from '@/components/timetable/WeekView';
 import { Mascot } from '@/components/ui/Brand';
@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Layout';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
+import { useFinishOnboarding } from '@/lib/onboarding';
 import { addDays, isoDay, monday } from '@/lib/time';
 
 /** Step 5, the "aha": your week, right away. */
@@ -23,8 +24,17 @@ export default function WeekStep() {
   const lessons = (schedule.data?.lessons ?? []).filter((l) => l.course !== undefined);
   const classNames = (sources.data ?? []).filter((s) => s.kind === 'untis').map((s) => s.label).join(' + ');
   const syncing = schedule.data?.sources.syncing;
+  const me = useMe();
+  const { finish, busy } = useFinishOnboarding();
+  // Guests can't add friends yet: the friends step comes later, from Today
+  const next = () => (me.data?.guest ? finish() : router.push('/onboarding/friends'));
   return (
-    <Screen back progress={[5, 6]} footer={<Button label={t('week.next')} onPress={() => router.push('/onboarding/friends')} />}>
+    <Screen
+      back
+      progress={[5, 6]}
+      navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
+      footer={<Button label={t('week.next')} loading={busy} onPress={next} />}
+    >
       <View className="flex-row items-end gap-3">
         <View className="flex-1 gap-1">
           <Text variant="titleXl" accessibilityRole="header">

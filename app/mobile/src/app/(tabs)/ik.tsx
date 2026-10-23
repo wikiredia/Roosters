@@ -11,6 +11,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { langPref, useT } from '@/i18n';
+import { confirm } from '@/lib/confirm';
 import { debugEnabled } from '@/lib/server';
 import { hhmm, minutesAgo, nowMin } from '@/lib/time';
 
@@ -65,6 +66,8 @@ export default function IkScreen() {
   }
 
   async function logout(everywhere: boolean) {
+    // A guest has no way back in: signing out deletes nothing but loses the account on this phone
+    if (user?.guest && !(await confirm(t('me.guestLogout'), t('me.guestLogoutSub'), t('me.logout'), t('common.cancel')))) return;
     setBusy(everywhere ? 'all' : 'one');
     try {
       await signOut(everywhere);
@@ -140,10 +143,13 @@ export default function IkScreen() {
       <View>
         <ListHead>{t('me.accountHead')}</ListHead>
         <Card>
-          <Row first left={<IconTile name="shield" />} title={t('me.privacy')} sub={t('me.privacySub')} chevron onPress={() => Linking.openURL(LEGAL_URL)} />
+          {user?.guest ? (
+            <Row first left={<IconTile name="mail" tone="you-ink" />} title={t('steps.email')} sub={t('me.guestSub')} tone="you" chevron onPress={() => router.push({ pathname: '/login/email', params: { from: 'steps' } })} />
+          ) : null}
+          <Row first={!user?.guest} left={<IconTile name="shield" />} title={t('me.privacy')} sub={t('me.privacySub')} chevron onPress={() => Linking.openURL(LEGAL_URL)} />
           <Row left={<IconTile name="download" />} title={t('me.download')} right={busy === 'export' ? <Text tone="ink2">…</Text> : undefined} onPress={download} />
           <Row left={<IconTile name="logout" />} title={t('me.logout')} onPress={() => logout(false)} disabled={!!busy} />
-          <Row left={<IconTile name="logout" />} title={t('me.logoutAll')} sub={t('me.logoutAllSub')} onPress={() => logout(true)} disabled={!!busy} />
+          {!user?.guest ? <Row left={<IconTile name="logout" />} title={t('me.logoutAll')} sub={t('me.logoutAllSub')} onPress={() => logout(true)} disabled={!!busy} /> : null}
           <Row left={<IconTile name="trash" tone="danger-ink" />} title={t('me.delete')} tone="danger" chevron onPress={() => router.push('/settings/delete')} />
         </Card>
       </View>

@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
 
-import { useAnswerRequest, useFriends, useRequests } from '@/api/hooks';
+import { useAnswerRequest, useFriends, useMe, useRequests } from '@/api/hooks';
+import { VerifyFirst } from '@/components/VerifyFirst';
 import { Avatar } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, ListHead, Row } from '@/components/ui/Layout';
@@ -18,6 +19,8 @@ export default function FriendsScreen() {
   const incoming = requests.data?.incoming ?? [];
   const outgoing = requests.data?.outgoing ?? [];
   const list = [...(friends.data ?? [])].sort((a, b) => a.display_name.localeCompare(b.display_name));
+  const me = useMe();
+  if (me.data?.guest) return <VerifyFirst navTitle={t('me.friends')} />;
 
   return (
     <Screen

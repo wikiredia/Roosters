@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -9,7 +9,9 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { describe } from '@/lib/debuglog';
+import { startAsGuest } from '@/lib/onboarding';
 import { debugEnabled } from '@/lib/server';
+import { session } from '@/lib/session';
 
 export default function EmailLogin() {
   const { t } = useT();
@@ -17,6 +19,22 @@ export default function EmailLogin() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [detail, setDetail] = useState<string | null>(null);
+  // Already in the app as a guest (from Today's steps): no onboarding progress, no skip
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const inApp = from === 'steps' || session.get().status === 'signedIn';
+
+  async function skip() {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await startAsGuest();
+      router.replace('/');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('common.offline'));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function send() {
     const value = email.trim();
@@ -29,7 +47,7 @@ export default function EmailLogin() {
     setDetail(null);
     try {
       await api.post('/api/v1/auth/email/start', { email: value }, { auth: false });
-      router.push({ pathname: '/login/code', params: { email: value } });
+      router.push({ pathname: '/login/code', params: { email: value, ...(inApp ? { from: 'steps' } : {}) } });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : e instanceof NetworkError ? t('common.offline') : t('common.tryAgain'));
       if (debugEnabled) setDetail(e instanceof NetworkError && e.log ? describe(e.log) : e instanceof Error ? e.message : String(e));
@@ -39,7 +57,13 @@ export default function EmailLogin() {
   }
 
   return (
-    <Screen back progress={[1, 6]} noBanner>
+    <Screen
+      back
+      progress={inApp ? undefined : [1, 6]}
+      navTitle={inApp ? t('steps.email') : undefined}
+      navRight={inApp ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={skip} />}
+      noBanner
+    >
       <Text variant="title" accessibilityRole="header">
         {t('login.emailTitle')}
       </Text>

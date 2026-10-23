@@ -12,7 +12,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError } from '@/lib/api';
 import { debugEnabled } from '@/lib/server';
-import { saveTokens } from '@/lib/session';
+import { afterSignIn, startAsGuest } from '@/lib/onboarding';
 
 const LEGAL_URL = process.env.EXPO_PUBLIC_LEGAL_URL ?? 'https://github.com/wikiredia/Roosters';
 
@@ -21,6 +21,7 @@ export default function Welcome() {
   const insets = useSafeAreaInsets();
   const [apple, setApple] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [guestBusy, setGuestBusy] = useState(false);
 
   useEffect(() => {
     if (Platform.OS === 'ios') AppleAuthentication.isAvailableAsync().then(setApple).catch(() => {});
@@ -43,11 +44,25 @@ export default function Welcome() {
         { id_token: cred.identityToken, nonce: raw, name, platform: 'ios', device_name: 'iPhone' },
         { auth: false },
       );
-      await saveTokens(tokens);
+      await afterSignIn(tokens);
       router.replace('/');
     } catch (e) {
       if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return;
       setError(e instanceof ApiError ? e.message : t('common.tryAgain'));
+    }
+  }
+
+  /** On campus, on the way to class: straight in, sign in later from Today */
+  async function continueAsGuest() {
+    setError(null);
+    setGuestBusy(true);
+    try {
+      await startAsGuest();
+      router.replace('/');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('common.offline'));
+    } finally {
+      setGuestBusy(false);
     }
   }
 
@@ -82,6 +97,7 @@ export default function Welcome() {
           />
         ) : null}
         <Button variant={apple ? 'secondary' : 'primary'} icon="mail" label={t('welcome.email')} onPress={() => router.push('/login/email')} />
+        <Button variant="ghost" label={t('welcome.guest')} loading={guestBusy} onPress={continueAsGuest} />
         {error ? (
           <Text variant="sm" tone="danger" className="text-center">
             {error}

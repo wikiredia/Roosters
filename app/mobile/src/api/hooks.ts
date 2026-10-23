@@ -79,15 +79,22 @@ export function useSources() {
   });
 }
 
+/** Friends need a signed-in account: a guest's friend queries stay off (the API would answer 403). */
+export function useSocial() {
+  const me = useMe();
+  return !!me.data && !me.data.guest;
+}
+
 export function useFriends() {
   return useQuery({
     queryKey: keys.friends,
     queryFn: () => api.get<{ friends: Friend[] }>('/api/v1/friends').then((r) => r.friends),
+    enabled: useSocial(),
   });
 }
 
 export function useRequests() {
-  return useQuery({ queryKey: keys.requests, queryFn: () => api.get<Requests>('/api/v1/friends/requests') });
+  return useQuery({ queryKey: keys.requests, queryFn: () => api.get<Requests>('/api/v1/friends/requests'), enabled: useSocial() });
 }
 
 export function useInvite() {
@@ -95,6 +102,7 @@ export function useInvite() {
     queryKey: keys.invite,
     queryFn: () => api.post<{ invite: Invite }>('/api/v1/invites').then((r) => r.invite),
     staleTime: 60 * 60_000,
+    enabled: useSocial(),
   });
 }
 
@@ -153,6 +161,7 @@ export function useClassmates() {
   return useQuery({
     queryKey: keys.classmates,
     queryFn: () => api.get<{ classmates: Classmate[] }>('/api/v1/classmates').then((r) => r.classmates),
+    enabled: useSocial(),
   });
 }
 

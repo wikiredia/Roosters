@@ -2,7 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { useAcceptInvite, useClassmates, useFriendRequest } from '@/api/hooks';
+import { useAcceptInvite, useClassmates, useFriendRequest, useMe } from '@/api/hooks';
+import { VerifyFirst } from '@/components/VerifyFirst';
 import { InviteCard } from '@/components/InviteCard';
 import { Avatar, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +22,8 @@ export default function AddFriendScreen() {
   const accept = useAcceptInvite();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const me = useMe();
+  if (me.data?.guest) return <VerifyFirst navTitle={t('me.addFriend')} />;
 
   async function useCode() {
     setError(null);
