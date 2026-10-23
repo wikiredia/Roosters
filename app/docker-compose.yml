@@ -2,6 +2,8 @@
 #
 #   API + docs      http://localhost:8000/api/docs   (your phone: http://<laptop-ip>:8000)
 #   Mail (codes)    http://localhost:8025            (Mailpit catches every e-mail)
+#   Admin API       http://127.0.0.1:8090/admin/v1   (management console only; ADMIN_TOKEN in .env)
+#   Docs service    http://127.0.0.1:8095/docs/v1    (live architecture docs; DOCS_TOKEN to write)
 #   Slow school wifi: docker compose --profile slow up, then use port 8001 (see README)
 #
 # The same images run on the server later; only .env and the reverse proxy (Caddy) differ.
@@ -97,6 +99,53 @@ services:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
 
+  # The management console's API (Smart-Room console → Roosters+ tab). Same image, its own app
+  # (roosters.admin), published on loopback only: never reachable from the network.
+  admin:
+    <<: *app
+    command: ["uvicorn", "roosters.admin:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-server-header"]
+    volumes:
+      - ./api/roosters:/app/roosters:ro
+    ports:
+      - "127.0.0.1:${ADMIN_PORT:-8090}:8000"
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  # Live documentation: hub, guides, every file and function (docs/README.md). Reads the code below
+  # read-only, keeps the texts in its own SQLite volume with full history. Loopback only.
+  docs:
+    <<: *hardening
+    build: ./docs
+    image: roostersplus-docs
+    environment:
+      DOCS_TOKEN: ${DOCS_TOKEN:-}
+      DOCS_SRC: /src
+      DOCS_DB: /data/docs.sqlite
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    # The code, read-only, piece by piece: app/.env (the secrets) never enters this container
+    volumes:
+      - ./api:/src/api:ro
+      - ./mobile:/src/mobile:ro
+      - ./docs:/src/docs:ro
+      - ./infra:/src/infra:ro
+      - ./docker-compose.yml:/src/docker-compose.yml:ro
+      - ./docker-compose.test.yml:/src/docker-compose.test.yml:ro
+      - ./.env.example:/src/.env.example:ro
+      - ./README.md:/src/README.md:ro
+      - ./slow-wifi.sh:/src/slow-wifi.sh:ro
+      - docs:/data
+    ports:
+      - "127.0.0.1:${DOCS_PORT:-8095}:8000"
+    networks: [frontend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/docs/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   mailpit:
     <<: *hardening
     image: axllent/mailpit:v1.27
@@ -128,3 +177,4 @@ networks:
 
 volumes:
   db: {}
+  docs: {}
