@@ -1,7 +1,7 @@
 ---
 title: Management console and docs
 position: 90
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-23T18:55:00Z
 ---
 
 The Smart-Room console (https://<laptop>:8443) has a **Roosters+** tab. It talks only to its own backend,
@@ -15,7 +15,7 @@ browser ──> console :8443 ──> /api/roosters/admin/* ──> 127.0.0.1:80
 | Section | What you can do |
 | --- | --- |
 | Documentation | This hub, guides, every file and function; edit with preview, history and restore; to-do list; routes; search |
-| Overview | Counts, worker and mail health, test mail, migrations; compose Up/Restart, shells |
+| Overview | Counts, worker and mail health, test mail, migrations; compose Up/Restart, shells; **backups** (now, daily, download) |
 | Schools & classes | Add (with Untis search), edit, turn off, delete schools; campuses; classes with sync state, fetch now |
 | Users | Search, details (sign-in methods, devices, timetables, friends), edit, turn off, sign out everywhere, delete |
 | Background jobs | Queue per kind, errors, run now, delete |

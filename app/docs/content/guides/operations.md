@@ -1,7 +1,7 @@
 ---
 title: Running and operating
 position: 70
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-23T18:55:00Z
 ---
 
 ## Start, stop, update
@@ -46,3 +46,12 @@ From the console: **Roosters+ → Overview** (Up, Restart, shells), or the **Doc
 
 The `db` volume (MySQL) holds everything that matters; the `docs` volume holds the docs (also in git via
 `docs/sync.sh pull`). Redis holds nothing that needs backing up.
+
+From the console: **Roosters+ → Overview → Backups → Back up now** makes a gzipped `mysqldump` and a copy of
+the docs database in a folder on the laptop (the newest 14 of each kept); **Connection → Settings → Back up
+once a day** does it daily. By hand:
+
+```bash
+docker exec roostersplus-db-1 sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction roosters' | gzip > roosters.sql.gz
+zcat roosters.sql.gz | docker exec -i roostersplus-db-1 sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" roosters'   # restore
+```
