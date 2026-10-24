@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T17:00:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -36,6 +36,19 @@ separate lessons. Free/busy blocks of friends (no course) are never merged here;
 ## `Span`, `Block`, `Column`
 
 Building blocks of a column.
+
+## `Overlap`, `overlapsOf`, `OVERLAP_SLOP`, `lessonsAt`
+
+Lessons that run at the same time (two groups, a moved lesson, a class you follow twice): `overlapsOf` gives the
+stretches where (merged, not cancelled) lessons overlap, three at once as one stretch. `lessonsAt(lessons, min)` is
+what a tap means: within `OVERLAP_SLOP` (10) minutes of an overlap it's all its lessons (the screen asks which),
+otherwise the one lesson under the finger.
+
+## `OverlapBand`
+
+The hatched band drawn over an overlap, on top of both blocks: diagonal lines (`--color-line-strong`), the course
+names (or '2 lessen' in narrow columns; no label when the band is very short). Touches pass through to the grid's
+tap; screen readers get a label that says to tap to choose.
 
 ## `dayBlocks`, `spanOf`, `overlaps`
 

@@ -7,7 +7,7 @@ import { useFriends, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
 import { type DayData, DayGrid, LABEL_H, RESIZE, SWIPE } from '@/components/timetable/DayGrid';
 import { DayStrip } from '@/components/timetable/DayStrip';
-import { LessonSheet } from '@/components/timetable/LessonSheet';
+import { LessonSheet, OverlapSheet } from '@/components/timetable/LessonSheet';
 import { Legend, type LegendItem, lessonKind, TimeAxis } from '@/components/timetable/Timetable';
 import { TodayPill } from '@/components/timetable/TodayPill';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -53,6 +53,8 @@ export default function RoosterScreen() {
   const [hint, setHint] = useState<'days' | 'zoom' | null>(null);
   const [learned, setLearned] = useState(true);
   const [open, setOpen] = useState<{ lesson: Lesson; together: Together[] } | null>(null);
+  // Overlapping lessons tapped: which one? Then that one's sheet
+  const [choose, setChoose] = useState<{ lessons: Lesson[]; day: number } | null>(null);
   const chosen = useRef(false);
 
   // Shared with the strip and the grid (UI thread)
@@ -265,6 +267,7 @@ export default function RoosterScreen() {
             compact={size.w / want < 120}
             lang={lang}
             onPressLesson={(lesson, day) => setOpen({ lesson, together: byDay.get(day)?.raw ?? [] })}
+            onPressOverlap={(lessons, day) => setChoose({ lessons, day })}
             onPressTogether={() => router.push('/compare')}
             onTarget={onTarget}
             onCount={(n, s) => {
@@ -291,6 +294,16 @@ export default function RoosterScreen() {
       <AView layout={layout}>
         <Legend items={legend.length ? legend : ['theory', 'lab']} />
       </AView>
+      <OverlapSheet
+        choice={choose}
+        onClose={() => setChoose(null)}
+        onPick={(lesson) => {
+          const day = choose?.day ?? today;
+          setChoose(null);
+          // One sheet at a time: the next opens once this one is on its way out
+          setTimeout(() => setOpen({ lesson, together: byDay.get(day)?.raw ?? [] }), 220);
+        }}
+      />
       <LessonSheet lesson={open?.lesson ?? null} onClose={() => setOpen(null)} friends={friends.data} together={open?.together} />
     </Screen>
   );
