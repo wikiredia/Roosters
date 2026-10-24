@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
+import { useCSSVariable } from 'uniwind';
 import { View } from 'react-native';
 
 import { useAnswerBreak, useCheckin, useOpenDirect, useToday } from '@/api/hooks';
 import type { BreakRequest, Checkin, Friend, Notification, Today } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { SetupSteps } from '@/components/SetupSteps';
-import { isOff } from '@/components/timetable/Timetable';
+import { type BreakState, Hatch, isOff, STATE_LABEL } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, StatusOption, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
@@ -14,7 +15,8 @@ import { Reveal } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
-import { dayWord, howText, otherPeople } from '@/lib/breaks';
+import { dayWord, howText, otherPeople, slotState } from '@/lib/breaks';
+import { cn } from '@/lib/cn';
 import { currentLesson, isAway, joinNames, nextLesson, statusLine } from '@/lib/status';
 import { addDays, hhmm, isoDay, longDate, minutesAgo, parseDay, range, shortDate } from '@/lib/time';
 
@@ -242,6 +244,7 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
       <TogetherCard>
         {list.map((g, i) => {
           const live = g.start <= d.now;
+          const state = slotState(d.breaks, g.people.map((p) => p.id), d.day, Math.max(g.start, d.now), g.end);
           return (
             <Row
               key={`${g.start}-${g.end}`}
@@ -264,7 +267,14 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
               }
               accessibilityHint={t('break.title')}
               onPress={() => onAsk(g.people.map((p) => ({ ...p, start: Math.max(g.start, d.now), end: g.end })))}
-            />
+            >
+              {/* Asked already, planned or a no: says so (the sheet won't ask the same twice) */}
+              {state ? (
+                <View className="flex-row pt-1">
+                  <Tag kind={state === 'planned' ? 'together' : state === 'declined' ? 'bad' : 'line'}>{t(STATE_LABEL[state])}</Tag>
+                </View>
+              ) : null}
+            </Row>
           );
         })}
       </TogetherCard>
@@ -312,8 +322,10 @@ function ForYou({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: BreakR
 }
 
 /**
- * "Jouw pauzes": what you asked (waiting, planned, or nobody can: take it back or remove it) and the ones you said
- * yes to (still able to say no). The questions you haven't answered are in "Voor jou".
+ * "Jouw pauzes": what you asked and the ones you said yes to, in a section per state, each with its own look:
+ * planned (someone said yes, or you did) bright yellow; asked and waiting for an answer hatched yellow; nobody can
+ * soft red. You can take a question back, remove a no, or say no after all. Questions you haven't answered are in
+ * "Voor jou".
  */
 function Requests({ d, t }: { d: Today; t: T }) {
   const { lang } = useT();
@@ -322,44 +334,71 @@ function Requests({ d, t }: { d: Today; t: T }) {
   const list = (d.breaks ?? []).filter((b) => b.mine || b.my_response === 'accepted');
   if (list.length === 0) return null;
   const act = (b: BreakRequest, action: 'declined' | 'cancel') => answer.mutate({ id: b.id, action });
+  const stateOf = (b: BreakRequest): BreakState => (b.state === 'planned' || b.my_response === 'accepted' ? 'planned' : b.state === 'declined' ? 'declined' : 'asked');
+  const groups = (['planned', 'asked', 'declined'] as const).map((st) => ({ st, items: list.filter((b) => stateOf(b) === st) })).filter((g) => g.items.length);
   return (
     <Reveal className="gap-3">
       <SectionHead title={t('break.requests')} left={<TogetherIcon />} />
-      <Card>
-        {list.map((b, i) => {
-          const names = joinNames(
-            (b.mine && b.state === 'planned' ? b.members.filter((m) => m.response === 'accepted') : otherPeople(b)).map((p) => p.display_name),
-            t('common.and'),
-          );
-          const when = `${dayWord(b.day, d.day, t, lang)} ${range(b.start, b.end)}`;
-          const planned = b.state === 'planned' || b.my_response === 'accepted';
-          const title = planned ? t('break.planned', { names }) : b.state === 'declined' ? t('break.declined', { names }) : t('break.askedTo', { names });
-          const sub = [when, b.state === 'pending' && b.mine ? t('break.waiting') : howText(b, t)].join(' · ');
-          return (
-            <Row
-              key={b.id}
-              first={i === 0}
-              title={title}
-              sub={sub}
-              left={<AvatarStack people={otherPeople(b).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring="together" />}
-            >
-              {b.note ? (
-                <Text variant="sm" tone="ink2" numberOfLines={2}>
-                  “{b.note}”
-                </Text>
-              ) : null}
-              <View className="flex-row flex-wrap gap-2 pt-1.5">
-                {!b.mine ? (
-                  <Button variant="secondary" size="sm" label={t('break.notAnymore')} onPress={() => act(b, 'declined')} />
-                ) : (
-                  <Button variant="secondary" size="sm" label={b.state === 'declined' ? t('break.remove') : t('break.cancel')} onPress={() => act(b, 'cancel')} />
-                )}
-              </View>
-            </Row>
-          );
-        })}
-      </Card>
+      {groups.map((g) => (
+        <View key={g.st} className="gap-2">
+          <Text variant="sm" bold tone={g.st === 'declined' ? 'danger' : 'ink2'}>
+            {t(SECTION[g.st], { n: g.items.length })}
+          </Text>
+          <StateCard state={g.st}>
+            {g.items.map((b, i) => {
+              const names = joinNames(
+                (b.mine && b.state === 'planned' ? b.members.filter((m) => m.response === 'accepted') : otherPeople(b)).map((p) => p.display_name),
+                t('common.and'),
+              );
+              const when = `${dayWord(b.day, d.day, t, lang)} ${range(b.start, b.end)}`;
+              const title = g.st === 'planned' ? t('break.planned', { names }) : g.st === 'declined' ? t('break.declined', { names }) : t('break.askedTo', { names });
+              const sub = [when, g.st === 'asked' ? t('break.waiting') : howText(b, t)].join(' · ');
+              return (
+                <Row
+                  key={b.id}
+                  first={i === 0}
+                  divider={g.st === 'declined' ? 'line' : 'together'}
+                  title={title}
+                  sub={sub}
+                  left={<AvatarStack people={otherPeople(b).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring={g.st === 'declined' ? 'surface' : 'together'} />}
+                >
+                  {b.note ? (
+                    <Text variant="sm" tone="ink2" numberOfLines={2}>
+                      “{b.note}”
+                    </Text>
+                  ) : null}
+                  <View className="flex-row flex-wrap gap-2 pt-1.5">
+                    {!b.mine ? (
+                      <Button variant="secondary" size="sm" label={t('break.notAnymore')} onPress={() => act(b, 'declined')} />
+                    ) : (
+                      <Button variant="secondary" size="sm" label={b.state === 'declined' ? t('break.remove') : t('break.cancel')} onPress={() => act(b, 'cancel')} />
+                    )}
+                  </View>
+                </Row>
+              );
+            })}
+          </StateCard>
+        </View>
+      ))}
     </Reveal>
+  );
+}
+
+const SECTION = { planned: 'break.secPlanned', asked: 'break.secAsked', declined: 'break.secDeclined' } as const;
+
+/** A card in the colour and pattern of a break's state (the same as the blocks in the calendar). */
+function StateCard({ state, children }: { state: BreakState; children: ReactNode }) {
+  const hatch = String(useCSSVariable('--color-together') ?? '#FFC21A');
+  return (
+    <View
+      className={cn(
+        'rounded-card overflow-hidden border-[1.5px]',
+        state === 'planned' ? 'bg-together border-together-ink' : state === 'asked' ? 'bg-together-soft border-together' : 'bg-danger-soft border-danger',
+      )}
+    >
+      {state === 'asked' ? <Hatch color={hatch} gap={12} /> : null}
+      {children}
+    </View>
   );
 }
 

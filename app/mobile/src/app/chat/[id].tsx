@@ -63,7 +63,8 @@ export default function ChatScreen() {
   const sheetProgress = useSharedValue(0);
   const sheetH = useSharedValue(400);
   const rect = useSharedValue<Rect | null>(null);
-  const minTop = insets.top + 60;
+  // Under the header (the photo row and the name under it)
+  const minTop = insets.top + 96;
   const liftY = useDerivedValue(() => liftBy(rect.get(), sheetH.get(), screenH, minTop) * sheetProgress.get());
   const liftStyle = useAnimatedStyle(() => ({ transform: [{ translateY: liftY.get() }] }));
   const ink = useCSSVariable('--color-ink');
@@ -108,6 +109,8 @@ export default function ChatScreen() {
   const other = c?.kind === 'direct' ? people[0] : undefined;
   // Their newest message: what "Melden" from the + reports (a group: long press the message itself)
   const theirLast = other ? [...messages].reverse().find((m) => m.user_id === other.id && m.kind === 'text' && !m.deleted && !m.removed) : undefined;
+
+  const openPerson = () => (other ? router.push(`/friends/${other.id}`) : setInfo(true));
 
   function longPress(m: ChatMessage, r: Rect | null) {
     rect.set(r);
@@ -171,14 +174,21 @@ export default function ChatScreen() {
             accessibilityRole="button"
             accessibilityLabel={c.name ?? ''}
             accessibilityHint={other ? t('chat.openProfile') : t('chat.info')}
-            onPress={() => (other ? router.push(`/friends/${other.id}`) : setInfo(true))}
-            className="items-center gap-0.5 active:opacity-70"
+            onPress={openPerson}
+            className="active:opacity-70"
           >
             {other ? (
-              <Avatar name={other.display_name} color={other.avatar_color} uid={other.id} photo={other.photo} size="sm" />
+              <Avatar name={other.display_name} color={other.avatar_color} uid={other.id} photo={other.photo} size="md" />
             ) : (
-              <AvatarStack people={people.slice(0, 3).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="xs" />
+              <AvatarStack people={people.slice(0, 3).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="sm" />
             )}
+          </Pressable>
+        ) : undefined
+      }
+      navBelow={
+        c ? (
+          // The name under the photo; tapping it does the same (screen readers have the photo's button)
+          <Pressable onPress={openPerson} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" className="items-center active:opacity-70">
             <Text variant="sm" bold numberOfLines={1}>
               {c.name ?? ''}
             </Text>
@@ -194,7 +204,7 @@ export default function ChatScreen() {
       scroll={false}
       contentClassName="flex-1 px-0 pb-0 gap-0"
     >
-      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top + 52}>
+      <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top + 52 + 20 + (sub ? 16 : 0)}>
         <AView className="flex-1" style={liftStyle}>
           <FlatList
             className="flex-1 border-t border-line"

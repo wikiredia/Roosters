@@ -1,18 +1,20 @@
 import { type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { useSharedValue, withSpring } from 'react-native-reanimated';
 
-import { useFriends, useWeeks } from '@/api/hooks';
+import { useBreaks, useFriends, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { Button, IconButton } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { AView, enter, exit, layout } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { dateAt, dayIndex, homeStart, MAX_DAYS, mondayOf, weekdayOf } from '@/lib/days';
+import { slotState } from '@/lib/breaks';
 import { joinNames } from '@/lib/status';
 import { prefs } from '@/lib/storage';
-import { isoDay, nowMin } from '@/lib/time';
+import { isoDay, nowMin, weekdayShort } from '@/lib/time';
 
 import { type DayData, DayGrid, LABEL_H, RESIZE, SWIPE } from './DayGrid';
 import { DayStrip } from './DayStrip';
@@ -62,6 +64,7 @@ type Props = {
 export function Calendar({ only, initialStart, remember = false, onView, control }: Props) {
   const { t, lang } = useT();
   const friends = useFriends();
+  const breaks = useBreaks();
   const today = dayIndex(new Date());
   const [want, setWant] = useState(5);
   const [start, setStart] = useState(() => initialStart ?? homeStart(5, today, () => true));
@@ -122,7 +125,9 @@ export function Calendar({ only, initialStart, remember = false, onView, control
               end: g.end,
               label: t('rooster.with', { names: joinNames(who, t('common.and')) }),
               names: who,
-              // Over, or further ahead than you can ask: hatched, and a tap does nothing
+              // Asked, planned or declined: its own colour and pattern
+              state: slotState(breaks.data, g.ids, iso, g.start, g.end),
+              // Over, or further ahead than you can ask: faded, and a tap does nothing
               muted: day < today || day > today + ASK_DAYS || (day === today && g.end <= now),
             };
           }),
@@ -132,7 +137,7 @@ export function Calendar({ only, initialStart, remember = false, onView, control
       }
     });
     return out;
-  }, [stamp, names, from, onlyKey]);
+  }, [stamp, names, from, onlyKey, breaks.data]);
 
   // Weekends with something on them: a swipe doesn't skip those
   // (also kept here on the JS side: render code never reads a shared value)
@@ -240,6 +245,16 @@ export function Calendar({ only, initialStart, remember = false, onView, control
   const visible = Array.from({ length: want }, (_, i) => start + i);
   // 'Vandaag' only when you've moved away from today (and from where the calendar opens)
   const showsToday = visible.includes(today) || start === home;
+  // An empty weekend at the right end of the view (nothing on Saturday and/or Sunday): an arrow in that space to the
+  // next day with something possible on it: Sunday when it has something, otherwise Monday, at the left
+  const empty = (d: number) => {
+    const x = byDay.get(d);
+    return !!x && !x.loading && !x.lessons.length && !x.together.length;
+  };
+  let firstEmpty = visible.length;
+  while (firstEmpty > 0 && weekdayOf(visible[firstEmpty - 1]) >= 5 && empty(visible[firstEmpty - 1])) firstEmpty--;
+  const sunday = firstEmpty < visible.length ? mondayOf(visible[firstEmpty]) + 6 : 0;
+  const onward = firstEmpty < visible.length ? (!visible.includes(sunday) && byDay.get(sunday) && !empty(sunday) ? sunday : sunday + 1) : null;
   const hours = useMemo<[number, number]>(() => {
     const ls = visible.flatMap((d) => byDay.get(d)?.lessons ?? []);
     if (zoomed && ls.length) {
@@ -258,11 +273,11 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     const out = new Set<LegendItem>();
     for (const d of visible) {
       const day = byDay.get(d);
-      if (day?.together.length) out.add('together');
+      for (const s of day?.together ?? []) out.add(s.state ?? 'together');
       for (const l of day?.lessons ?? []) out.add(l.state === 'cancelled' || l.state === 'removed' ? 'cancelled' : lessonKind(l));
     }
     return [...out];
-  }, [stamp, start, want, onlyKey]);
+  }, [stamp, start, want, onlyKey, breaks.data]);
   // Anything else than the standard view (zoomed, other than 5 days, not starting on a Monday): the screen's title becomes 'Terug'
   const custom = zoomed || want !== 5 || weekdayOf(start) !== 0;
   useEffect(() => {
@@ -369,6 +384,30 @@ export function Calendar({ only, initialStart, remember = false, onView, control
           // Small and round, over the hours on the left: covers no lesson, moves nothing
           <AView entering={enter} exiting={exit} className="absolute left-0" style={{ top: 0 }}>
             <IconButton icon="zoomOut" filled label={t('rooster.zoomOut')} onPress={() => setZoomed(false)} className="w-9 h-9" />
+          </AView>
+        ) : null}
+        {onward != null && size.w ? (
+          <AView
+            entering={enter}
+            exiting={exit}
+            className="absolute items-center justify-center"
+            style={{ left: AXIS_W + (firstEmpty * size.w) / want, width: ((visible.length - firstEmpty) * size.w) / want, top: LABEL_H, bottom: 0 }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('rooster.onward', { day: `${weekdayShort(dateAt(onward), lang)} ${dateAt(onward).getDate()}` })}
+              onPress={() => moveTo(onward)}
+              hitSlop={12}
+              className="items-center gap-1 rounded-card bg-surface border-[1.5px] border-line-strong px-2.5 py-2 active:bg-surface-sunken"
+            >
+              <Icon name="forward" size={22} color="ink" strokeWidth={2} />
+              <Text variant="xs" bold tone="ink2">
+                {weekdayShort(dateAt(onward), lang).toUpperCase()}
+              </Text>
+              <Text variant="sm" bold>
+                {String(dateAt(onward).getDate())}
+              </Text>
+            </Pressable>
           </AView>
         ) : null}
         {!showsToday && size.w ? <TodayPill width={size.w + AXIS_W} height={size.h} top={LABEL_H} onPress={() => moveTo(home)} /> : null}

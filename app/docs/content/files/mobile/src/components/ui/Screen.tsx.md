@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T11:30:00Z
 ---
 
 **Every screen** uses this: safe area, the header (large title for tabs, or a back button with a small title, or onboarding progress), the network banner, scrollable content with pull-to-refresh, and an optional sticky footer.
@@ -24,4 +24,4 @@ itself (the class search scrolls its field to the top).
 A skeleton line: only for the very first load, never a full-screen spinner.
 
 `onBack` replaces what the back button does (Vergelijken goes back a step); `navCenter` replaces the small title
-(a chat's photo and name).
+(a chat's photo), `navBelow` is a centred line under the nav row (the chat's name).

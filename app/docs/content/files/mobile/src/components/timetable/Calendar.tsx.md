@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T11:30:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -20,6 +20,10 @@ everything moves together in the same frame, on the UI thread.
   friends you picked (Vergelijken). One that's over, or further ahead than you can ask (more than 13 days:
   `api breaks.MAX_DAYS_AHEAD`), is **hatched** (`muted`) and a tap does nothing: you can't ask for it, so the app
   doesn't let you try. Tapping a yellow one opens `BreakSheet`.
+- Each shared break shows what you did with it (asked, planned, declined: `lib/breaks.slotState` over `useBreaks`).
+- **An empty weekend** at the right end of the view (nothing on Saturday and/or Sunday): an arrow in that empty space
+  with the day it goes to ("MA 27"). It moves the view so that day is on the left, same number of days: Sunday when
+  Sunday has something (and isn't on screen yet), otherwise Monday.
 - Tapping a lesson opens `LessonSheet`; where lessons overlap, `OverlapSheet` first.
 
 **Fast taps**: `DayGrid` is memoised and gets only stable callbacks (refs to the latest state), so opening a sheet

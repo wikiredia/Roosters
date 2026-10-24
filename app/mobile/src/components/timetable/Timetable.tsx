@@ -77,9 +77,9 @@ export type Span = { start: number; end: number };
 
 export type Block =
   | { type: 'lesson'; lesson: Lesson; past: boolean }
-  /** names: who you share it with (two shown, then "+n"); muted: you can't ask for it (over, or further than two
-   * weeks ahead): hatched instead of solid yellow */
-  | { type: 'together'; span: Span; label: string; names?: string[]; muted?: boolean }
+  /** names: who you share it with (two shown, then "+n"); state: what you asked (see TogetherBlock); muted: you can't
+   * ask for it (over, or further than two weeks ahead) */
+  | { type: 'together'; span: Span; label: string; names?: string[]; muted?: boolean; state?: BreakState | null }
   | { type: 'friend'; span: Span }
   | { type: 'free'; span: Span; label?: string };
 
@@ -116,13 +116,16 @@ export function mergeLessons(lessons: Lesson[]): Lesson[] {
   return out;
 }
 
-export type TogetherSlot = Span & { label: string; names?: string[]; muted?: boolean };
+/** A shared break you did something with: planned (someone said yes), asked (waiting for an answer), declined. */
+export type BreakState = 'planned' | 'asked' | 'declined';
+
+export type TogetherSlot = Span & { label: string; names?: string[]; muted?: boolean; state?: BreakState | null };
 
 /** Lessons + shared breaks of one day as blocks for a column. */
 export function dayBlocks(lessons: Lesson[], together: TogetherSlot[], nowMin: number | null): Block[] {
   return [
     ...mergeLessons(lessons).map((l) => ({ type: 'lesson' as const, lesson: l, past: nowMin != null && l.end <= nowMin })),
-    ...together.map((s) => ({ type: 'together' as const, span: { start: s.start, end: s.end }, label: s.label, names: s.names, muted: s.muted })),
+    ...together.map((s) => ({ type: 'together' as const, span: { start: s.start, end: s.end }, label: s.label, names: s.names, muted: s.muted, state: s.state })),
   ];
 }
 
@@ -413,32 +416,44 @@ export function BlockView({ block, style, compact, onPressLesson, onPressInLesso
   );
 }
 
+/** The look of a shared break per state: open soft yellow, asked hatched light and dark yellow, planned solid
+ * bright yellow with a check, declined soft red; one you can't ask for faded with a dashed edge. */
+const TOGETHER_STYLE = {
+  open: 'bg-together-soft border-[1.5px] border-together',
+  asked: 'bg-together-soft border-[1.5px] border-together',
+  planned: 'bg-together border-[1.5px] border-together-ink',
+  declined: 'bg-danger-soft border-[1.5px] border-danger',
+  muted: 'bg-together-soft border-[1.5px] border-dashed border-together opacity-60',
+} as const;
+
 /**
  * A shared break: the icon in the top corner with who it's with next to it (two names at most, then "+2", so
- * it never takes more room than the block has). One you can't ask for any more (or yet) is hatched yellow.
+ * it never takes more room than the block has), in the colour and pattern of its state (TOGETHER_STYLE).
  */
 function TogetherBlock({ block, style, compact, pad, onPressTogether, t }: { block: Extract<Block, { type: 'together' }>; style: object; compact?: boolean; pad: string; onPressTogether?: (s: Span) => void; t: (k: Key, p?: Record<string, string | number>) => string }) {
   const hatch = String(useCSSVariable('--color-together') ?? '#FFC21A');
+  const look = block.state ?? (block.muted ? 'muted' : 'open');
+  const declined = look === 'declined';
   const names = block.names ?? [];
   const shown = names.slice(0, 2).map((n) => (compact ? n.split(/\s+/)[0] : n));
   const extra = names.length - shown.length;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${t('tt.together')} ${block.label}, ${hhmm(block.span.start)} ${t('tt.to')} ${hhmm(block.span.end)}`}
+      accessibilityLabel={[`${t('tt.together')} ${block.label}, ${hhmm(block.span.start)} ${t('tt.to')} ${hhmm(block.span.end)}`, block.state ? t(STATE_LABEL[block.state]) : null].filter(Boolean).join(', ')}
       onPress={onPressTogether && !block.muted ? () => onPressTogether(block.span) : undefined}
-      className={cn('rounded-block overflow-hidden', pad, block.muted ? 'bg-together-soft border-[1.5px] border-together' : 'bg-together')}
+      className={cn('rounded-block overflow-hidden', pad, TOGETHER_STYLE[look])}
       style={style}
     >
-      {block.muted ? <Hatch color={hatch} gap={8} /> : null}
+      {look === 'asked' ? <Hatch color={hatch} gap={8} /> : null}
       <View className="flex-row items-center gap-1">
-        <Icon name="together" size={compact ? 13 : 15} color="#161F2A" strokeWidth={2} />
-        <Text variant="xs" bold tone="onTogether" numberOfLines={1} className="flex-shrink">
+        <Icon name={look === 'planned' ? 'check' : 'together'} size={compact ? 13 : 15} color={declined ? 'danger-ink' : '#161F2A'} strokeWidth={look === 'planned' ? 2.5 : 2} />
+        <Text variant="xs" bold tone={declined ? 'danger' : 'onTogether'} numberOfLines={1} className="flex-shrink">
           {shown[0] ?? (compact ? '' : t('tt.together'))}
         </Text>
       </View>
       {shown[1] ? (
-        <Text variant="xs" bold tone="onTogether" numberOfLines={1}>
+        <Text variant="xs" bold tone={declined ? 'danger' : 'onTogether'} numberOfLines={1}>
           {extra > 0 ? `${shown[1]} +${extra}` : shown[1]}
         </Text>
       ) : null}
@@ -456,19 +471,31 @@ export function shortCourse(name: string) {
   return `${first.slice(0, 5)}.`;
 }
 
-export type LegendItem = LessonKind | 'cancelled' | 'together' | 'friend';
+export const STATE_LABEL: Record<BreakState, Key> = { planned: 'tt.planned', asked: 'tt.asked', declined: 'tt.declined' };
+
+export type LegendItem = LessonKind | 'cancelled' | 'together' | 'friend' | BreakState;
 
 export function Legend({ items }: { items: LegendItem[] }) {
   const { t } = useT();
+  const hatch = String(useCSSVariable('--color-together') ?? '#FFC21A');
   const sw = (i: LegendItem) =>
-    i === 'cancelled' ? 'border-[1.5px] border-dashed border-danger' : i === 'together' ? 'bg-together' : i === 'friend' ? 'bg-friend-soft border-[1.5px] border-friend' : cn('border-[1.5px]', KIND_STYLE[i]);
-  const label = (i: LegendItem): Key => (i === 'cancelled' ? 'tt.cancelled' : i === 'together' ? 'tt.together' : i === 'friend' ? 'tt.friendLesson' : KIND_LABEL[i]);
+    i === 'cancelled'
+      ? 'border-[1.5px] border-dashed border-danger'
+      : i === 'together'
+        ? TOGETHER_STYLE.open
+        : i === 'planned' || i === 'asked' || i === 'declined'
+          ? TOGETHER_STYLE[i]
+          : i === 'friend'
+            ? 'bg-friend-soft border-[1.5px] border-friend'
+            : cn('border-[1.5px]', KIND_STYLE[i]);
+  const label = (i: LegendItem): Key =>
+    i === 'cancelled' ? 'tt.cancelled' : i === 'together' ? 'tt.together' : i === 'planned' || i === 'asked' || i === 'declined' ? STATE_LABEL[i] : i === 'friend' ? 'tt.friendLesson' : KIND_LABEL[i];
   return (
     // One line that scrolls sideways: it never grows taller (that would push the timetable up)
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-x-3.5" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {items.map((i) => (
         <View key={i} className="flex-row items-center gap-1.5">
-          <View className={cn('w-4 h-3 rounded-[3px]', sw(i))} />
+          <View className={cn('w-4 h-3 rounded-[3px] overflow-hidden', sw(i))}>{i === 'asked' ? <Hatch color={hatch} gap={4} /> : null}</View>
           <Text variant="xs" bold tone="ink2">
             {t(label(i))}
           </Text>

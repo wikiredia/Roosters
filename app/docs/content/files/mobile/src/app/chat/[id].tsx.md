@@ -1,11 +1,11 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T11:30:00Z
 ---
 
 **One conversation** (design: Chat.dc.html B and C). Newest at the bottom (an inverted `FlatList`), older pages when
-you scroll up (`useOlderMessages`). In the middle of the header: their photo and name (a group: the first
-avatars, the name and "5 leden · 2 nu vrij" from Today's board); tapping it opens their profile (`friends/[id]`), a
-group's info. The "…" opens `components/chat/ChatInfoSheet.tsx`.
+you scroll up (`useOlderMessages`). In the middle of the header: their photo (40 px, in line with the back
+button and the "…"), with the name under it (a group: the first avatars, the name and "5 leden · 2 nu vrij" from
+Today's board); tapping either opens their profile (`friends/[id]`), a group's info. The "…" opens `components/chat/ChatInfoSheet.tsx`.
 
 - Yours blue on the right, theirs white on the left with a name and small avatar in groups when the writer changes;
   events in the middle, yellow with a cup for a planned break; a day line above each new day.

@@ -53,3 +53,35 @@ export function duration(min: number, t: T) {
   if (!h) return t('break.mins', { n: m });
   return m ? t('break.hoursMins', { h, m }) : t('break.hours', { h });
 }
+
+/** Where you stand with one friend about a break: planned (someone said yes), asked (you asked, no answer yet),
+ * theirs (they asked you, you haven't answered), declined (a no). */
+export type WithState = 'planned' | 'asked' | 'theirs' | 'declined';
+const RANK: Record<WithState, number> = { planned: 3, asked: 2, theirs: 2, declined: 1 };
+
+/** The request with `id` on `day` that overlaps start–end, and what it means for you (the strongest when several). */
+export function stateWith(breaks: BreakRequest[] | undefined, id: number, day: string, start: number, end: number): { state: WithState; request: BreakRequest } | null {
+  let best: { state: WithState; request: BreakRequest } | null = null;
+  for (const b of breaks ?? []) {
+    if (b.day !== day || b.start >= end || start >= b.end) continue;
+    let state: WithState | null = null;
+    if (b.mine) {
+      const m = b.members.find((x) => x.id === id);
+      if (m) state = m.response === 'accepted' ? 'planned' : m.response === 'declined' ? 'declined' : 'asked';
+    } else if (b.from.id === id) {
+      state = b.my_response === 'accepted' ? 'planned' : b.my_response === 'declined' ? 'declined' : 'theirs';
+    }
+    if (state && (!best || RANK[state] > RANK[best.state])) best = { state, request: b };
+  }
+  return best;
+}
+
+/** A shared break with several friends, as one block: planned when one of them is, asked while a question is open,
+ * declined only when every one of them said no; null: nothing asked yet. */
+export function slotState(breaks: BreakRequest[] | undefined, ids: number[], day: string, start: number, end: number): 'planned' | 'asked' | 'declined' | null {
+  const states = ids.map((id) => stateWith(breaks, id, day, start, end)?.state ?? null);
+  if (states.includes('planned')) return 'planned';
+  if (states.includes('asked') || states.includes('theirs')) return 'asked';
+  if (states.length && states.every((s) => s === 'declined')) return 'declined';
+  return null;
+}

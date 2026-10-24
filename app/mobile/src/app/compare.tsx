@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SlideInLeft, SlideInRight } from 'react-native-reanimated';
 
@@ -16,6 +16,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { dateAt, dayIndex, mondayOf } from '@/lib/days';
 import { joinNames } from '@/lib/status';
+import { prefs } from '@/lib/storage';
 import { isoDay, nowMin, parseDay } from '@/lib/time';
 
 /** Free while comparing; more than this is Premium (later). Same limit as the server. */
@@ -49,11 +50,49 @@ export default function CompareScreen() {
   const today = dayIndex(new Date());
   const [thisWeek] = useWeeks([isoDay(dateAt(mondayOf(today)))]);
   const start = lessonWeek(thisWeek?.data?.lessons, today);
+  const [week] = useWeeks([isoDay(dateAt(start))]);
+  // How often you compared with whom (on this phone): the three you pick most are suggested on top
+  const [picks, setPicks] = useState<Record<string, number>>({});
+  useEffect(() => {
+    prefs.get<Record<string, number>>('compare.picks', {}).then(setPicks);
+  }, []);
 
   const byId = new Map((friends.data ?? []).map((f) => [f.id, f]));
   const ids = picked.slice(0, MAX_FREE);
   const chosen = ids.map((id) => byId.get(id)).filter((f): f is Friend => !!f);
   const over = picked.length > MAX_FREE;
+
+  // Shared breaks in the week you'll compare, per friend
+  const shared = new Map<number, number>();
+  for (const day of Object.values(week?.data?.together ?? {})) for (const s of day) shared.set(s.id, (shared.get(s.id) ?? 0) + 1);
+  // Suggestions: the 3 you pick most (no history yet: the 3 you share most breaks with); only these show a count,
+  // the full comparison is what Vergelijken (and Premium, later) is for
+  const all = friends.data ?? [];
+  const byPicks = all.filter((f) => picks[f.id]).sort((a, b) => picks[b.id] - picks[a.id]);
+  const suggested = (byPicks.length ? byPicks : [...all].filter((f) => shared.get(f.id)).sort((a, b) => (shared.get(b.id) ?? 0) - (shared.get(a.id) ?? 0))).slice(0, 3);
+  const rest = all.filter((f) => !suggested.includes(f));
+
+  function go() {
+    const next = { ...picks };
+    for (const id of ids) next[id] = (next[id] ?? 0) + 1;
+    setPicks(next);
+    prefs.set('compare.picks', next);
+    setStep('week');
+  }
+
+  const row = (f: Friend, i: number, count: boolean) => (
+    <Row
+      key={f.id}
+      first={i === 0}
+      left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} />}
+      title={f.display_name}
+      sub={f.hidden ? t('status.hidden') : count ? t('compare.sharedWeek', { n: shared.get(f.id) ?? 0 }) : undefined}
+      right={<Check on={picked.includes(f.id)} />}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: picked.includes(f.id) }}
+      onPress={() => toggle(f.id)}
+    />
+  );
 
   function toggle(id: number) {
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -100,7 +139,7 @@ export default function CompareScreen() {
       navTitle={t('compare.title')}
       footer={
         friends.data?.length ? (
-          <Button icon="swap" label={chosen.length ? t('compare.go', { n: chosen.length }) : t('compare.pickFirst')} disabled={!chosen.length} onPress={() => setStep('week')} />
+          <Button icon="swap" label={chosen.length ? t('compare.go', { n: chosen.length }) : t('compare.pickFirst')} disabled={!chosen.length} onPress={go} />
         ) : undefined
       }
     >
@@ -118,21 +157,24 @@ export default function CompareScreen() {
         <AView entering={params.ids ? SlideInLeft.duration(240) : undefined}>
           <Section>
             <SectionHead title={t('compare.who')} aside={t('compare.picked', { n: picked.length })} />
-            <Card>
-              {(friends.data ?? []).map((f, i) => (
-                <Row
-                  key={f.id}
-                  first={i === 0}
-                  left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} />}
-                  title={f.display_name}
-                  sub={f.hidden ? t('status.hidden') : undefined}
-                  right={<Check on={picked.includes(f.id)} />}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: picked.includes(f.id) }}
-                  onPress={() => toggle(f.id)}
-                />
-              ))}
-            </Card>
+            {suggested.length ? (
+              <View className="gap-2">
+                <Text variant="sm" bold tone="ink2">
+                  {t('compare.forYou')}
+                </Text>
+                <Card>{suggested.map((f, i) => row(f, i, true))}</Card>
+              </View>
+            ) : null}
+            {rest.length ? (
+              <View className="gap-2">
+                {suggested.length ? (
+                  <Text variant="sm" bold tone="ink2">
+                    {t('compare.everyone')}
+                  </Text>
+                ) : null}
+                <Card>{rest.map((f, i) => row(f, i, false))}</Card>
+              </View>
+            ) : null}
             <View>
               <Text variant="sm" tone={over ? 'premium' : 'ink2'}>
                 {over ? t('compare.overLimit', { n: MAX_FREE }) : t('compare.limit', { n: MAX_FREE })}
