@@ -256,9 +256,12 @@ export default function RoosterScreen() {
           to={to}
           today={today}
           lang={lang}
-          busyWeekends={busyWeekends}
           kinds={(day) => kinds.get(day) ?? []}
           onTarget={onTarget}
+          onMove={(s) => {
+            setEnterFrom(s >= start ? 1 : -1);
+            setStart(s);
+          }}
           onPick={(day) => moveTo(want >= 5 ? Math.max(mondayOf(day), Math.min(day, mondayOf(day) + 7 - want)) : day)}
           onResize={(n) => setWant(n)}
           onResizeEnd={(n, s) => {
