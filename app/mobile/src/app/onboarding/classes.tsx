@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { type ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { useAddClass, useClasses, useCourses, useDeleteSource, useMe, useSources } from '@/api/hooks';
@@ -42,7 +42,7 @@ export default function ClassesStep() {
   const [error, setError] = useState<string | null>(null);
   // Searching on a phone: the field goes to the top with the results under it, above the keyboard
   // (below the semester sections it sat mid-screen, and the keyboard hid every result)
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
   const searchY = useRef(0);
   const [searching, setSearching] = useState(false);
   const screenH = useWindowDimensions().height;

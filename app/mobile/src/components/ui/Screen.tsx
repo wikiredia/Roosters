@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { type ReactNode, type RefObject, useState } from 'react';
+import { type ComponentRef, type ReactNode, type RefObject, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -42,7 +42,7 @@ type ScreenProps = {
   /** No offline banner (onboarding before sign-in) */
   noBanner?: boolean;
   /** The scroll view, for a screen that scrolls something into view (a search field above the keyboard) */
-  scrollRef?: RefObject<ScrollView | null>;
+  scrollRef?: RefObject<ComponentRef<typeof ScrollView> | null>;
 };
 
 /** Every screen: safe area, header, network banner, scrollable content and an optional sticky footer. */
