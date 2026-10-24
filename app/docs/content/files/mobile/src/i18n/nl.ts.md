@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T11:30:00Z
+updated: 2026-10-24T13:45:00Z
 ---
 
-**Dutch texts: the source of truth for keys.** Short, plain sentences; say 'je', never 'u'. Grouped by screen (`welcome.`, `login.`, `school.`, `steps.` for Today's 'complete these steps', …).
+**Dutch texts: the source of truth for keys.** Short, plain sentences; say 'je', never 'u'. Grouped by screen (`welcome.`, `login.`, `google.` for what can go wrong with Google sign-in, `school.`, `steps.` for Today's 'complete these steps', …).
 
 ## `Key`
 

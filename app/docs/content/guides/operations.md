@@ -1,7 +1,7 @@
 ---
 title: Running and operating
 position: 70
-updated: 2026-10-24T13:20:00Z
+updated: 2026-10-24T13:45:00Z
 ---
 
 ## Start, stop, update
@@ -41,6 +41,8 @@ From the console: **Roosters+ → Overview** (Up, Restart, shells), or the **Doc
 | The app says 'That didn't work' | The app's debug screen (server address, last requests) |
 | A class shows old lessons | Schools → Classes (sync errors) → Fetch now; Background jobs |
 | No schools in onboarding | Schools & classes: add one, or turn it on |
+| No 'Ga verder met Google' button | The app's debug screen → **Sign in with Google** (says why: Expo Go, no client ids, an old build) |
+| Google sign-in fails | Debug builds show Google's code under the error; 'not available yet' = empty `GOOGLE_CLIENT_IDS`; 'didn't work' from the server = wrong audience (not the web client id); on Android a silent cancel after picking an account = missing SHA-1 |
 | No push arrives | The app's debug screen → **Send a test push** (says what's missing on the phone); `docker compose logs worker` (`push to …`, refusals); `PUSH_MODE` in `.env` |
 
 ## Push notifications
@@ -55,6 +57,33 @@ The worker sends them through Expo's push service (`api/roosters/push.py`): no a
 3. Ik → Meldingen → **Zet meldingen aan**.
 
 Turning on "enhanced push security" in the Expo dashboard later means setting `EXPO_ACCESS_TOKEN` in `.env`.
+
+## Sign in with Google
+
+Needs client ids from Google Cloud and a development build. In [Google Cloud Console](https://console.cloud.google.com/),
+one project:
+
+1. **Google Auth Platform → Branding / Audience**: app name Roosters+, support e-mail; while the audience is
+   *Testing* only the test users you add can sign in, so publish it for real use. Scopes: the default
+   `openid`, `email`, `profile` are all we need.
+2. **Clients → Create client**, three times:
+   - **Web application** ('Roosters+ server', no redirect URIs). Its client id goes in **both**
+     `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (app) and `GOOGLE_CLIENT_IDS` (server `.env`): it's the audience of every
+     ID token.
+   - **iOS**, bundle id `be.roostersplus.app`. Its client id goes in `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`;
+     `mobile/app.config.ts` makes the URL scheme (`com.googleusercontent.apps.…`) from it.
+   - **Android**, package `be.roostersplus.app` + the **SHA-1** of the key that signs the build. One Android client
+     per key: the debug keystore for `npx expo run:android` (`keytool -list -v -keystore android/app/debug.keystore
+     -alias androiddebugkey -storepass android`), the EAS keystore (`npx eas-cli credentials -p android`), and for
+     the Play Store the **app signing key** (Play Console → Release → Setup → App integrity → App signing key certificate). Its id isn't put
+     anywhere: Google recognises the app by package and SHA-1.
+3. App: put the two `EXPO_PUBLIC_GOOGLE_*` values in `app/mobile/.env` (client ids aren't secret; `.env.local` if
+   you'd rather not commit them) or in the EAS environment, then make a **new** build (`npx expo run:ios|android`,
+   `eas build`) and start Metro with `-c`.
+4. Server: `GOOGLE_CLIENT_IDS=<web client id>` in `app/.env` (comma-separated if there are more), then
+   `docker compose up -d api`.
+
+No Firebase and no `google-services.json` / `GoogleService-Info.plist` needed.
 
 ## Backups
 

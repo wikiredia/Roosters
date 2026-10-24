@@ -23,6 +23,7 @@ export const en: Record<Key, string> = {
   'welcome.title': 'See when your friends are free',
   'welcome.body': 'Your timetable comes straight from school. You see right away who you can take a break with.',
   'welcome.email': 'Continue with email',
+  'welcome.google': 'Continue with Google',
   'welcome.legal': 'By continuing, you agree to the',
   'welcome.legalLink': 'terms and privacy policy',
   'welcome.guest': 'Continue without signing in',
@@ -35,6 +36,7 @@ export const en: Record<Key, string> = {
   'login.emailLabel': 'Email',
   'login.emailHint': 'School email or your own, both work.',
   'login.sendCode': 'Send code',
+  'login.or': 'or',
   'login.codeTitle': 'Enter the code',
   'login.codeSent': 'We sent a code to',
   'login.otherEmail': 'Use another email',
@@ -45,6 +47,10 @@ export const en: Record<Key, string> = {
   'login.later': 'Later',
   'login.skipBody': 'No mail? Tap Skip: you can confirm your email later from Today.',
   'login.laterInApp': 'No mail yet? Tap Later and try again whenever you like.',
+
+  'google.playServices': 'Google Play services are missing or out of date on this phone. Update them, or use your email.',
+  'google.notSetUp': "Signing in with Google isn't set up right yet. Use your email for now.",
+  'google.failed': "Signing in with Google didn't work. Please try again.",
 
   'school.viaUntis': 'Schools with an Untis timetable',
   'school.title': 'Which school are you at?',

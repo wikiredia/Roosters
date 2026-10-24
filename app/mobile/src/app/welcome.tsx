@@ -6,11 +6,13 @@ import { Linking, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Tokens } from '@/api/types';
+import { GoogleButton } from '@/components/GoogleButton';
 import { Mascot, Wordmark } from '@/components/ui/Brand';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError } from '@/lib/api';
+import { googleSupport } from '@/lib/google';
 import { debugEnabled } from '@/lib/server';
 import { resetTo } from '@/lib/nav';
 import { session } from '@/lib/session';
@@ -23,6 +25,9 @@ export default function Welcome() {
   const insets = useSafeAreaInsets();
   const [apple, setApple] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // What exactly went wrong with Google, for debug builds (a wrong SHA-1 or client id says so here)
+  const [detail, setDetail] = useState<string | null>(null);
+  const google = googleSupport() === 'ready';
   const [guestBusy, setGuestBusy] = useState(false);
   // Here because the server ended the session (not because you signed out yourself): say so
   const s = session.use();
@@ -34,6 +39,7 @@ export default function Welcome() {
 
   async function signInWithApple() {
     setError(null);
+    setDetail(null);
     try {
       // Apple gets the hash of a one-time value, our server the value itself: a stolen token can't be replayed
       const raw = Crypto.randomUUID();
@@ -60,6 +66,7 @@ export default function Welcome() {
   /** On campus, on the way to class: straight in, sign in later from Today */
   async function continueAsGuest() {
     setError(null);
+    setDetail(null);
     setGuestBusy(true);
     try {
       await startAsGuest();
@@ -101,12 +108,25 @@ export default function Welcome() {
             onPress={signInWithApple}
           />
         ) : null}
-        <Button variant={apple ? 'secondary' : 'primary'} icon="mail" label={t('welcome.email')} onPress={() => router.push('/login/email')} />
+        <GoogleButton
+          onError={(message, why) => {
+            setError(message);
+            setDetail(why ?? null);
+          }}
+        />
+        <Button variant={apple || google ? 'secondary' : 'primary'} icon="mail" label={t('welcome.email')} onPress={() => router.push('/login/email')} />
         <Button variant="ghost" label={t('welcome.guest')} loading={guestBusy} onPress={continueAsGuest} />
         {error ? (
-          <Text variant="sm" tone="danger" className="text-center">
-            {error}
-          </Text>
+          <View className="gap-1">
+            <Text variant="sm" tone="danger" className="text-center">
+              {error}
+            </Text>
+            {debugEnabled && detail ? (
+              <Text variant="xs" tone="ink2" className="text-center" selectable>
+                {detail}
+              </Text>
+            ) : null}
+          </View>
         ) : ended ? (
           <Text variant="sm" tone="ink2" className="text-center">
             {t(ended === 'reuse' ? 'welcome.endedElsewhere' : 'welcome.ended')}

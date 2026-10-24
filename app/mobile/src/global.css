@@ -109,6 +109,11 @@
       --color-premium-ink: #7D5800;
       --color-premium-soft: #FBF1D6;
 
+      /* Sign in with Google: Google's own colours for its button (branding guidelines, light theme) */
+      --color-google-fill: #FFFFFF;
+      --color-google-stroke: #747775;
+      --color-google-ink: #1F1F1F;
+
       /* Avatars (navy initials on all, white on "you") */
       --color-avatar-0: #2E5BFF;
       --color-avatar-1: #F7A1BA;
@@ -182,6 +187,11 @@
       --color-premium: #C9971C;
       --color-premium-ink: #F2C766;
       --color-premium-soft: #3A2E10;
+
+      /* Sign in with Google, dark theme */
+      --color-google-fill: #131314;
+      --color-google-stroke: #8E918F;
+      --color-google-ink: #E3E3E3;
 
       --color-avatar-0: #2E5BFF;
       --color-avatar-1: #F7A1BA;

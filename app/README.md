@@ -104,7 +104,14 @@ reach the API, so no mail is sent at all.
    while you fix the mail. `GET /api/v1/debug` gives the same report as the `debug` command; both
    debug endpoints answer 404 unless `ENV=dev`.
 
-Sign in with Apple only works in a development build (`npx expo run:ios`), not in Expo Go.
+Sign in with Apple and Google only work in a development build (`npx expo run:ios|android`), not in Expo Go
+(the buttons just don't show there). Google also needs client ids: create them in Google Cloud (steps in the docs
+guide **Running and operating** → Sign in with Google), then put them in `app/mobile/.env` and make a new build:
+
+```bash
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=123-web.apps.googleusercontent.com   # also GOOGLE_CLIENT_IDS in app/.env
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=123-ios.apps.googleusercontent.com   # iOS; app.config.ts makes the URL scheme
+```
 
 ### Feel the school wifi
 
@@ -187,6 +194,6 @@ listen on this laptop only: the admin API (`api/roosters/admin.py`, `ADMIN_TOKEN
    settings (push per chat too)~~ (done: `api/roosters/push.py`, `mobile/src/lib/push.ts`, Ik → Meldingen; needs an
    EAS project id and a development build; "a friend is free" and "travelling together" pushes still to come),
    ~~skipping one lesson ("Vak overslaan")~~ (done: `r_me.skip`, `mobile/src/components/timetable/SkipDrag.tsx`)
-2. In the app after that: Google Sign-In (needs client IDs), QR codes, pinned friends, the notifications step in onboarding
+2. In the app after that: ~~Google Sign-In~~ (done: `mobile/src/lib/google.ts`, `mobile/src/components/GoogleButton.tsx`; needs client IDs), QR codes, pinned friends, the notifications step in onboarding
 3. Premium (RevenueCat), widgets
 4. Server: Caddy (HTTPS, HTTP/3) + backups + monitoring on Hetzner
