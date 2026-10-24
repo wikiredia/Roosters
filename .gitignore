@@ -6,3 +6,5 @@ server/**/__pycache__/
 
 # Roosters+ v2
 app/.env
+# A local Redis/Valkey started from the api folder writes its snapshot here
+dump.rdb
