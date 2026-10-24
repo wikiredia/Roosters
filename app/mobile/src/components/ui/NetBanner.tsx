@@ -5,9 +5,16 @@ import { netState } from '@/lib/net';
 
 import { Banner } from './Bits';
 import { Button } from './Button';
+import { Reveal } from './Motion';
 
-/** Never a full-screen error: what was loaded stays visible, this small banner says why it's old. */
+/** Never a full-screen error: what was loaded stays visible, this small banner says why it's old.
+ * It fades in and out, and the page slides instead of jumping. */
 export function NetBanner() {
+  const banner = useBanner();
+  return banner ? <Reveal>{banner}</Reveal> : null;
+}
+
+function useBanner() {
   const state = netState.use();
   const { t } = useT();
   if (state === 'offline') {

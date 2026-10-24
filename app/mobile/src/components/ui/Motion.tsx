@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { GestureResponderEvent } from 'react-native';
 import { Pressable, View } from 'react-native';
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -21,6 +22,16 @@ export const FADE = { duration: 180, easing: Easing.out(Easing.quad) };
 export const enter = FadeIn.duration(180);
 export const exit = FadeOut.duration(120);
 export const layout = LinearTransition.duration(200).easing(Easing.out(Easing.quad));
+
+/** Something that comes and goes (a banner, a section): fades in, fades out, and what's around it slides
+ * to its new place instead of jumping. */
+export function Reveal({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <AView entering={enter} exiting={exit} layout={layout} className={className}>
+      {children}
+    </AView>
+  );
+}
 
 /** Scale down a touch while pressed. Spread `handlers` onto the Pressable and `style` onto it too. */
 export function usePressScale(to = 0.96, props?: { onPressIn?: ((e: GestureResponderEvent) => void) | null; onPressOut?: ((e: GestureResponderEvent) => void) | null }) {

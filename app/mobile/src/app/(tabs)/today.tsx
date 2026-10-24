@@ -8,6 +8,7 @@ import { isOff } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, StatusOption, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
+import { Reveal } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
@@ -43,21 +44,29 @@ export default function TodayScreen() {
       }
       onRefresh={() => today.refetch()}
     >
+      {/* Every section fades in, and slides when one above it appears or goes (no jumping); the ones that may
+          be empty do it themselves, so an empty one adds no gap */}
       {!d ? (
-        <Loading />
+        <Reveal>
+          <Loading />
+        </Reveal>
       ) : (
         <>
           <SyncNote d={d} t={t} />
-          <NowCard d={d} t={t} />
+          <Reveal>
+            <NowCard d={d} t={t} />
+          </Reveal>
           {/* Skipped in onboarding (e-mail, school, timetable, friends): finish it here */}
           <SetupSteps d={d} />
           {d.friends.length > 0 ? (
-            <>
+            <Reveal className="gap-6">
               <Together d={d} t={t} />
               <Board d={d} t={t} />
-            </>
+            </Reveal>
           ) : null}
-          <Plan d={d} t={t} onPick={(s) => checkin.mutate(d.me.checkin?.status === s ? null : s)} />
+          <Reveal>
+            <Plan d={d} t={t} onPick={(s) => checkin.mutate(d.me.checkin?.status === s ? null : s)} />
+          </Reveal>
           <Changes changes={d.changes} today={d.day} t={t} lang={lang} />
           <Updated at={d.sources.updated_at} t={t} />
         </>
@@ -86,7 +95,11 @@ function Loading() {
 function SyncNote({ d, t }: { d: Today; t: T }) {
   const s = d.sources;
   if (s.errors.length > 0) {
-    return <Banner kind="neutral" icon="refresh" title={t('today.untisDown')} body={t('today.lastKnown')} />;
+    return (
+      <Reveal>
+        <Banner kind="neutral" icon="refresh" title={t('today.untisDown')} body={t('today.lastKnown')} />
+      </Reveal>
+    );
   }
   return null;
 }
@@ -95,9 +108,11 @@ function Updated({ at, t }: { at: string | null; t: T }) {
   const m = minutesAgo(at);
   if (m == null) return null;
   return (
-    <Text variant="xs" tone="ink3" className="text-center">
-      {m < 1 ? t('today.updatedNow') : m < 120 ? t('today.updatedMin', { n: m }) : t('today.updatedHours', { n: Math.round(m / 60) })}
-    </Text>
+    <Reveal>
+      <Text variant="xs" tone="ink3" className="text-center">
+        {m < 1 ? t('today.updatedNow') : m < 120 ? t('today.updatedMin', { n: m }) : t('today.updatedHours', { n: Math.round(m / 60) })}
+      </Text>
+    </Reveal>
   );
 }
 
@@ -317,7 +332,7 @@ function Changes({ changes, today, t, lang }: { changes: Notification[]; today: 
   if (changes.length === 0) return null;
   const tomorrow = isoDay(addDays(parseDay(today), 1));
   return (
-    <Section>
+    <Reveal className="gap-3">
       <SectionHead title={t('today.changes')} />
       <Card>
         {changes.slice(0, 5).map((n, i) => {
@@ -339,6 +354,6 @@ function Changes({ changes, today, t, lang }: { changes: Notification[]; today: 
           );
         })}
       </Card>
-    </Section>
+    </Reveal>
   );
 }

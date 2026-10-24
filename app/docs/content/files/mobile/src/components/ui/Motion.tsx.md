@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T05:30:00Z
 ---
 
 **Motion in one place**, so everything moves the same way: short, soft, never in the way. Reanimated
@@ -18,6 +18,11 @@ Spring and timing settings: a press (firm in, a little bounce out), things that 
 ## `enter`, `exit`, `layout`
 
 Layout animations for things that appear, disappear or move (`entering={enter}`, `layout={layout}`).
+
+## `Reveal`
+
+Wraps something that comes and goes (a banner, a section): it fades in and out, and what's around it slides
+to its new place. Put it inside a component that may render nothing, so an empty one adds no gap.
 
 ## `usePressScale`
 
