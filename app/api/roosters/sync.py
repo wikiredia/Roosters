@@ -41,10 +41,10 @@ def apply(c, table: str, owner_col: str, owner_id: int, lessons: list[dict], *, 
     now = db.utcnow()
     changes = []
     existing = {r["uid"]: r for r in db.rows(
-        f"SELECT id, uid, day, start_min, end_min, course, location, state, fingerprint FROM {table} "
+        f"SELECT id, uid, day, start_min, end_min, course, location, state, fingerprint, kind FROM {table} "
         f"WHERE {owner_col}=%s AND day>=%s", (owner_id, today - dt.timedelta(days=1)), c)}
-    cols = [owner_col, *extra, "uid", "day", "start_min", "end_min", "course", "location", "state", "fingerprint",
-            "changed_at"]
+    cols = [owner_col, *extra, "uid", "day", "start_min", "end_min", "course", "location", "kind", "state",
+            "fingerprint", "changed_at"]
     if table == "class_lessons":
         cols.insert(-2, "student_group")
     insert = (f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({', '.join(['%s'] * len(cols))}) "
@@ -59,16 +59,20 @@ def apply(c, table: str, owner_col: str, owner_id: int, lessons: list[dict], *, 
         if old is None:
             changed = None if first or l["day"] < today else now
             values = [owner_id, *extra.values(), l["uid"], l["day"], l["start_min"], l["end_min"], l["course"],
-                      l.get("location"), l["state"], fp, changed]
+                      l.get("location"), l.get("kind", "other"), l["state"], fp, changed]
             if table == "class_lessons":
                 values.insert(-2, l.get("student_group"))
             db.run(insert, values, c)
             if changed:
                 changes.append({"type": "new", **_side(l)})
+        elif old["fingerprint"] == fp and old["kind"] != l.get("kind", "other"):
+            # Only the kind is new (it isn't part of the fingerprint: not a change worth a notification)
+            db.run(f"UPDATE {table} SET kind=%s WHERE id=%s", (l.get("kind", "other"), old["id"]), c)
         elif old["fingerprint"] != fp:
-            sets = "day=%s, start_min=%s, end_min=%s, course=%s, location=%s, state=%s, fingerprint=%s, changed_at=%s"
+            sets = ("day=%s, start_min=%s, end_min=%s, course=%s, location=%s, state=%s, fingerprint=%s, changed_at=%s, "
+                    "kind=%s")
             values = [l["day"], l["start_min"], l["end_min"], l["course"], l.get("location"), l["state"], fp,
-                      now if l["day"] >= today else None]
+                      now if l["day"] >= today else None, l.get("kind", "other")]
             if table == "class_lessons":
                 sets += ", student_group=%s"
                 values.append(l.get("student_group"))
@@ -200,46 +204,131 @@ def refresh_classes(school_id: int) -> int:
     return len(found)
 
 
+def scan_walk(count: int, start: int, visit) -> int:
+    """The order the course scan looks at the weeks of a semester (0 … count-1), starting at `start`:
+    week by week while new courses keep turning up; after two weeks without anything new the steps grow
+    (2, then 4 weeks), because a course that's still missing is likely one that comes back only now and
+    then. Forward to the end of the semester, then back from the start. `visit(i)` returns True when the
+    week had a new course; a False/None return also counts as a miss. Returns how many weeks it visited."""
+    visited = 0
+    for direction in (1, -1):
+        i = start if direction == 1 else start - 1
+        misses, step = 0, 1
+        while 0 <= i < count and visited < config.SCAN_SEMESTER_MAX:
+            visited += 1
+            if visit(i):
+                misses, step = 0, 1
+            else:
+                misses += 1
+                if misses >= 2:
+                    step = min(step * 2, 4)
+            i += step * direction
+    return visited
+
+
 def scan_courses(class_id: int) -> int:
-    """All courses of a class in the whole school year, per semester (class_courses): one Untis request
-    per week, past weeks of the year included. Onboarding picks from this list, so a course that only
-    starts later in the year can be chosen now. A few weeks that fail are skipped; most failing = retry."""
+    """The courses of a class this school year, per semester (class_courses), for onboarding: a course that
+    only starts in a few weeks (or in S2) must be choosable today. Untis gives one week per request, so
+    the scan doesn't ask for every week:
+    - a class is usually active in one semester: it starts in the current week, and when the class has
+      nothing this week and next, it goes to the other semester;
+    - within a semester it follows `scan_walk` (growing steps once weeks stop adding courses);
+    - weeks we already have (the routine sync, someone scrolling, an earlier scan) cost no request; past
+      weeks never change, so a rescan only fetches what's ahead;
+    - what it finds is saved as it goes, so the app shows it while the scan keeps looking.
+    Fetched weeks go into class_lessons/class_weeks too. Most fetches failing = retry later."""
     cls = db.one(
         "SELECT sc.*, s.untis_server, s.untis_login, s.tz, s.year_start, s.s2_start, s.year_end "
         "FROM school_classes sc JOIN schools s ON s.id=sc.school_id WHERE sc.id=%s", (class_id,))
     if cls is None or not cls["untis_server"]:
         return 0
     today = dt.datetime.now(tz_of(cls["tz"])).date()
+    this_monday = today - dt.timedelta(days=today.weekday())
     year = terms.school_year(cls, today)
-    monday = year.start - dt.timedelta(days=year.start.weekday())
-    weeks = min((year.end - monday).days // 7 + 1, config.SCAN_MAX_WEEKS)
+    known = {r["monday"]: r["fetched_at"] for r in db.rows(
+        "SELECT monday, fetched_at FROM class_weeks WHERE school_class_id=%s AND error IS NULL", (class_id,))}
+    now = db.utcnow()
     found: dict[tuple[int, str], dict] = {}
-    failed = []
-    for w in range(weeks):
+    failed: list[str] = []
+    asked = 0
+
+    def week(monday: dt.date) -> list[dict] | None:
+        nonlocal asked
+        fetched = known.get(monday)
+        # Past weeks don't change; a week ahead is reused when it's fresh
+        if fetched and (monday < this_monday or now - fetched < dt.timedelta(days=config.COURSES_RESCAN_DAYS)):
+            return [{"day": r["day"], "course": r["course"], "state": r["state"]} for r in db.rows(
+                "SELECT day, course, state FROM class_lessons WHERE school_class_id=%s AND day BETWEEN %s AND %s "
+                "AND state <> 'removed'", (class_id, monday, monday + dt.timedelta(days=6)))]
+        asked += 1
         try:
-            lessons = untis.fetch_week(cls["untis_server"], cls["untis_login"] or "", cls["untis_id"],
-                                       monday + dt.timedelta(weeks=w))
+            lessons = untis.fetch_week(cls["untis_server"], cls["untis_login"] or "", cls["untis_id"], monday)
         except untis.UntisError as e:
             failed.append(str(e))
-            continue
+            return None
+        _store_week(class_id, monday, lessons)
+        known[monday] = now
+        return lessons
+
+    def add(lessons: list[dict]) -> bool:
+        new = []
         for l in lessons:
             sem = year.semester(l["day"])
             if sem is None or l["state"] == "cancelled":
                 continue
-            f = found.setdefault((sem, l["course"]), {"lessons": 0, "first": l["day"], "last": l["day"]})
+            key = (sem, l["course"])
+            if key not in found:
+                found[key] = {"lessons": 0, "first": l["day"], "last": l["day"]}
+                new.append(key)
+            f = found[key]
             f["lessons"] += 1
             f["first"], f["last"] = min(f["first"], l["day"]), max(f["last"], l["day"])
-    if failed and len(failed) * 2 > weeks:
+        if new:
+            db.many("INSERT INTO class_courses (school_class_id, semester, course, lessons, first_day, last_day) "
+                    "VALUES (%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE lessons=VALUES(lessons), "
+                    "first_day=LEAST(first_day, VALUES(first_day)), last_day=GREATEST(last_day, VALUES(last_day))",
+                    [(class_id, sem, course, min(found[(sem, course)]["lessons"], 32000), found[(sem, course)]["first"],
+                      found[(sem, course)]["last"]) for sem, course in new])
+        return bool(new)
+
+    def mondays(sem: int) -> list[dt.date]:
+        first, last = year.range(sem)
+        m = first - dt.timedelta(days=first.weekday())
+        out = []
+        while m <= last and len(out) < config.SCAN_MAX_WEEKS:
+            out.append(m)
+            m += dt.timedelta(weeks=1)
+        return out
+
+    current = year.semester(today)
+    sems = [s for s in (1, 2) if cls[f"in_s{s}"]] or [1, 2]
+    order = sorted(sems, key=lambda s: s != current)
+    for sem in order:
+        weeks = mondays(sem)
+        if not weeks:
+            continue
+        seen: dict[int, bool] = {}
+
+        def visit(i: int, weeks=weeks, seen=seen) -> bool:
+            # A week looked at twice (the start, then the walk back) counts once
+            if i not in seen:
+                ls = week(weeks[i])
+                seen[i] = ls is not None and add(ls)
+            return seen[i]
+
+        start = 0
+        if sem == current and this_monday in weeks:
+            start = weeks.index(this_monday)
+            # Nothing this week and next: this class lives in the other semester
+            nearby = [week(m) for m in weeks[start:start + 2]]
+            if len(order) > 1 and all(ls is not None and not ls for ls in nearby):
+                continue
+        scan_walk(len(weeks), start, visit)
+    if failed and len(failed) * 2 > max(asked, 1):
         db.run("UPDATE school_classes SET courses_error=%s WHERE id=%s", (failed[0][:500], class_id))
         raise SyncError(failed[0])
-    with db.tx() as c:
-        db.run("DELETE FROM class_courses WHERE school_class_id=%s", (class_id,), c)
-        db.many("INSERT INTO class_courses (school_class_id, semester, course, lessons, first_day, last_day) "
-                "VALUES (%s,%s,%s,%s,%s,%s)",
-                [(class_id, sem, course, min(f["lessons"], 32000), f["first"], f["last"])
-                 for (sem, course), f in found.items()], c)
-        db.run("UPDATE school_classes SET courses_scanned_at=UTC_TIMESTAMP(), courses_error=NULL WHERE id=%s",
-               (class_id,), c)
+    db.run("UPDATE school_classes SET courses_scanned_at=UTC_TIMESTAMP(), courses_error=NULL WHERE id=%s", (class_id,))
+    log.info("course scan of class %s: %s courses, %s requests to Untis", class_id, len(found), asked)
     return len(found)
 
 
@@ -263,25 +352,31 @@ def fetch_class_week(class_id: int, monday: dt.date):
         db.run("INSERT INTO class_weeks (school_class_id, monday, fetched_at, error) VALUES (%s,%s,UTC_TIMESTAMP(),%s) "
                "ON DUPLICATE KEY UPDATE error=VALUES(error)", (class_id, monday, str(e)[:500]))
         raise SyncError(str(e))
+    _store_week(class_id, monday, lessons)
+
+
+def _store_week(class_id: int, monday: dt.date, lessons: list[dict]):
+    """One fetched week of a class into class_lessons (no notifications) and class_weeks: what the routine
+    sync doesn't keep fresh, fetched on demand or by the course scan, so nobody fetches it again."""
     sunday = monday + dt.timedelta(days=6)
     with db.tx() as c:
         existing = {r["uid"]: r for r in db.rows(
-            "SELECT id, uid, state, fingerprint FROM class_lessons WHERE school_class_id=%s AND day BETWEEN %s AND %s",
-            (class_id, monday, sunday), c)}
+            "SELECT id, uid, state, fingerprint, kind FROM class_lessons WHERE school_class_id=%s "
+            "AND day BETWEEN %s AND %s", (class_id, monday, sunday), c)}
         for l in lessons:
             fp = fingerprint(l)
             old = existing.get(l["uid"])
             if old is None:
                 db.run("INSERT INTO class_lessons (school_class_id, uid, day, start_min, end_min, course, location, "
-                       "student_group, state, fingerprint) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                       "kind, student_group, state, fingerprint) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                        "ON DUPLICATE KEY UPDATE day=VALUES(day)",
                        (class_id, l["uid"], l["day"], l["start_min"], l["end_min"], l["course"], l.get("location"),
-                        l.get("student_group"), l["state"], fp), c)
-            elif old["fingerprint"] != fp:
-                db.run("UPDATE class_lessons SET day=%s, start_min=%s, end_min=%s, course=%s, location=%s, "
+                        l.get("kind", "other"), l.get("student_group"), l["state"], fp), c)
+            elif old["fingerprint"] != fp or old["kind"] != l.get("kind", "other"):
+                db.run("UPDATE class_lessons SET day=%s, start_min=%s, end_min=%s, course=%s, location=%s, kind=%s, "
                        "student_group=%s, state=%s, fingerprint=%s WHERE id=%s",
-                       (l["day"], l["start_min"], l["end_min"], l["course"], l.get("location"), l.get("student_group"),
-                        l["state"], fp, old["id"]), c)
+                       (l["day"], l["start_min"], l["end_min"], l["course"], l.get("location"), l.get("kind", "other"),
+                        l.get("student_group"), l["state"], fp, old["id"]), c)
         if lessons or len(existing) < 5:
             seen = {l["uid"] for l in lessons}
             gone = [r["id"] for uid, r in existing.items() if uid not in seen and r["state"] != "removed"]

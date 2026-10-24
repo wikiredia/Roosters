@@ -1,7 +1,7 @@
 ---
 title: Timetables: Untis, calendar links and sync
 position: 30
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T08:00:00Z
 ---
 
 ## Where lessons come from
@@ -25,9 +25,16 @@ A school year has two semesters, with dates per school (`schools.year_start`, `s
   Its lessons and notifications only count on that semester's days (`terms.covers`). The same class in S1
   and S2 is two sources, each with its own course choices.
 - The courses you pick from in onboarding are the **whole school year**, not the fetched weeks:
-  `sync.scan_courses` walks every week of the year once (a request per week, ~45 s per class) into
-  `class_courses`, refreshed weekly when someone asks (`r_schools.courses`). The normal sync still fetches
+  `sync.scan_courses` samples the year into `class_courses`: it finds the class's semester first, then walks
+  its weeks with growing steps and reuses weeks already stored (about 12 requests for a real AP class instead
+  of 45), refreshed monthly when someone asks (`r_schools.courses`). The normal sync still fetches
   only `WEEKS_AHEAD` weeks.
+
+## Kinds of lessons
+
+Theory, lab, exercises, project, support, internship, info, exam or other: `kinds.classify` works it out when a
+lesson is fetched, from Untis' free text, the subject and the period's flags, and only the kind is stored. The app
+gives every kind its own colour.
 
 ## When things are fetched
 

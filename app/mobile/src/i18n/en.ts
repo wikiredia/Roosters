@@ -125,7 +125,7 @@ export const en: Record<Key, string> = {
   'preview.classSub': 'Every lesson of this class. Tap a lesson to switch that course on or off.',
   'preview.sub': 'This is your timetable with these courses. Nothing is saved yet.',
   'preview.title': 'Your timetable',
-  'courses.scanning': 'Getting the rest of the school year from Untis…',
+  'courses.scanning': 'Still looking for other courses in the background. Missing one? It will show up here.',
   'courses.noClass': 'No class chosen for this semester.',
 
   'week.next': 'Looks good',

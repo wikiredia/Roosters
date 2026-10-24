@@ -96,7 +96,7 @@ export const nl = {
   'courses.none': 'Niets kiezen',
   'courses.all': 'Alles kiezen',
   'courses.noClass': 'Geen klas gekozen voor dit semester.',
-  'courses.scanning': 'De rest van het schooljaar ophalen bij Untis…',
+  'courses.scanning': 'We zoeken in de achtergrond nog naar andere vakken. Mis je er een? Die verschijnt hier vanzelf.',
   'courses.scanFailed': 'Niet alle weken konden geladen worden. Vakken die later starten, verschijnen hier zodra Untis weer antwoordt.',
   'preview.removeClass': '{name} weghalen',
   'preview.emptied': 'Dan volg je niets meer uit {name}.',

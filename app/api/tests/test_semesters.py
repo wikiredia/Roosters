@@ -153,3 +153,47 @@ def test_picked_courses_are_exactly_the_ones_you_follow(client, mails, school):
     # Picked, but nothing: nothing (an empty include no longer means everything)
     client.patch(f"/api/v1/me/sources/{sid}", headers=h, json={"include": [], "picked": True})
     assert client.get("/api/v1/me/schedule", headers=h, params=params).json()["lessons"] == []
+
+
+def test_the_scan_walk_takes_bigger_steps_once_weeks_stop_adding_courses():
+    order = []
+
+    def visit(i):
+        order.append(i)
+        return i in (0, 1)  # only the first two weeks bring new courses
+    sync.scan_walk(20, 0, visit)
+    assert order[:6] == [0, 1, 2, 3, 5, 9]
+    assert len(order) < 20
+
+
+def test_a_class_without_lessons_now_is_scanned_in_the_other_semester(school, monkeypatch):
+    s2, _ = _semesters_around_today(school["id"])
+    k = school["classes"][0]
+    asked = []
+
+    def fetch_week(server, login, class_id, monday):
+        asked.append(monday)
+        if monday + dt.timedelta(days=6) < s2:
+            return []  # nothing in S1: this is an S2 class
+        day = max(monday, s2)
+        return untis.parse_week(untis_week(class_id, day, [{"id": 2, "start": 1100, "end": 1230,
+                                                           "subject": "Python Advanced"}]), class_id)
+    monkeypatch.setattr(untis, "fetch_week", fetch_week)
+    sync.scan_courses(k)
+    in_s1 = [m for m in asked if m + dt.timedelta(days=6) < s2]
+    assert len(in_s1) == 2  # this week and next, then on to S2
+    assert [r["course"] for r in db.rows("SELECT course FROM class_courses WHERE school_class_id=%s", (k,))] == [
+        "Python Advanced"]
+
+
+def test_weeks_we_already_have_are_not_fetched_again(school, monkeypatch):
+    _semesters_around_today(school["id"])
+    k = school["classes"][0]
+    monday = today() - dt.timedelta(days=today().weekday())
+    add_class_lessons(k, [("08:30", "10:30", "Databases", "B204")])
+    db.run("INSERT INTO class_weeks (school_class_id, monday, fetched_at) VALUES (%s,%s,UTC_TIMESTAMP())", (k, monday))
+    asked = []
+    monkeypatch.setattr(untis, "fetch_week", lambda server, login, class_id, m: asked.append(m) or [])
+    sync.scan_courses(k)
+    assert monday not in asked
+    assert db.one("SELECT course FROM class_courses WHERE school_class_id=%s", (k,))["course"] == "Databases"

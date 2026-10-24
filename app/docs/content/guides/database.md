@@ -1,11 +1,11 @@
 ---
 title: Database and migrations
 position: 50
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T08:00:00Z
 ---
 
 MySQL 8.4 (`db` service, internal network only, data in the `db` volume). All tables with comments:
-`api/roosters/migrations/0001_init.sql`, then `0002_guests_admin.sql`, `0003_semesters.sql` and `0004_class_weeks.sql`.
+`api/roosters/migrations/0001_init.sql`, then `0002_guests_admin.sql`, `0003_semesters.sql`, `0004_class_weeks.sql` and `0005_lesson_kinds.sql`.
 
 | Area | Tables |
 | --- | --- |
