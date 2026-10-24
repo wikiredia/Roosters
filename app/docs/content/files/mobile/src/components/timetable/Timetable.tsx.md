@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:04Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -80,3 +80,14 @@ Accessible label of a lesson.
 ## `shortCourse`
 
 'Network Security' → 'NetSec' for narrow week columns.
+
+## `TogetherBlock`, `TogetherSlot`
+
+A shared break: the icon in the top corner with who it's with next to it, two names at most then "+2" (first names
+in narrow columns), so it never needs more room than the block has. `muted` (over, or more than 13 days ahead: you
+can't ask for it): hatched yellow with an outline instead of solid, and no tap. Free moments (`BlockView` 'free')
+have a coffee cup in the corner, 18 px (15 in narrow columns).
+
+## `Hatch`
+
+Diagonal lines over a block (overlaps, muted shared breaks); wider than any column, the parent clips them.

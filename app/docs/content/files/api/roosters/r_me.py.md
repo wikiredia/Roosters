@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -112,3 +112,10 @@ Change include/exclude (classes) or keywords and label (links). A link is fetche
 ## `user_out`
 
 The user as the app sees it: name, e-mail, locale, school, campus, colour, ghost-until, `onboarded`, and `guest` (the app shows 'Confirm your e-mail' and hides friends for guests).
+
+## `PhotoIn`, `put_photo`, `delete_photo`, `MAX_PHOTO_BYTES`
+
+`PUT /api/v1/me/photo`: your profile photo, a JPEG as base64 (the app crops and shrinks it to 256×256, ~30 KB; at
+most 300 KB, and it must start like a JPEG: `photo_invalid`). Stored in `user_photos`; `users.photo_v` goes up so
+every phone loads the new one. `DELETE` goes back to the coloured initial. `user_out` and every person the API
+returns carry `photo` (the version, or null).

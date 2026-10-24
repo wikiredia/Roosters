@@ -84,7 +84,7 @@ export default function ChatScreen() {
                   <Row
                     key={`f${f.id}`}
                     first={direct.length === 0 && i === 0}
-                    left={<Avatar name={f.display_name} color={f.avatar_color} />}
+                    left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} />}
                     title={f.display_name}
                     sub={t('chat.sayHi')}
                     accessibilityHint={t('chat.startHint')}
@@ -130,9 +130,9 @@ function ChatRow({ chat, first, me }: { chat: Chat; first: boolean; me: number |
       first={first}
       left={
         chat.kind === 'direct' ? (
-          <Avatar name={name} color={chat.avatar_color} />
+          <Avatar name={name} color={chat.avatar_color} uid={chat.with_id ?? undefined} photo={chat.photo} />
         ) : (
-          <AvatarStack people={chat.members.slice(0, 3).map((p) => ({ name: p.display_name, color: p.avatar_color }))} size="sm" />
+          <AvatarStack people={chat.members.slice(0, 3).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="sm" />
         )
       }
       title={name}

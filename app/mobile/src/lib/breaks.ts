@@ -45,3 +45,11 @@ export function breakError(e: unknown, names: Map<number, string>, t: T) {
   }
   return e.message;
 }
+
+/** "45 min", "1 u", "1 u 30": how long a free window lasts. */
+export function duration(min: number, t: T) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (!h) return t('break.mins', { n: m });
+  return m ? t('break.hoursMins', { h, m }) : t('break.hours', { h });
+}

@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { type ReactNode, useState } from 'react';
+import { Image, Pressable, View } from 'react-native';
 
 import { cn } from '@/lib/cn';
+import { photoSource } from '@/lib/photo';
 
 import { Icon, type IconName } from './Icon';
 import { APressable, usePressScale } from './Motion';
@@ -19,10 +20,18 @@ type AvatarProps = {
   /** green dot = free now, grey = busy */
   presence?: 'free' | 'busy';
   ring?: 'surface' | 'together' | 'you';
+  /** With both: their profile photo over the initial (which shows while it loads or when it can't) */
+  uid?: number;
+  photo?: number | null;
+  /** A local photo (picked, not uploaded yet): a data or file URI */
+  uri?: string;
 };
 
-export function Avatar({ name, color = 1, size = 'md', presence, ring }: AvatarProps) {
+export function Avatar({ name, color = 1, size = 'md', presence, ring, uid, photo, uri }: AvatarProps) {
   const [px, fs] = sizes[size];
+  const [failed, setFailed] = useState<string | null>(null);
+  const src = uri ? { uri } : uid && photo ? photoSource(uid, photo) : null;
+  const showPhoto = src && failed !== src.uri;
   const initial = (name.trim()[0] ?? '?').toUpperCase();
   const isYou = color % 8 === 0;
   return (
@@ -41,6 +50,9 @@ export function Avatar({ name, color = 1, size = 'md', presence, ring }: AvatarP
       <Text bold style={{ fontSize: fs, lineHeight: fs + 2, color: isYou ? '#FFFFFF' : '#161F2A' }}>
         {initial}
       </Text>
+      {showPhoto ? (
+        <Image source={src} onError={() => setFailed(src.uri)} style={{ position: 'absolute', width: px - (ring ? 4 : 0), height: px - (ring ? 4 : 0), borderRadius: px / 2 }} />
+      ) : null}
       {presence ? (
         <View
           className={cn(
@@ -53,12 +65,12 @@ export function Avatar({ name, color = 1, size = 'md', presence, ring }: AvatarP
   );
 }
 
-export function AvatarStack({ people, size = 'sm', ring = 'surface' }: { people: { name: string; color: number }[]; size?: 'xs' | 'sm' | 'md'; ring?: 'surface' | 'together' | 'you' }) {
+export function AvatarStack({ people, size = 'sm', ring = 'surface' }: { people: { name: string; color: number; uid?: number; photo?: number | null }[]; size?: 'xs' | 'sm' | 'md'; ring?: 'surface' | 'together' | 'you' }) {
   return (
     <View className="flex-row items-center">
       {people.slice(0, 3).map((p, i) => (
         <View key={`${p.name}${i}`} style={{ marginLeft: i ? (size === 'xs' ? -8 : -12) : 0 }}>
-          <Avatar name={p.name} color={p.color} size={size} ring={ring} />
+          <Avatar name={p.name} color={p.color} size={size} ring={ring} uid={p.uid} photo={p.photo} />
         </View>
       ))}
     </View>

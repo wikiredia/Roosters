@@ -1,10 +1,11 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **One conversation** (design: Chat.dc.html B and C). Newest at the bottom (an inverted `FlatList`), older pages when
-you scroll up (`useOlderMessages`). The header shows the name and, in a group, "5 leden · 2 nu vrij" (from Today's
-board); the "…" opens `components/chat/ChatInfoSheet.tsx`.
+you scroll up (`useOlderMessages`). In the middle of the header: their photo and name (a group: the first
+avatars, the name and "5 leden · 2 nu vrij" from Today's board); tapping it opens their profile (`friends/[id]`), a
+group's info. The "…" opens `components/chat/ChatInfoSheet.tsx`.
 
 - Yours blue on the right, theirs white on the left with a name and small avatar in groups when the writer changes;
   events in the middle, yellow with a cup for a planned break; a day line above each new day.
@@ -14,7 +15,14 @@ board); the "…" opens `components/chat/ChatInfoSheet.tsx`.
   answer have been lost, the outgoing copy hides as soon as the server's copy is in. A refusal (not friends any
   more, too long) shows the server's reason.
 - Opening it marks everything read (once per new message), which lowers the tab badge right away.
-- **Long press** on a message: `components/chat/MessageSheet.tsx` (copy, report, block, take back).
+- **Long press** on a message: `components/chat/MessageSheet.tsx` (copy, report, block, take back). The bubble is
+  measured on screen; the whole chat slides up with the sheet (`liftY`) and the message stays bright above the scrim.
+- **+** left of the box: a small menu (icon and title): Camera and Bestanden ('Binnenkort': sending photos and
+  files needs attachments on the server), Vergelijk roosters (Vergelijken with everyone in the chat who's your
+  friend; more than 3 is Premium there), and in a one-to-one chat Meld (their newest message, straight to the report
+  form) and Blokkeer.
+- New messages (yours as you send them, theirs as they arrive) slide up into place; what was there when the chat
+  opened stays still.
 - 404 (not friends any more, left the group): an empty state instead.
 
 ## `ChatScreen`
@@ -29,6 +37,7 @@ first for the inverted list.
 ## `Bubble`
 
 One row: a day line, an event, a message (taken back / removed in grey italics, no long press), or one on its way.
+`lifted`: just the bubble, for the copy over the message sheet's scrim (`msgItem` makes that row).
 
 ## `T`
 

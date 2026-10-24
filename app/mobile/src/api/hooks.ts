@@ -383,6 +383,16 @@ export function useUpdateMe() {
   });
 }
 
+/** Your profile photo: a square JPEG (base64), or null to go back to the coloured initial. */
+export function useSetPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jpeg: string | null) =>
+      (jpeg ? api.put<{ user: User }>('/api/v1/me/photo', { jpeg }) : api.del<{ user: User }>('/api/v1/me/photo')).then((r) => r.user),
+    onSuccess: (user) => qc.setQueryData(keys.me, user),
+  });
+}
+
 export function useCheckin() {
   const qc = useQueryClient();
   return useMutation({

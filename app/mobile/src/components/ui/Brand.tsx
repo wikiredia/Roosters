@@ -3,16 +3,17 @@ import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 
 import { Text } from './Text';
 
-/** The app icon, as drawn on the brand board. */
-export function AppIcon({ size = 40 }: { size?: number }) {
+/** The app icon, as drawn on the brand board. `mono`: black and white (in the middle of a QR code). */
+export function AppIcon({ size = 40, mono }: { size?: number; mono?: boolean }) {
+  const [bg, blue, rose, yellow] = mono ? ['#000000', '#FFFFFF', '#FFFFFF', '#FFFFFF'] : ['#161F2A', '#2E5BFF', '#F0487A', '#FFC21A'];
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100" accessibilityLabel="Roosters+">
-      <Rect width={100} height={100} rx={22.5} fill="#161F2A" />
-      <Rect x={26} y={20} width={22} height={23} rx={5} fill="#2E5BFF" />
-      <Rect x={52} y={28} width={22} height={15} rx={5} fill="#F0487A" />
-      <Rect x={23} y={46} width={54} height={10} rx={5} fill="#FFC21A" />
-      <Rect x={26} y={59} width={22} height={21} rx={5} fill="#2E5BFF" />
-      <Rect x={52} y={59} width={22} height={13} rx={5} fill="#F0487A" />
+      <Rect width={100} height={100} rx={22.5} fill={bg} />
+      <Rect x={26} y={20} width={22} height={23} rx={5} fill={blue} />
+      <Rect x={52} y={28} width={22} height={15} rx={5} fill={rose} />
+      <Rect x={23} y={46} width={54} height={10} rx={5} fill={yellow} />
+      <Rect x={26} y={59} width={22} height={21} rx={5} fill={blue} />
+      <Rect x={52} y={59} width={22} height={13} rx={5} fill={rose} />
     </Svg>
   );
 }

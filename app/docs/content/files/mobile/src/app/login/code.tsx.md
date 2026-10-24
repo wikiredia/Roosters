@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T08:30:00Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 Enter the **6-digit code** (`components/ui/Inputs.CodeInput`). Six digits are checked right away (also after

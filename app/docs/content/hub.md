@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -71,6 +71,8 @@ notifies the people affected.
 | Add or change a screen | `mobile/src/app/` (file = route); texts in `mobile/src/i18n/nl.ts` + `en.ts` |
 | Change onboarding or 'Complete the following steps' | `mobile/src/app/onboarding/`, `mobile/src/lib/onboarding.ts`, `mobile/src/components/SetupSteps.tsx` |
 | Change semesters or the course list of the school year | `api/roosters/terms.py`, `sync.scan_courses`, `r_schools.courses`; guide **Timetables** |
+| Change the calendar (Rooster tab and Vergelijken) | `mobile/src/components/timetable/Calendar.tsx`, `DayGrid.tsx`, `DayStrip.tsx` |
+| Change profile photos | `api/roosters/r_me.py` (`put_photo`), `r_friends.photo`, `mobile/src/lib/photo.ts`, `components/ui/Bits.tsx` (`Avatar`) |
 | Change a design token or component | `mobile/src/global.css`, `mobile/src/components/ui/` |
 | Add something to the management console | `api/roosters/admin.py` (+ the console's `roosters.js`); guide **Management console and docs** |
 | Change settings or secrets | `api/roosters/config.py`, `.env.example` |

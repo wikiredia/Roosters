@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **Chat**: one-to-one chats between friends and groups of friends, text messages and events, read up to where,

@@ -19,7 +19,7 @@ import { monthSpan, parseDay } from '@/lib/time';
 
 const SEMESTERS: Semester[] = [1, 2];
 
-/** Step 4: per semester, every course of your classes this school year (not only the coming weeks).
+/** Step 5: per semester, every course of your classes this school year (not only the coming weeks).
  * Nothing is chosen until you choose it: tap courses, 'Alles kiezen' per class, or tap lessons in the
  * class's own timetable. 'Bekijk gevonden rooster' shows the timetable your choices give before you save.
  * From settings (source=<id>) for one class, starting from what's saved. */
@@ -106,7 +106,7 @@ export default function CoursesStep() {
   return (
     <Screen
       back
-      progress={settings ? undefined : [4, 6]}
+      progress={settings ? undefined : [5, 7]}
       navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       navTitle={settings ? t('courses.editTitle') : undefined}
       footer={

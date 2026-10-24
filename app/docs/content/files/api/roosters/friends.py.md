@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **Who may see whom.** A friendship is mutual (two rows in `friendships`). Each side chooses what the other
@@ -41,3 +41,8 @@ My friends with what each shows **me** (`visibility`), what I show them (`my_vis
 `a` blocks `b` inside a transaction: the block row, the friendship ended, open requests cancelled; `b` isn't told.
 Used by `r_friends.block` and by reporting a chat message with 'block too' (`chat.report`). `blocked_by`: everyone
 someone blocked (the chat leaves their messages out).
+
+## `may_see_photo`
+
+Who sees your photo: you, your friends, people in a chat with you and friend requests either way: everyone who sees
+your name. Never across a block.

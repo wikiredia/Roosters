@@ -9,48 +9,69 @@ import { Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 
-/** "Jouw link" with copy and the phone's share sheet (WhatsApp, Instagram, Snapchat, ... are all in there). */
+/**
+ * "Jouw link" and "Jouw vriendencode", each with Kopieer and Deel side by side (the phone's share sheet:
+ * WhatsApp, Instagram, Snapchat, ... are all in there). The code is for typing over or saying out loud; the
+ * QR code of the link is in QrCard.
+ */
 export function InviteCard() {
   const { t } = useT();
   const invite = useInvite();
-  const [copied, setCopied] = useState(false);
   const url = invite.data?.url;
+  const code = invite.data?.code;
+  return (
+    <Card className="p-4 gap-4">
+      <Part
+        label={t('invite.yourLink')}
+        value={url?.replace(/^https?:\/\//, '')}
+        copyValue={url}
+        shareMessage={url ? t('invite.message', { url }) : undefined}
+        shareLabel={t('invite.shareLink')}
+      />
+      <View className="h-px bg-line" />
+      <Part label={t('invite.yourCode')} value={code} big copyValue={code} shareMessage={code ? t('invite.codeMessage', { code }) : undefined} shareLabel={t('invite.shareCode')} />
+    </Card>
+  );
+}
+
+/** One of the two: what it is, the value, and Kopieer | Deel (half the width each). */
+function Part({ label, value, big, copyValue, shareMessage, shareLabel }: { label: string; value?: string; big?: boolean; copyValue?: string; shareMessage?: string; shareLabel: string }) {
+  const { t } = useT();
+  const [copied, setCopied] = useState(false);
 
   async function copy() {
-    if (!url) return;
-    await Clipboard.setStringAsync(url);
+    if (!copyValue) return;
+    await Clipboard.setStringAsync(copyValue);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <Card className="p-4 gap-3.5">
-      <View className="flex-row items-center gap-3">
-        <View className="flex-1">
-          <Text variant="xs" bold tone="ink2">
-            {t('invite.yourLink')}
-          </Text>
-          {url ? (
-            <Text bold selectable numberOfLines={1}>
-              {url.replace(/^https?:\/\//, '')}
-            </Text>
-          ) : (
-            <Skeleton width={180} className="mt-1" />
-          )}
-        </View>
-        <Button variant="secondary" size="sm" icon={copied ? 'check' : 'copy'} label={copied ? t('invite.copied') : t('invite.copy')} onPress={copy} disabled={!url} />
-      </View>
-      <Button
-        icon="share"
-        label={t('invite.share')}
-        disabled={!url}
-        onPress={() => url && Share.share({ message: t('invite.message', { url }) })}
-      />
-      {invite.data ? (
-        <Text variant="xs" tone="ink3">
-          {t('invite.code', { code: invite.data.code })}
+    <View className="gap-2.5">
+      <View>
+        <Text variant="xs" bold tone="ink2">
+          {label}
         </Text>
-      ) : null}
-    </Card>
+        {value ? (
+          <Text bold selectable numberOfLines={1} variant={big ? 'sheet' : 'base'} style={big ? { letterSpacing: 3 } : undefined}>
+            {value}
+          </Text>
+        ) : (
+          <Skeleton width={180} className="mt-1" />
+        )}
+      </View>
+      <View className="flex-row gap-2">
+        <Button
+          variant="secondary"
+          icon={copied ? 'check' : 'copy'}
+          label={copied ? t('invite.copied') : t('invite.copy')}
+          accessibilityLabel={`${copied ? t('invite.copied') : t('invite.copy')}: ${label}`}
+          onPress={copy}
+          disabled={!copyValue}
+          className="flex-1"
+        />
+        <Button icon="share" label={t('invite.shareShort')} accessibilityLabel={shareLabel} disabled={!shareMessage} onPress={() => shareMessage && Share.share({ message: shareMessage })} className="flex-1" />
+      </View>
+    </View>
   );
 }

@@ -14,7 +14,7 @@ import { type Lang, useT } from '@/i18n';
 import { dateAt, MAX_DAYS, snap } from '@/lib/days';
 import { hhmm, weekdayShort } from '@/lib/time';
 
-import { type Block, BlockView, dayBlocks, freeGaps, lessonLabel, lessonsAt, OverlapBand, overlapsOf, type Span } from './Timetable';
+import { type Block, BlockView, dayBlocks, freeGaps, lessonLabel, lessonsAt, OverlapBand, overlapsOf, type Span, type TogetherSlot } from './Timetable';
 
 /** Height of the date above each column. */
 export const LABEL_H = 22;
@@ -23,7 +23,7 @@ export const SWIPE = { damping: 28, stiffness: 230, mass: 1 };
 /** The number of days settles with a little bounce. */
 export const RESIZE = { damping: 16, stiffness: 240, mass: 0.8 };
 
-export type DayData = { lessons: Lesson[]; together: (Span & { label: string })[]; loading: boolean };
+export type DayData = { lessons: Lesson[]; together: TogetherSlot[]; loading: boolean };
 
 type Props = {
   /** Left edge of the view, in days (lib/days), and how many days fit: both animated, shared with the strip. */
@@ -63,8 +63,9 @@ type Props = {
  * on the UI thread, so the strip above, the columns and their widths move together in the same frame:
  * dragging the strip's handle or pinching makes the columns thinner while the next days slide in from the side.
  * Double tap zooms the hours in on your lessons (the screen decides); pinch shows more or fewer days.
+ * Memo: give it stable callbacks (Calendar does), so opening a sheet doesn't re-render every column.
  */
-export function DayGrid(p: Props) {
+export const DayGrid = memo(function DayGrid(p: Props) {
   const { offset, count, busyWeekends, width, height, from, to } = p;
   const lineColor = String(useCSSVariable('--color-line') ?? '#E4E1DA');
   const [h0, h1] = p.hours;
@@ -122,8 +123,9 @@ export function DayGrid(p: Props) {
     if (hits.length > 1) p.onPressOverlap(hits, day);
     else if (hits.length === 1) p.onPressLesson(hits[0], day);
     else {
+      // A hatched one (over, or too far ahead) can't be asked for
       const s = d?.together.find((x) => x.start <= min && min < x.end);
-      if (s) p.onPressTogether(day, { start: s.start, end: s.end });
+      if (s && !s.muted) p.onPressTogether(day, { start: s.start, end: s.end });
     }
   };
   const tap = Gesture.Tap()
@@ -134,7 +136,8 @@ export function DayGrid(p: Props) {
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
-    .maxDelay(260)
+    // Short: a single tap waits this long to be sure it isn't the first of two
+    .maxDelay(200)
     .onEnd((_e, ok) => {
       if (ok) scheduleOnRN(p.onDoubleTap);
     });
@@ -157,7 +160,7 @@ export function DayGrid(p: Props) {
       </View>
     </GestureDetector>
   );
-}
+});
 
 type ColumnProps = Omit<Props, 'data' | 'from' | 'to'> & { day: number; pxPerHour: number; lineColor: string; data: DayData | undefined };
 
@@ -220,7 +223,7 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
             accessible
             accessibilityRole="button"
             accessibilityLabel={b.type === 'lesson' ? lessonLabel(b.lesson, t) : t('tt.together')}
-            onAccessibilityTap={() => (b.type === 'lesson' ? onPressLesson(b.lesson, day) : onPressTogether(day, s))}
+            onAccessibilityTap={() => (b.type === 'lesson' ? onPressLesson(b.lesson, day) : b.type === 'together' && !b.muted ? onPressTogether(day, s) : undefined)}
           >
             <View pointerEvents="none" style={{ flex: 1 }}>
               <BlockView block={b} style={{ flex: 1 }} compact={compact} t={t} />

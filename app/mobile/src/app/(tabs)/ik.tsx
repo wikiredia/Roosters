@@ -82,7 +82,7 @@ export default function IkScreen() {
   return (
     <Screen title={t('tabs.me')}>
       <View className="flex-row items-center gap-4">
-        <Avatar name={user?.display_name ?? '?'} color={user?.avatar_color ?? 0} size="xl" />
+        <Avatar name={user?.display_name ?? '?'} color={user?.avatar_color ?? 0} uid={user?.id} photo={user?.photo} size="xl" />
         <View className="flex-1 gap-0.5">
           <Text variant="sheet">{user?.display_name ?? ''}</Text>
           <Text variant="sm" tone="ink2">

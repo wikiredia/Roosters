@@ -62,7 +62,7 @@ export function ChatInfoSheet({ visible, chat, onClose }: { visible: boolean; ch
             <Row
               key={p.id}
               first={i === 0}
-              left={<Avatar name={p.display_name} color={p.avatar_color} size="sm" />}
+              left={<Avatar name={p.display_name} color={p.avatar_color} uid={p.id} photo={p.photo} size="sm" />}
               title={p.me ? `${p.display_name} (${t('chat.you').toLowerCase()})` : p.display_name}
               right={!p.me && !p.friend ? <Tag>{t('chat.notFriend')}</Tag> : undefined}
               chevron={!p.me && p.friend}

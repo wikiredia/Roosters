@@ -10,7 +10,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { useFinishOnboarding } from '@/lib/onboarding';
 
-/** Step 6: send your link, or add classmates who are already on Roosters+. Skipping is fine. */
+/** Step 7: send your link, or add classmates who are already on Roosters+. Skipping is fine. */
 export default function FriendsStep() {
   const { t } = useT();
   const mates = useClassmates();
@@ -20,7 +20,7 @@ export default function FriendsStep() {
   return (
     <Screen
       back
-      progress={[6, 6]}
+      progress={[7, 7]}
       navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       footer={<Button label={t('common.next')} loading={busy} onPress={finish} />}
     >
@@ -41,7 +41,7 @@ export default function FriendsStep() {
                 first={i === 0}
                 title={m.display_name}
                 sub={m.classes.join(', ')}
-                left={<Avatar name={m.display_name} color={m.avatar_color} />}
+                left={<Avatar name={m.display_name} color={m.avatar_color} uid={m.id} photo={m.photo} />}
                 right={
                   m.requested ? (
                     <Tag kind="ok" icon="check">

@@ -90,7 +90,7 @@ def _members(request_ids: list[int], c=None) -> dict[int, list[dict]]:
     if not request_ids:
         return out
     ph, args = db.in_list(request_ids)
-    for m in db.rows(f"SELECT m.request_id, m.user_id, m.response, u.display_name, u.avatar_color "
+    for m in db.rows(f"SELECT m.request_id, m.user_id, m.response, u.display_name, u.avatar_color, u.photo_v "
                      f"FROM break_request_members m JOIN users u ON u.id=m.user_id WHERE m.request_id IN ({ph}) "
                      f"ORDER BY u.display_name", args, c):
         out[m["request_id"]].append(m)
@@ -206,8 +206,8 @@ def cancel(c, user: dict, rid: int):
                                   r["day"], push=m["response"] == "accepted", c=c)
 
 
-def _person(uid: int, name: str, color: int) -> dict:
-    return {"id": uid, "display_name": name, "avatar_color": color}
+def _person(uid: int, name: str, color: int, photo: int | None = None) -> dict:
+    return {"id": uid, "display_name": name, "avatar_color": color, "photo": photo}
 
 
 def list_for(user: dict, day: dt.date | None = None) -> list[dict]:
@@ -215,7 +215,7 @@ def list_for(user: dict, day: dt.date | None = None) -> list[dict]:
     Only with people who are still your friends: after unfriending or blocking they're gone."""
     today, now = _now(user)
     first, last = (day, day) if day else (today, today + dt.timedelta(days=MAX_DAYS_AHEAD))
-    rows = db.rows("SELECT DISTINCT b.*, u.display_name AS from_name, u.avatar_color AS from_color "
+    rows = db.rows("SELECT DISTINCT b.*, u.display_name AS from_name, u.avatar_color AS from_color, u.photo_v AS from_photo "
                    "FROM break_requests b JOIN users u ON u.id=b.from_id "
                    "LEFT JOIN break_request_members m ON m.request_id=b.id "
                    "WHERE b.cancelled_at IS NULL AND b.day BETWEEN %s AND %s AND (b.from_id=%s OR m.user_id=%s) "
@@ -232,8 +232,8 @@ def list_for(user: dict, day: dt.date | None = None) -> list[dict]:
         out.append({
             "id": r["id"], "day": r["day"].isoformat(), "start": r["start_min"], "end": r["end_min"],
             "mode": r["mode"], "place": r["place"], "note": r["note"], "counter_of": r["counter_of"],
-            "from": _person(r["from_id"], r["from_name"], r["from_color"]), "mine": mine,
-            "members": [{**_person(m["user_id"], m["display_name"], m["avatar_color"]), "response": m["response"]}
+            "from": _person(r["from_id"], r["from_name"], r["from_color"], r["from_photo"]), "mine": mine,
+            "members": [{**_person(m["user_id"], m["display_name"], m["avatar_color"], m["photo_v"]), "response": m["response"]}
                         for m in members],
             "my_response": None if mine else next((m["response"] for m in members if m["user_id"] == user["id"]), None),
             "state": summarize([m["response"] for m in members]),

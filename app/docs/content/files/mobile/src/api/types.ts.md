@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:19:44Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.

@@ -249,7 +249,7 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
               divider="together"
               title={joinNames(g.people.map((p) => p.display_name), t('common.and'))}
               sub={live ? t('today.nowUntil', { t: hhmm(g.end) }) : range(g.start, g.end)}
-              left={<AvatarStack people={g.people.map((p) => ({ name: p.display_name, color: p.avatar_color }))} size="md" ring="together" />}
+              left={<AvatarStack people={g.people.map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring="together" />}
               chevron={g.people.length > 1}
               right={
                 // One friend: a chat with them is one tap away (the row itself asks for the break)
@@ -292,7 +292,7 @@ function ForYou({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: BreakR
             first={i === 0}
             title={b.day === d.day ? t('break.asksAt', { name: b.from.display_name, t: hhmm(b.start) }) : t('break.asksOn', { name: b.from.display_name, day: dayWord(b.day, d.day, t, lang), t: hhmm(b.start) })}
             sub={[t('break.untilT', { t: hhmm(b.end) }), howText(b, t)].join(' · ')}
-            left={<Avatar name={b.from.display_name} color={b.from.avatar_color} />}
+            left={<Avatar name={b.from.display_name} color={b.from.avatar_color} uid={b.from.id} photo={b.from.photo} />}
           >
             {b.note ? (
               <Text variant="sm" tone="ink2" numberOfLines={2}>
@@ -341,7 +341,7 @@ function Requests({ d, t }: { d: Today; t: T }) {
               first={i === 0}
               title={title}
               sub={sub}
-              left={<AvatarStack people={otherPeople(b).map((p) => ({ name: p.display_name, color: p.avatar_color }))} size="md" ring="together" />}
+              left={<AvatarStack people={otherPeople(b).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring="together" />}
             >
               {b.note ? (
                 <Text variant="sm" tone="ink2" numberOfLines={2}>
@@ -381,7 +381,7 @@ function Board({ d, t }: { d: Today; t: T }) {
               key={b.id}
               first={i === 0}
               title={f.display_name}
-              left={<Avatar name={f.display_name} color={f.avatar_color} presence={line.free ? 'free' : 'busy'} />}
+              left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} presence={line.free ? 'free' : 'busy'} />}
               sub={
                 <Text variant="sm" tone="ink2">
                   {line.strong ? (
@@ -400,7 +400,7 @@ function Board({ d, t }: { d: Today; t: T }) {
         {away.length > 0 ? (
           <Row
             first={here.length === 0}
-            left={<AvatarStack people={away.map((b) => ({ name: byId.get(b.id)?.display_name ?? '?', color: byId.get(b.id)?.avatar_color ?? 1 }))} size="sm" />}
+            left={<AvatarStack people={away.map((b) => ({ name: byId.get(b.id)?.display_name ?? '?', color: byId.get(b.id)?.avatar_color ?? 1, uid: b.id, photo: byId.get(b.id)?.photo }))} size="sm" />}
             title={t('today.away', { n: away.length })}
             sub={away.map((b) => byId.get(b.id)?.display_name).filter(Boolean).join(', ')}
             onPress={() => router.push('/friends')}

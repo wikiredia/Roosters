@@ -13,7 +13,7 @@ import { useT } from '@/i18n';
 import { useFinishOnboarding } from '@/lib/onboarding';
 import { addDays, isoDay, monday } from '@/lib/time';
 
-/** Step 5, the "aha": your week, right away. */
+/** Step 6, the "aha": your week, right away. */
 export default function WeekStep() {
   const { t } = useT();
   const now = new Date();
@@ -32,7 +32,7 @@ export default function WeekStep() {
   return (
     <Screen
       back
-      progress={[5, 6]}
+      progress={[6, 7]}
       navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       footer={<Button label={t('week.next')} loading={busy} onPress={next} />}
     >

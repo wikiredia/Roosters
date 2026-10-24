@@ -10,6 +10,8 @@ export type User = {
   school_id: number | null;
   campus_id: number | null;
   avatar_color: number;
+  /** Profile photo version (GET /users/{id}/photo?v=…), null: the coloured initial */
+  photo?: number | null;
   ghost_until: string | null;
   onboarded: boolean;
   /** Started without signing in: own timetable yes, friends after adding an e-mail address */
@@ -60,6 +62,7 @@ export type Friend = {
   id: number;
   display_name: string;
   avatar_color: number;
+  photo?: number | null;
   school_id: number | null;
   campus_id: number | null;
   visibility: Visibility;
@@ -92,7 +95,7 @@ export type Notification = {
 
 export type BreakMode = 'i_come' | 'you_come' | 'meet';
 export type BreakResponse = 'pending' | 'accepted' | 'declined';
-export type BreakPerson = { id: number; display_name: string; avatar_color: number };
+export type BreakPerson = { id: number; display_name: string; avatar_color: number; photo?: number | null };
 
 /** A break request ("Pauze samen?", api/roosters/breaks.py). `mode` is as the one who asked put it (i_come: they
  * come to the others). state: planned (someone said yes), declined (everyone said no), pending. */
@@ -184,7 +187,7 @@ export type Courses = {
 
 export type Invite = { code: string; url: string; expires_at: string; uses: number; max_uses: number };
 
-export type PersonCard = { id: number; display_name: string; avatar_color: number };
+export type PersonCard = { id: number; display_name: string; avatar_color: number; photo?: number | null };
 
 export type Requests = {
   incoming: { id: number; user: PersonCard }[];
@@ -193,7 +196,7 @@ export type Requests = {
 
 export type Classmate = PersonCard & { classes: string[]; requested: boolean };
 
-export type ChatPerson = { id: number; display_name: string; avatar_color: number };
+export type ChatPerson = { id: number; display_name: string; avatar_color: number; photo?: number | null };
 
 /** An event in a chat; the app writes the sentence. `names`: everyone it mentions, by id, as they were then. */
 export type ChatEvent =
@@ -223,6 +226,7 @@ export type Chat = {
   name: string | null;
   with_id?: number | null;
   avatar_color?: number;
+  photo?: number | null;
   pinned: boolean;
   unread: number;
   last_read_id: number;

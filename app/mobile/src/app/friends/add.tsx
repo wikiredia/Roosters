@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { useAcceptInvite, useClassmates, useFriendRequest, useMe } from '@/api/hooks';
 import { VerifyFirst } from '@/components/VerifyFirst';
 import { InviteCard } from '@/components/InviteCard';
+import { QrCard, ScanCard } from '@/components/QrCard';
 import { Avatar, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Inputs';
@@ -14,7 +15,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { ApiError } from '@/lib/api';
 
-/** Your link, a friend's code, or classmates who are already on Roosters+. */
+/** Your link and code, your QR code, scanning a friend's, typing a friend's code, or classmates who are already on Roosters+. */
 export default function AddFriendScreen() {
   const { t } = useT();
   const mates = useClassmates();
@@ -40,6 +41,8 @@ export default function AddFriendScreen() {
   return (
     <Screen back navTitle={t('me.addFriend')}>
       <InviteCard />
+      <QrCard />
+      <ScanCard />
 
       <Section>
         <SectionHead title={t('add.haveCode')} />
@@ -66,7 +69,7 @@ export default function AddFriendScreen() {
                 first={i === 0}
                 title={m.display_name}
                 sub={m.classes.join(', ')}
-                left={<Avatar name={m.display_name} color={m.avatar_color} />}
+                left={<Avatar name={m.display_name} color={m.avatar_color} uid={m.id} photo={m.photo} />}
                 right={
                   m.requested ? (
                     <Tag kind="ok" icon="check">

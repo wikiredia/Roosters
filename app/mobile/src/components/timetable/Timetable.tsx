@@ -77,7 +77,9 @@ export type Span = { start: number; end: number };
 
 export type Block =
   | { type: 'lesson'; lesson: Lesson; past: boolean }
-  | { type: 'together'; span: Span; label: string }
+  /** names: who you share it with (two shown, then "+n"); muted: you can't ask for it (over, or further than two
+   * weeks ahead): hatched instead of solid yellow */
+  | { type: 'together'; span: Span; label: string; names?: string[]; muted?: boolean }
   | { type: 'friend'; span: Span }
   | { type: 'free'; span: Span; label?: string };
 
@@ -114,12 +116,29 @@ export function mergeLessons(lessons: Lesson[]): Lesson[] {
   return out;
 }
 
+export type TogetherSlot = Span & { label: string; names?: string[]; muted?: boolean };
+
 /** Lessons + shared breaks of one day as blocks for a column. */
-export function dayBlocks(lessons: Lesson[], together: (Span & { label: string })[], nowMin: number | null): Block[] {
+export function dayBlocks(lessons: Lesson[], together: TogetherSlot[], nowMin: number | null): Block[] {
   return [
     ...mergeLessons(lessons).map((l) => ({ type: 'lesson' as const, lesson: l, past: nowMin != null && l.end <= nowMin })),
-    ...together.map((s) => ({ type: 'together' as const, span: { start: s.start, end: s.end }, label: s.label })),
+    ...together.map((s) => ({ type: 'together' as const, span: { start: s.start, end: s.end }, label: s.label, names: s.names, muted: s.muted })),
   ];
+}
+
+/** Diagonal lines over a block (an overlap, a shared break you can't ask for): wider than any column, the
+ * parent clips them. */
+export function Hatch({ color, gap = 7 }: { color: string; gap?: number }) {
+  const w = useWindowDimensions().width;
+  const lines: number[] = [];
+  for (let x = 0; x < w + 400; x += gap) lines.push(x);
+  return (
+    <Svg width="100%" height="100%" style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
+      {lines.map((x) => (
+        <Line key={x} x1={x} y1={0} x2={x - 400} y2={400} stroke={color} strokeWidth={1.5} />
+      ))}
+    </Svg>
+  );
 }
 
 /** A free moment shorter than this (minutes) is just walking to the next room. */
@@ -186,10 +205,6 @@ export function lessonsAt(lessons: Lesson[], min: number): Lesson[] {
  */
 export function OverlapBand({ overlap, style, compact, label = true, t }: { overlap: Overlap; style: object; compact?: boolean; label?: boolean; t: (k: Key, p?: Record<string, string | number>) => string }) {
   const stroke = String(useCSSVariable('--color-line-strong') ?? '#C9C4B8');
-  // Wider than any column: the Svg clips the lines to the band
-  const w = useWindowDimensions().width;
-  const lines: number[] = [];
-  for (let x = 0; x < w + 400; x += 7) lines.push(x);
   const names = overlap.lessons.map((l) => (compact ? shortCourse(l.course ?? '') : l.course) || t('tt.lesson'));
   return (
     <View
@@ -199,11 +214,7 @@ export function OverlapBand({ overlap, style, compact, label = true, t }: { over
       accessible
       accessibilityLabel={t('tt.overlap', { names: names.join(', '), from: hhmm(overlap.start), to: hhmm(overlap.end) })}
     >
-      <Svg width="100%" height="100%" style={{ position: 'absolute', left: 0, top: 0 }}>
-        {lines.map((x) => (
-          <Line key={x} x1={x} y1={0} x2={x - 400} y2={400} stroke={stroke} strokeWidth={1.5} />
-        ))}
-      </Svg>
+      <Hatch color={stroke} />
       {label ? (
         <View className="px-1.5 py-0.5 self-start m-0.5 rounded bg-surface">
           <Text variant="xs" bold numberOfLines={compact ? 2 : 1}>
@@ -315,29 +326,7 @@ export function TimeGrid({ columns, pxPerHour = 48, nowMin, compact, onPressLess
 export function BlockView({ block, style, compact, onPressLesson, onPressInLesson, onPressTogether, t }: { block: Block; style: object; compact?: boolean; onPressLesson?: (l: Lesson) => void; onPressInLesson?: () => void; onPressTogether?: (s: Span) => void; t: (k: Key, p?: Record<string, string | number>) => string }) {
   const pad = compact ? 'px-1.5 py-1' : 'px-2.5 py-1.5';
   if (block.type === 'together') {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${t('tt.together')} ${block.label}, ${hhmm(block.span.start)} ${t('tt.to')} ${hhmm(block.span.end)}`}
-        onPress={onPressTogether ? () => onPressTogether(block.span) : undefined}
-        className={cn('rounded-block bg-together overflow-hidden', pad, compact && 'items-center justify-center')}
-        style={style}
-      >
-        <View className="flex-row items-center gap-1">
-          <Icon name="together" size={15} color="#161F2A" strokeWidth={2} />
-          {!compact ? (
-            <Text variant="sm" bold tone="onTogether">
-              {t('tt.together')}
-            </Text>
-          ) : null}
-        </View>
-        {!compact && block.label ? (
-          <Text variant="xs" tone="onTogether" numberOfLines={1}>
-            {block.label}
-          </Text>
-        ) : null}
-      </Pressable>
-    );
+    return <TogetherBlock block={block} style={style} compact={compact} pad={pad} onPressTogether={onPressTogether} t={t} />;
   }
   if (block.type === 'friend') {
     return (
@@ -353,7 +342,7 @@ export function BlockView({ block, style, compact, onPressLesson, onPressInLesso
     return (
       <View className="rounded-[6px] bg-surface-sunken overflow-hidden" style={style}>
         <View className="absolute top-1 right-1">
-          <Icon name="coffee" size={compact ? 11 : 13} color="ink-3" strokeWidth={1.75} />
+          <Icon name="coffee" size={compact ? 15 : 18} color="ink-3" strokeWidth={1.75} />
         </View>
         {block.label ? (
           <Text variant="xs" tone="ink3" numberOfLines={1} className={pad}>
@@ -420,6 +409,39 @@ export function BlockView({ block, style, compact, onPressLesson, onPressInLesso
           )}
         </>
       )}
+    </Pressable>
+  );
+}
+
+/**
+ * A shared break: the icon in the top corner with who it's with next to it (two names at most, then "+2", so
+ * it never takes more room than the block has). One you can't ask for any more (or yet) is hatched yellow.
+ */
+function TogetherBlock({ block, style, compact, pad, onPressTogether, t }: { block: Extract<Block, { type: 'together' }>; style: object; compact?: boolean; pad: string; onPressTogether?: (s: Span) => void; t: (k: Key, p?: Record<string, string | number>) => string }) {
+  const hatch = String(useCSSVariable('--color-together') ?? '#FFC21A');
+  const names = block.names ?? [];
+  const shown = names.slice(0, 2).map((n) => (compact ? n.split(/\s+/)[0] : n));
+  const extra = names.length - shown.length;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${t('tt.together')} ${block.label}, ${hhmm(block.span.start)} ${t('tt.to')} ${hhmm(block.span.end)}`}
+      onPress={onPressTogether && !block.muted ? () => onPressTogether(block.span) : undefined}
+      className={cn('rounded-block overflow-hidden', pad, block.muted ? 'bg-together-soft border-[1.5px] border-together' : 'bg-together')}
+      style={style}
+    >
+      {block.muted ? <Hatch color={hatch} gap={8} /> : null}
+      <View className="flex-row items-center gap-1">
+        <Icon name="together" size={compact ? 13 : 15} color="#161F2A" strokeWidth={2} />
+        <Text variant="xs" bold tone="onTogether" numberOfLines={1} className="flex-shrink">
+          {shown[0] ?? (compact ? '' : t('tt.together'))}
+        </Text>
+      </View>
+      {shown[1] ? (
+        <Text variant="xs" bold tone="onTogether" numberOfLines={1}>
+          {extra > 0 ? `${shown[1]} +${extra}` : shown[1]}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }

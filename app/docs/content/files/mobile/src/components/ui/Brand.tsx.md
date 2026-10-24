@@ -1,10 +1,12 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 Brand marks.
 
 ## `AppIcon`
+
+`mono`: black and white, for the middle of the QR code (`components/QrCard.tsx`).
 
 The app icon as drawn on the brand board.
 

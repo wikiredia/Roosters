@@ -1,28 +1,40 @@
 ---
-updated: 2026-10-24T05:26:38Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **"Pauze samen?"**: the sheet that asks friends to spend a shared break together, opened by tapping a shared break on
-Today ('Pak je pauze met') or in the Rooster grid. Who (chips when you share it with several friends; the time
-follows what everyone you picked has free), how (I come / you come / meet, with a place), from–until in steps of
-5 minutes within the break, and a short note. **'Ander uur'** on a request you got uses the same sheet: any time that
-day, sent with `useAnswerBreak` (`counter`). The server checks that everyone is free and nobody asked already; what's
-wrong shows above the button in words (`lib/breaks.breakError`). 'Vergelijk roosters' goes to Compare with the same
-people. API: `api/roosters/breaks.py`.
+Today ('Pak je pauze met') or in the calendar (Rooster, Vergelijken). Three short pages that slide sideways, a back
+arrow in the title row:
+
+1. **Who**: a row per friend (photo, name, from–until, how long, an arrow), also when there's only one; with
+   several free at the same time also 'Allemaal (n)' with the window they share.
+2. **How and when**: I come / you come / meet (with a place), from–until in steps of 5 minutes within the break,
+   'Volgende'.
+3. **A note**, and 'Vraag het'. What the server refuses (someone has class, it was asked already) shows here in words
+   (`lib/breaks.breakError`).
+
+**'Ander uur'** on a request you got uses the same sheet from page 2: any time that day, sent with
+`useAnswerBreak` (`counter`). API: `api/roosters/breaks.py`. Shared breaks you can't ask for (over, too far ahead)
+never open it: they're hatched in the calendar.
 
 ## `BreakSheet`, `BreakTarget`, `BreakPick`
 
-The sheet; what it's for (`ask` with the day and the people, each with their own free window, or `counter` with the
-request you answer; null = closed); a friend with their window. It keeps showing the last target while it slides away.
+The sheet and its page (`Step`, `ORDER`); what it's for (`ask` with the day and the people, each with their own
+free window, or `counter` with the request you answer; null = closed); a friend with their window. It keeps
+showing the last target while it slides away; a new target starts on its first page.
 
 ## `Form`
 
-The fields, fresh for every new target (keyed).
+The fields, fresh for every new target (keyed); each page slides in from the side you're going to.
+
+## `Summary`
+
+Who, which day, from–until: on top of pages 2 and 3.
 
 ## `TimeRow`
 
 "Van 10:30 − +": one 'adjustable' control for screen readers.
 
-## `STEP`, `DAY_SPAN`
+## `STEP`, `DAY_SPAN`, `Step`, `ORDER`, `T`
 
-5 minutes a tap; another time may go from 07:00 to 22:00.
+5 minutes a tap; another time may go from 07:00 to 22:00; the pages in order.
