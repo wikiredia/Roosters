@@ -59,6 +59,11 @@ docker compose exec api python -m roosters.cli schools
 Code changes in `api/roosters/` are picked up by the API automatically (`--reload`); restart the worker
 with `docker compose restart worker`. Start over with an empty database: `docker compose down -v`.
 
+**Update and restart in one go** (from the repo root): `./server-restart.sh` pulls (fast-forward only), rebuilds and
+restarts every service (new migrations run when the API starts), waits until the API answers, runs `npm ci` when
+the app's dependencies changed, and starts Expo with a clean cache pointing at `http://94.226.242.154:8010`.
+Another address: `API_URL=http://<ip>:<port> ./server-restart.sh`; without Expo: `./server-restart.sh --no-expo`.
+
 ### The app
 
 Needs Node 20+. On your phone: install **Expo Go** (App Store / Play Store), same wifi as your laptop.
