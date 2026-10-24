@@ -1,13 +1,15 @@
 """Test people for trying the app on a laptop or test server: made-up friends with a made-up timetable, so you can
 switch to them (r_debug.login_as) and see what a friend sees. Only reachable through r_debug.py (ENV=dev).
 
-Test people are recognised by their e-mail domain (TEST_DOMAIN); removing them removes everything they have.
+Test people are recognised by their e-mail domain (TEST_DOMAIN) and belong to the account that made them
+(`users.test_owner_id`): only that account sees them, switches to them and removes them. Each has an e-mail sign-in
+identity like a real account, so switching to one goes through the same sign-in code as a real login.
 Their timetable is a personal calendar source without a link (sync never fetches it: `last_sync` far in the
 future), filled with lessons from this week back to last week and three weeks ahead, different per person.
 Test chats (give_chats): a group with your test friends and a one-to-one chat, with a few of their messages."""
 import datetime as dt
-import hashlib
 import random
+import secrets
 
 from . import accounts, chat, db, friends, schedule, sync
 from .errors import ApiError
@@ -71,21 +73,32 @@ def give_timetable(c, user_id: int, today: dt.date) -> int:
     return len(rows)
 
 
+def owner_of(user: dict) -> int:
+    """The real account behind whoever is signed in: yourself, or the owner of the test person you switched to."""
+    return user.get("test_owner_id") or user["id"]
+
+
 def create(me: dict, count: int, befriend: bool) -> list[int]:
-    """`count` test people at your school and campus, onboarded, each with a test timetable; friends with you
-    unless `befriend` is off. Names come from NAMES (then numbered)."""
+    """`count` test people at your school and campus, onboarded, each with a test timetable and an e-mail sign-in,
+    owned by your real account; friends with you (whoever you are now) unless `befriend` is off. Names come from
+    NAMES (then numbered)."""
     today = schedule.local_now(me).date()
-    taken = {r["display_name"] for r in db.rows("SELECT display_name FROM users WHERE email LIKE %s", (f"%@{TEST_DOMAIN}",))}
+    owner = owner_of(me)
+    taken = {r["display_name"] for r in db.rows("SELECT display_name FROM users WHERE test_owner_id=%s", (owner,))}
     free = [n for n in NAMES if n not in taken] or [f"Test {len(taken) + i + 1}" for i in range(count)]
     made = []
     with db.tx() as c:
         for i in range(count):
             name = free[i] if i < len(free) else f"Test {len(taken) + i + 1}"
-            tag = hashlib.sha1(f"{name}:{db.utcnow().isoformat()}:{i}".encode()).hexdigest()[:6]
-            uid = db.run("INSERT INTO users (display_name, email, locale, school_id, campus_id, avatar_color, onboarded_at) "
-                         "VALUES (%s,%s,%s,%s,%s,%s,UTC_TIMESTAMP())",
-                         (name, f"{name.lower().replace(' ', '')}.{tag}@{TEST_DOMAIN}", me.get("locale") or "nl",
-                          me.get("school_id"), me.get("campus_id"), random.randrange(8)), c)
+            tag = secrets.token_hex(4)
+            email = f"{name.lower().replace(' ', '')}.{tag}@{TEST_DOMAIN}"
+            uid = db.run("INSERT INTO users (display_name, email, locale, school_id, campus_id, avatar_color, onboarded_at, "
+                         "test_owner_id) VALUES (%s,%s,%s,%s,%s,%s,UTC_TIMESTAMP(),%s)",
+                         (name, email, me.get("locale") or "nl", me.get("school_id"), me.get("campus_id"),
+                          random.randrange(8), owner), c)
+            # Signed up with e-mail, like a real account (the switch signs in through it)
+            db.run("INSERT INTO auth_identities (user_id, provider, subject, email) VALUES (%s,'email',%s,%s)",
+                   (uid, email, email), c)
             give_timetable(c, uid, today)
             if befriend and uid != me["id"]:
                 friends.connect(c, me["id"], uid)
@@ -94,9 +107,9 @@ def create(me: dict, count: int, befriend: bool) -> list[int]:
 
 
 def give_chats(me: dict) -> list[int]:
-    """A group "De bende" with you and (up to 5 of) your test friends, and a one-to-one chat with the first, each
+    """A group "De bende" with you and (up to 5 of) your own test friends, and a one-to-one chat with the first, each
     with a few messages from them, so the chat screens have something to show. -> chat ids"""
-    mates = [m["user"] for m in friends.visible_friends(me["id"]) if is_test(m["user"])][:5]
+    mates = [m["user"] for m in friends.visible_friends(me["id"]) if m["user"]["test_owner_id"] == owner_of(me)][:5]
     if not mates:
         raise ApiError(400, "chat_people")
     with db.tx() as c:
@@ -109,9 +122,13 @@ def give_chats(me: dict) -> list[int]:
     return [group, direct]
 
 
-def remove_all() -> int:
-    """Removes every test person and everything they have. -> how many."""
-    ids = [r["id"] for r in db.rows("SELECT id FROM users WHERE email LIKE %s", (f"%@{TEST_DOMAIN}",))]
+def mine(owner: int) -> list[int]:
+    return [r["id"] for r in db.rows("SELECT id FROM users WHERE test_owner_id=%s", (owner,))]
+
+
+def remove_all(owner: int) -> int:
+    """Removes every test person of this account and everything they have. -> how many."""
+    ids = mine(owner)
     with db.tx() as c:
         for uid in ids:
             accounts.delete_user(c, uid)
