@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T11:30:00Z
 ---
 
 Words for **break requests** (`components/BreakSheet.tsx`, the 'Pauzeverzoeken' section on Today).
@@ -25,3 +25,14 @@ asked already (by you, by them, or that it's planned), offline, or the server's 
 ## `duration`
 
 "45 min", "1 u", "1 u 30": how long a free window lasts (the rows of `BreakSheet`).
+
+## `stateWith`, `WithState`, `RANK`
+
+Where you stand with one friend about a break that overlaps a time on a day: planned, asked (you asked, no answer),
+theirs (they asked you), declined; the strongest when several requests overlap. `BreakSheet` shows it per person
+and won't ask twice.
+
+## `slotState`
+
+A shared break with several friends as one block (calendar, Today): planned when one of them is, asked while a
+question is open, declined only when every one of them said no.

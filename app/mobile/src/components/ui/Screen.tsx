@@ -23,8 +23,10 @@ type ScreenProps = {
   navTitle?: string;
   /** A small line under navTitle ("5 leden · 2 nu vrij") */
   navSub?: string;
-  /** In place of the small title (a chat: the photo and name, tappable) */
+  /** In place of the small title (a chat: the photo, in line with the back button) */
   navCenter?: ReactNode;
+  /** A line under the nav row, centred (a chat: the name under the photo) */
+  navBelow?: ReactNode;
   back?: boolean;
   /** What the back button does instead of going back (a screen with steps goes to the previous step) */
   onBack?: () => void;
@@ -44,7 +46,7 @@ type ScreenProps = {
 };
 
 /** Every screen: safe area, header, network banner, scrollable content and an optional sticky footer. */
-export function Screen({ children, title, eyebrow, heading, right, navTitle, navSub, navCenter, back, onBack, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
+export function Screen({ children, title, eyebrow, heading, right, navTitle, navSub, navCenter, navBelow, back, onBack, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const hasNav = back || progress || navTitle !== undefined;
@@ -102,6 +104,7 @@ export function Screen({ children, title, eyebrow, heading, right, navTitle, nav
           {navRight ?? (progress ? null : <View className="w-11" />)}
         </View>
       ) : null}
+      {hasNav && navBelow ? <View className="items-center px-16 -mt-1 pb-1">{navBelow}</View> : null}
       {title ? (
         <View className="px-5 pt-1 pb-3">
           {/* The eyebrow has the whole width and one line: a long date never pushes the page down */}

@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 
-import { useAnswerBreak, useAskBreak } from '@/api/hooks';
+import { useAnswerBreak, useAskBreak, useBreaks } from '@/api/hooks';
 import type { BreakMode, BreakRequest } from '@/api/types';
-import { Avatar, AvatarStack, Segmented } from '@/components/ui/Bits';
+import { Avatar, AvatarStack, Segmented, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Inputs';
 import { Card, Row } from '@/components/ui/Layout';
@@ -12,11 +12,18 @@ import { AView } from '@/components/ui/Motion';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { breakError, dayWord, duration } from '@/lib/breaks';
+import { breakError, dayWord, duration, stateWith, type WithState } from '@/lib/breaks';
 import { joinNames } from '@/lib/status';
 import { hhmm, isoDay, range } from '@/lib/time';
 
 const STEP = 5;
+/** How a friend you already asked (or who asked you) shows in the list; open: you can't ask again now */
+const STATE_TAG: Record<WithState, { kind: 'together' | 'line' | 'you' | 'bad'; label: 'break.stPlanned' | 'break.stAsked' | 'break.stTheirs' | 'break.stDeclined'; open: boolean }> = {
+  planned: { kind: 'together', label: 'break.stPlanned', open: false },
+  asked: { kind: 'line', label: 'break.stAsked', open: false },
+  theirs: { kind: 'you', label: 'break.stTheirs', open: false },
+  declined: { kind: 'bad', label: 'break.stDeclined', open: true },
+};
 /** "Ander uur" may go anywhere in the school day */
 const DAY_SPAN: [number, number] = [7 * 60, 22 * 60];
 
@@ -92,7 +99,14 @@ function Form({ target, step, dir, go, onDone }: { target: NonNullable<BreakTarg
   const { t, lang } = useT();
   const ask = useAskBreak();
   const answer = useAnswerBreak();
+  const breaks = useBreaks();
   const people = target.kind === 'ask' ? target.people : [];
+  // Already asked, planned or asked by them: shown with its state, and not asked twice
+  const states = new Map(people.map((p) => [p.id, stateWith(breaks.data, p.id, target.kind === 'ask' ? target.day : '', p.start, p.end)?.state ?? null]));
+  const askable = people.filter((p) => {
+    const st = states.get(p.id);
+    return !st || STATE_TAG[st].open;
+  });
   const [chosen, setChosen] = useState<number[]>(people.length === 1 ? [people[0].id] : []);
   const window = (ids: number[]): [number, number] => {
     const ps = people.filter((p) => ids.includes(p.id));
@@ -112,7 +126,7 @@ function Form({ target, step, dir, go, onDone }: { target: NonNullable<BreakTarg
   const busy = ask.isPending || answer.isPending;
   const names = new Map((r ? [r.from] : people).map((p) => [p.id, p.display_name]));
   // Several friends free at the same time: asking them all at once is one row too
-  const together = people.length > 1 ? window(people.map((p) => p.id)) : null;
+  const together = askable.length > 1 ? window(askable.map((p) => p.id)) : null;
   const all = together && together[1] - together[0] >= STEP ? together : null;
 
   function pick(ids: number[]) {
@@ -150,27 +164,32 @@ function Form({ target, step, dir, go, onDone }: { target: NonNullable<BreakTarg
           {all ? (
             <Row
               first
-              left={<AvatarStack people={people.map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="sm" ring="surface" />}
-              title={t('break.everyone', { n: people.length })}
+              left={<AvatarStack people={askable.map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="sm" ring="surface" />}
+              title={t('break.everyone', { n: askable.length })}
               sub={range(all[0], all[1])}
               right={<Text variant="sm" bold tone="ink2">{duration(all[1] - all[0], t)}</Text>}
               chevron
-              onPress={() => pick(people.map((p) => p.id))}
+              onPress={() => pick(askable.map((p) => p.id))}
             />
           ) : null}
-          {people.map((p, i) => (
-            <Row
-              key={p.id}
-              first={!all && i === 0}
-              left={<Avatar name={p.display_name} color={p.avatar_color} uid={p.id} photo={p.photo} />}
-              title={p.display_name}
-              sub={range(p.start, p.end)}
-              right={<Text variant="sm" bold tone="ink2">{duration(p.end - p.start, t)}</Text>}
-              chevron
-              accessibilityLabel={`${p.display_name}, ${range(p.start, p.end)}, ${duration(p.end - p.start, t)}`}
-              onPress={() => pick([p.id])}
-            />
-          ))}
+          {people.map((p, i) => {
+            const st = states.get(p.id);
+            const tag = st ? STATE_TAG[st] : null;
+            const open = !tag || tag.open;
+            return (
+              <Row
+                key={p.id}
+                first={!all && i === 0}
+                left={<Avatar name={p.display_name} color={p.avatar_color} uid={p.id} photo={p.photo} />}
+                title={p.display_name}
+                sub={`${range(p.start, p.end)} · ${duration(p.end - p.start, t)}`}
+                right={tag ? <Tag kind={tag.kind}>{t(tag.label)}</Tag> : undefined}
+                chevron={open}
+                accessibilityLabel={[p.display_name, range(p.start, p.end), duration(p.end - p.start, t), tag ? t(tag.label) : null].filter(Boolean).join(', ')}
+                onPress={open ? () => pick([p.id]) : undefined}
+              />
+            );
+          })}
         </Card>
       ) : null}
 

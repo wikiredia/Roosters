@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T11:30:00Z
 ---
 
 **"Pauze samen?"**: the sheet that asks friends to spend a shared break together, opened by tapping a shared break on
@@ -7,7 +7,9 @@ Today ('Pak je pauze met') or in the calendar (Rooster, Vergelijken). Three shor
 arrow in the title row:
 
 1. **Who**: a row per friend (photo, name, from–until, how long, an arrow), also when there's only one; with
-   several free at the same time also 'Allemaal (n)' with the window they share.
+   several free at the same time also 'Allemaal (n)' with the window they share. Someone you already asked, have a
+   break planned with, or who asked you, has a tag ('Gevraagd', 'Gepland', 'Vraagt jou') and can't be picked: no
+   asking twice (the server would refuse it). 'Zei nee' can be asked again.
 2. **How and when**: I come / you come / meet (with a place), from–until in steps of 5 minutes within the break,
    'Volgende'.
 3. **A note**, and 'Vraag het'. What the server refuses (someone has class, it was asked already) shows here in words
@@ -38,3 +40,7 @@ Who, which day, from–until: on top of pages 2 and 3.
 ## `STEP`, `DAY_SPAN`, `Step`, `ORDER`, `T`
 
 5 minutes a tap; another time may go from 07:00 to 22:00; the pages in order.
+
+## `STATE_TAG`
+
+How each state shows in the list, and whether you can ask again.

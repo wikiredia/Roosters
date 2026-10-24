@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { useMe, useUpdateMe } from '@/api/hooks';
+import { useCampuses, useMe, useSchools, useUpdateMe } from '@/api/hooks';
 import { Avatar } from '@/components/ui/Bits';
 import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +18,10 @@ export default function ProfileScreen() {
   const { t } = useT();
   const me = useMe();
   const update = useUpdateMe();
+  const schools = useSchools();
+  const campuses = useCampuses(me.data?.school_id ?? null);
+  const school = schools.data?.find((s) => s.id === me.data?.school_id);
+  const campus = campuses.data?.find((c) => c.id === me.data?.campus_id);
   const [name, setName] = useState('');
   const [color, setColor] = useState(1);
 
@@ -59,7 +63,12 @@ export default function ProfileScreen() {
         </View>
       </Section>
       <Card>
-        <Row first title={t('profile.campus')} chevron onPress={() => router.push({ pathname: '/onboarding/campus', params: { from: 'settings' } })} />
+        <Row
+          first
+          title={t('profile.campus')}
+          sub={campus?.name ?? t('profile.noCampus')}
+          right={school ? <Text tone="ink2">{school.short_name ?? school.name}</Text> : undefined}
+          chevron onPress={() => router.push({ pathname: '/onboarding/campus', params: { from: 'settings' } })} />
       </Card>
       <Text variant="sm" tone="ink2">
         {t('profile.note')}

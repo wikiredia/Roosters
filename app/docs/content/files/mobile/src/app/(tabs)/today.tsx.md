@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:19:44Z
+updated: 2026-10-24T11:30:00Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
@@ -61,3 +61,11 @@ to (Toch niet). A no you gave is gone; open questions are in `ForYou`. Hidden wh
 
 'Take your break with': shared breaks grouped per time slot; tap one to ask "Pauze samen?" (`BreakSheet`, from now on
 when it's already going). A slot with one friend has a chat button (their one-to-one chat, `useOpenDirect`).
+
+**Jouw pauzes** is split per state, each in a card with the look of the calendar's blocks: planned (bright yellow),
+asked and waiting (hatched), nobody can (soft red). In 'Pak je pauze met' a row says when you already asked,
+planned or got a no.
+
+## `StateCard`, `SECTION`
+
+A card in the colour and pattern of a break's state, and the section titles.

@@ -597,12 +597,28 @@ export const nl = {
   'qr.scanBody': 'Scan de QR-code van een vriend.',
   'qr.noCamera': 'Roosters+ mag je camera niet gebruiken. Zet het aan bij de instellingen van je telefoon.',
   'qr.notOurs': 'Dat is geen Roosters+-code.',
+  'rooster.onward': 'Naar {day}',
+  'tt.planned': 'Gepland',
+  'tt.asked': 'Gevraagd',
+  'tt.declined': 'Kan niet',
+  'break.stPlanned': 'Gepland',
+  'break.stAsked': 'Gevraagd',
+  'break.stTheirs': 'Vraagt jou',
+  'break.stDeclined': 'Zei nee',
+  'break.secPlanned': 'Gepland · {n}',
+  'break.secAsked': 'Gevraagd, wacht op antwoord · {n}',
+  'break.secDeclined': 'Kan niet · {n}',
+  'profile.noCampus': 'Nog niet gekozen',
+  'compare.forYou': 'Voor jou',
+  'compare.everyone': 'Alle vrienden',
+  'compare.sharedWeek': '{n} pauzes samen die week',
 } as const;
 
 export type Key = keyof typeof nl;
 
 /** Singular forms, used when the {n} parameter is 1. */
 export const nlOne: Partial<Record<`${Key}.one`, string>> = {
+  'compare.sharedWeek.one': '1 pauze samen die week',
   'chat.members.one': '1 lid',
   'chat.unreadLabel.one': '1 ongelezen',
   'chat.groupNew.one': 'Nieuwe groep · 1 persoon',
