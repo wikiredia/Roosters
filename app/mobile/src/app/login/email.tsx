@@ -60,7 +60,7 @@ export default function EmailLogin() {
   return (
     <Screen
       back
-      progress={inApp ? undefined : [1, 7]}
+      progress={inApp ? undefined : [1, 8]}
       navTitle={inApp ? t('steps.email') : undefined}
       navRight={inApp ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={skip} />}
       noBanner

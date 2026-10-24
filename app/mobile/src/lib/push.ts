@@ -1,3 +1,4 @@
+import { isRunningInExpoGo } from 'expo';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { router, type Href } from 'expo-router';
@@ -20,7 +21,8 @@ import { createStore } from './store';
  * - `handlePushResponses` (in the tabs layout): a tap opens what the push is about (`data.url`); Ja / Nee answers.
  *
  * Remote push needs a development build (not Expo Go on Android) and an EAS project id (`npx eas-cli init` writes
- * `extra.eas.projectId` into app.json). Without one, `pushState` says why.
+ * `extra.eas.projectId` into app.json). Without one, `pushState` says why, and the phone is never asked: a yes
+ * there would get you nothing. `pushAvailable` says so up front (the onboarding step is left out then).
  */
 export type PushState = 'unknown' | 'unsupported' | 'undetermined' | 'denied' | 'granted' | 'noProject' | 'failed';
 
@@ -29,6 +31,8 @@ export const pushState = createStore<PushState>('unknown');
 export type PushData = { kind?: string; url?: string; chat?: number; request?: number; day?: string };
 
 const SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
+/** Expo Go on Android has no remote push (since SDK 53): expo-notifications throws there */
+const EXPO_GO_ANDROID = Platform.OS === 'android' && isRunningInExpoGo();
 
 /** The chat on screen now: its messages don't come in as a banner, you're reading them already. */
 let openChat = 0;
@@ -42,6 +46,12 @@ function t(key: Parameters<typeof translate>[1]) {
 
 function projectId(): string | undefined {
   return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+}
+
+/** Can this phone get push at all (iOS/Android, not Expo Go on Android, with an EAS project id)? Asking only makes
+ * sense then. Known at once, without asking the phone anything. */
+export function pushAvailable(): boolean {
+  return SUPPORTED && !EXPO_GO_ANDROID && !!projectId();
 }
 
 async function setUpChannels() {
@@ -72,7 +82,9 @@ function set(s: PushState) {
  * (only after a tap: never out of the blue). Never throws: the answer is in `pushState`.
  */
 export async function registerPush(ask = false): Promise<PushState> {
-  if (!SUPPORTED) return set('unsupported');
+  if (!SUPPORTED || EXPO_GO_ANDROID) return set('unsupported');
+  // No project: no token, so don't ask the phone for nothing
+  if (!projectId()) return set('noProject');
   try {
     // Android 13+: the phone only asks once a channel exists
     await setUpChannels();
@@ -86,9 +98,7 @@ export async function registerPush(ask = false): Promise<PushState> {
       return set(status === 'denied' ? 'denied' : 'undetermined');
     }
     await setUpCategories();
-    const id = projectId();
-    if (!id) return set('noProject');
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId: id });
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId: projectId()! });
     await api.put('/api/v1/me/push-token', { token: data });
     await prefs.set('push-token', data);
     return set('granted');

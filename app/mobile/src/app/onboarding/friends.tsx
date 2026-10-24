@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { View } from 'react-native';
 
 import { useClassmates, useFriendRequest } from '@/api/hooks';
@@ -9,20 +10,23 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { useFinishOnboarding } from '@/lib/onboarding';
+import { pushAvailable } from '@/lib/push';
 
-/** Step 7: send your link, or add classmates who are already on Roosters+. Skipping is fine. */
+/** Step 7: send your link, or add classmates who are already on Roosters+. Skipping is fine. Then notifications
+ * (step 8), or Today when this phone can't get them (web, Expo Go on Android, no EAS project). */
 export default function FriendsStep() {
   const { t } = useT();
   const mates = useClassmates();
   const ask = useFriendRequest();
   const { finish, busy } = useFinishOnboarding();
+  const next = () => (pushAvailable() ? router.push('/onboarding/notifications') : finish());
 
   return (
     <Screen
       back
-      progress={[7, 7]}
-      navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
-      footer={<Button label={t('common.next')} loading={busy} onPress={finish} />}
+      progress={[7, 8]}
+      navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={next} />}
+      footer={<Button label={t('common.next')} loading={busy} onPress={next} />}
     >
       <View className="gap-2">
         <Text variant="title" accessibilityRole="header">

@@ -179,7 +179,7 @@ export default function ClassesStep() {
     <Screen
       scrollRef={scroll}
       back
-      progress={settings ? undefined : [4, 7]}
+      progress={settings ? undefined : [4, 8]}
       navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       navTitle={settings ? t('classes.addTitle') : undefined}
       footer={<Button label={label} disabled={settings ? todo.length === 0 : chosen.size === 0} loading={saving} onPress={next} />}

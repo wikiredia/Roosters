@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useMe } from '@/api/hooks';
 import type { Today } from '@/api/types';
 import { useT, type Key } from '@/i18n';
+import { pushState } from '@/lib/push';
 
 import { IconTile } from './ui/Bits';
 import type { IconName } from './ui/Icon';
@@ -13,11 +14,13 @@ type Step = { key: string; title: Key; sub: Key; icon: IconName; go: () => void 
 
 /**
  * Today: "Complete the following steps", for everything skipped in onboarding (lib/onboarding.ts).
- * Each step disappears once it's done; the card disappears with the last one.
+ * Each step disappears once it's done; the card disappears with the last one. Notifications go by what the phone
+ * says (`lib/push.pushState`), not by a flag: allowing them anywhere (or in the phone's settings) ticks it off.
  */
 export function SetupSteps({ d }: { d: Today }) {
   const { t } = useT();
   const me = useMe().data;
+  const push = pushState.use();
   if (!me) return null;
   const steps: Step[] = [];
   if (me.guest) {
@@ -37,6 +40,11 @@ export function SetupSteps({ d }: { d: Today }) {
   }
   if (!me.guest && d.friends.length === 0) {
     steps.push({ key: 'friends', title: 'steps.friends', sub: 'steps.friendsSub', icon: 'users', go: () => router.push('/friends/add') });
+  }
+  // Not asked yet on this phone. Allowed, or a no from the phone (Meldingen says how to turn it on): done.
+  // Can't get push here (web, Expo Go on Android, no EAS project): not a step.
+  if (push === 'undetermined') {
+    steps.push({ key: 'push', title: 'steps.push', sub: 'steps.pushSub', icon: 'bell', go: () => router.push({ pathname: '/onboarding/notifications', params: { from: 'settings' } }) });
   }
   if (steps.length === 0) return null;
   return (

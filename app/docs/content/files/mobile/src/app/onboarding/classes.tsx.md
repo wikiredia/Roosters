@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:30:00Z
 ---
 
-Step 3: your **classes per semester**. Two sections, **Semester 1** and **Semester 2** (with their months
+Step 4 of 8: your **classes per semester**. Two sections, **Semester 1** and **Semester 2** (with their months
 and a 'Now' tag), each showing the classes you picked for it; below, one search over the school's classes
 (the cached list, filtered offline). Every row has an **S1** and an **S2** chip (only for the semesters the
 class exists in, from `in_s1`/`in_s2`); tapping the row picks the class for every semester it exists in, or

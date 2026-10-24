@@ -11,9 +11,10 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { useFinishOnboarding } from '@/lib/onboarding';
+import { pushAvailable } from '@/lib/push';
 import { addDays, isoDay, monday } from '@/lib/time';
 
-/** Step 6, the "aha": your week, right away. */
+/** Step 6 of 8, the "aha": your week, right away. */
 export default function WeekStep() {
   const { t } = useT();
   const now = new Date();
@@ -27,12 +28,12 @@ export default function WeekStep() {
   const syncing = schedule.data?.sources.syncing;
   const me = useMe();
   const { finish, busy } = useFinishOnboarding();
-  // Guests can't add friends yet: the friends step comes later, from Today
-  const next = () => (me.data?.guest ? finish() : router.push('/onboarding/friends'));
+  // Guests can't add friends yet (the friends step comes later, from Today): on to notifications, if this phone can
+  const next = () => (!me.data?.guest ? router.push('/onboarding/friends') : pushAvailable() ? router.push('/onboarding/notifications') : finish());
   return (
     <Screen
       back
-      progress={[6, 7]}
+      progress={[6, 8]}
       navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       footer={<Button label={t('week.next')} loading={busy} onPress={next} />}
     >

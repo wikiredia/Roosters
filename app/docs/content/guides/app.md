@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-24T13:20:00Z
+updated: 2026-10-24T13:30:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -21,12 +21,14 @@ the first unfinished onboarding step, or Today (always Today once onboarding was
 
 ## Onboarding you can race through
 
-Welcome → (e-mail → code, or **continue without signing in**) → school → campus → classes → courses → week
-→ friends. Classes are picked **per semester** (S1 and S2 sections on one screen), and courses per semester
+Welcome → (e-mail → code, or **continue without signing in**) → profile → school → campus → classes → courses → week
+→ friends → notifications (guests skip friends; phones that can't get push skip notifications). Classes are picked **per semester** (S1 and S2 sections on one screen), and courses per semester
 from the **whole school year**, nothing chosen until you choose it, with a preview of the timetable you'll get
 ('Ik volg dit vak niet', 'Ik mis een les') before saving (`onboarding/classes.tsx`, `onboarding/courses.tsx`,
 `components/onboarding/CoursePreview.tsx`). Every step has **Skip**. What's skipped shows on Today as **Complete the following steps**
-(`components/SetupSteps.tsx`): confirm your e-mail, choose your school, add your timetable, add friends.
+(`components/SetupSteps.tsx`): confirm your e-mail, choose your school, add your timetable, add friends, turn on
+notifications. The notifications step (`onboarding/notifications.tsx`) explains first and asks the phone only after a
+tap; a no from the phone isn't asked again (it points to the phone's settings), and it counts as done.
 
 ## The Rooster tab
 

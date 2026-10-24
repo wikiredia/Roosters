@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:30:00Z
 ---
 
-Step 1: your e-mail address → `POST /auth/email/start` → the code screen. **Skip** makes a guest account. Opened from Today's steps (`from=steps`, or when already signed in as a guest) it has no progress bar and no skip, and the code screen upgrades the guest.
+Step 1 of 8: your e-mail address → `POST /auth/email/start` → the code screen. **Skip** makes a guest account. Opened from Today's steps (`from=steps`, or when already signed in as a guest) it has no progress bar and no skip, and the code screen upgrades the guest.
 
 ## `EmailLogin`
 

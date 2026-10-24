@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:30:00Z
 ---
 
-Step 5, **the 'aha'**: your week appears (at the weekend, next week). **Skip** or Next; guests finish here (friends need a confirmed e-mail).
+Step 6 of 8, **the 'aha'**: your week appears (at the weekend, next week). **Skip** finishes onboarding. Next goes to the friends step; guests (friends need a confirmed e-mail) go straight to the notifications step, or finish when this phone can't get push (`lib/push.pushAvailable`).
 
 ## `WeekStep`
 

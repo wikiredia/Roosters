@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:30:00Z
 ---
 
-Enter the **6-digit code** (`components/ui/Inputs.CodeInput`). Six digits are checked right away (also after
+Step 1 of 8 (with the e-mail screen): enter the **6-digit code** (`components/ui/Inputs.CodeInput`). Six digits are checked right away (also after
 a paste or the phone's 'code from mail' autofill). Resend after 60 s.
 
 A guest's token is freshened and sent along, so the server **upgrades** the guest account instead of making
