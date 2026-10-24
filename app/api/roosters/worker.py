@@ -10,7 +10,18 @@ import time
 import pymysql
 import redis
 
-from . import accounts, config, db, debug, idempotency, jobs, mailer, redisx, sync  # noqa: F401 (mailer, sync: register their jobs)
+from . import (  # noqa: F401 (mailer, push, sync: register their jobs)
+    accounts,
+    config,
+    db,
+    debug,
+    idempotency,
+    jobs,
+    mailer,
+    push,
+    redisx,
+    sync,
+)
 from .migrate import wait_for_db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")

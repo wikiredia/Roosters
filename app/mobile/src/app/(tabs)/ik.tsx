@@ -2,8 +2,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Linking, Platform, Share, View } from 'react-native';
 
-import { exportData, signOut, useCampuses, useFriends, useGhost, useMe, useSchools, useSources } from '@/api/hooks';
-import type { User } from '@/api/types';
+import { exportData, signOut, useCampuses, useFriends, useGhost, useMe, usePush, useSchools, useSources } from '@/api/hooks';
+import type { PushSettings, User } from '@/api/types';
 import { Avatar, IconTile, Option, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, ListHead, Row } from '@/components/ui/Layout';
@@ -12,6 +12,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { langPref, useT } from '@/i18n';
 import { confirm } from '@/lib/confirm';
+import { type PushState, pushState } from '@/lib/push';
 import { debugEnabled } from '@/lib/server';
 import { hhmm, minutesAgo, nowMin } from '@/lib/time';
 
@@ -34,6 +35,8 @@ export default function IkScreen() {
   const campuses = useCampuses(user?.school_id ?? null);
   const friends = useFriends();
   const sources = useSources();
+  const push = usePush();
+  const pushHere = pushState.use();
   const pref = langPref.use();
   const [ghostOpen, setGhostOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -130,7 +133,7 @@ export default function IkScreen() {
             chevron
             onPress={() => router.push('/settings/sources')}
           />
-          <Row left={<IconTile name="bell" />} title={t('me.notifications')} sub={t('me.notificationsSub')} right={<Tag>{t('common.soon')}</Tag>} />
+          <Row left={<IconTile name="bell" />} title={t('me.notifications')} sub={pushSummary(push.data?.settings, pushHere, t)} chevron onPress={() => router.push('/settings/notifications')} />
           <Row
             left={<IconTile name="globe" />}
             title={t('me.language')}
@@ -179,6 +182,16 @@ export default function IkScreen() {
       </Sheet>
     </Screen>
   );
+}
+
+/** "2 van 3 aan · stil 22:00–07:30", or that this phone doesn't get them. */
+function pushSummary(s: PushSettings | undefined, here: PushState, t: T) {
+  if (here === 'denied' || here === 'undetermined') return t('push.offHere');
+  if (!s) return t('me.notificationsSub');
+  const on = [s.requests, s.changes, s.chat].filter(Boolean).length;
+  return s.quiet_from != null && s.quiet_until != null
+    ? t('push.summaryQuiet', { on, n: 3, from: hhmm(s.quiet_from), until: hhmm(s.quiet_until) })
+    : t('push.summary', { on, n: 3 });
 }
 
 function agoLabel(min: number, t: T) {

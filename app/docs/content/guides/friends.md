@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T13:20:00Z
 ---
 
 ## Becoming friends
@@ -33,7 +33,8 @@ Every feature that shows one person's data to another must go through `friends.v
 Tap a shared break and ask "Pauze samen?": I come, you come or meet somewhere, from–until, a note. Only friends
 who can see you; everyone must be free then; no asking the same people twice for the same time (from either side).
 They answer yes, no or another time; the asker can take it back. Unfriending or blocking makes requests disappear.
-Every step leaves an in-app notification (push is the next step); a yes also shows up in the chats the two share.
+Every step leaves an in-app notification and a push (`push.py`; a request comes with Ja / Nee on the phone); a yes
+also shows up in the chats the two share.
 App: `components/BreakSheet.tsx`, Today's 'Voor jou' (questions to you) and 'Jouw pauzes'.
 
 ## Chat (chat.py)
@@ -45,7 +46,7 @@ Moderation, required by the stores for chat: long press → **report** ("Meld di
 or **block**; nobody is told. Someone you blocked is gone from your chats (also in groups). Reports go to the admin
 API (`/admin/v1/reports`: dismiss, remove the message, turn the writer off). Sending carries an Idempotency-Key,
 so a message retried on bad wifi is stored once. App: `(tabs)/chat.tsx`, `chat/[id].tsx`, `chat/new.tsx`,
-`components/chat/`. No push yet.
+`components/chat/`. Push per chat: the bell in a chat's info sheet (only for you, off by default; `push.py`).
 
 Tests: `api/tests/test_friends.py`, `api/tests/test_logic.py`, `api/tests/test_compare.py`, `api/tests/test_breaks.py`,
 `api/tests/test_chat.py`.

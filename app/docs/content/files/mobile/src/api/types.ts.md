@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:20:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -15,6 +15,11 @@ Parts of the Today answer.
 ## `Invite`, `PersonCard`, `Requests`, `Classmate`
 
 Social.
+
+## `PushSettings`, `Push`
+
+Meldingen (`api/roosters/push.py`): requests, timetable changes, chat, and quiet hours (minutes since midnight,
+both or neither); `Push` adds `device`, whether this phone is registered for push.
 
 ## `LessonState`, `Lesson`
 
@@ -41,7 +46,8 @@ into words from your side. Today carries them in `breaks` (optional: an API from
 
 ## `Chat`, `ChatDetail`, `ChatMessage`, `ChatEvent`, `ChatPerson`, `ReportReason`
 
-Chat (`api/roosters/chat.py`): a chat in the list (one-to-one: the friend's name and colour, `with_id`), one chat
+Chat (`api/roosters/chat.py`): a chat in the list (one-to-one: the friend's name and colour, `with_id`; `push`: its
+bell is on, only for you), one chat
 with everyone in it and how far they read, a message (`body` null when taken back or removed), an event (the app
 writes the sentence, `lib/chat.ts`), and the report reasons.
 

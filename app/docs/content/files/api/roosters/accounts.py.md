@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:10:00Z
 ---
 
 Operations on **whole accounts**, used by several routes so they behave the same everywhere:
@@ -15,7 +15,8 @@ test_delete_account_removes_everything` checks it.
 
 ## `_OWNED`
 
-Tables whose rows belong to exactly one user and are deleted with the account. Friendships, requests and blocks have two user columns and are handled separately.
+Tables whose rows belong to exactly one user and are deleted with the account (sessions take their push tokens with
+them; `push_settings` is Meldingen). Friendships, requests and blocks have two user columns and are handled separately.
 
 ## `delete_user`
 

@@ -20,6 +20,8 @@ import type {
   Friend,
   FriendSchedule,
   Invite,
+  Push,
+  PushSettings,
   ReportReason,
   Requests,
   Schedule,
@@ -53,6 +55,7 @@ export const keys = {
   chats: ['chats'] as const,
   chat: (id: number) => ['chat', id] as const,
   messages: (id: number) => ['chat-messages', id] as const,
+  push: ['push'] as const,
 };
 
 // ---- Reading ------------------------------------------------------------------------
@@ -267,9 +270,9 @@ export function useNewGroup() {
   return useChatWrite((v: { name: string; user_ids: number[] }) => api.post<{ chat: ChatDetail }>('/api/v1/chats', v).then((r) => r.chat));
 }
 
-/** Rename a group, or pin a chat (only for you). */
+/** Rename a group, or pin a chat or turn its bell on (only for you). */
 export function useEditChat(id: number) {
-  return useChatWrite((v: { name?: string; pinned?: boolean }) => api.patch<{ chat: ChatDetail }>(`/api/v1/chats/${id}`, v).then((r) => r.chat));
+  return useChatWrite((v: { name?: string; pinned?: boolean; push?: boolean }) => api.patch<{ chat: ChatDetail }>(`/api/v1/chats/${id}`, v).then((r) => r.chat));
 }
 
 export function useAddToChat(id: number) {
@@ -605,6 +608,28 @@ export function useBlock() {
   return useMutation({
     mutationFn: (id: number) => api.post('/api/v1/blocks', { user_id: id }),
     onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+// ---- Push ---------------------------------------------------------------------------
+
+/** Meldingen: the categories, quiet hours, and whether this phone is registered. */
+export function usePush() {
+  return useQuery({ queryKey: keys.push, queryFn: () => api.get<Push>('/api/v1/me/push') });
+}
+
+/** Only what changed; shown at once, put back if the server says no. */
+export function useSetPush() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: Partial<PushSettings>) => api.patch<Push>('/api/v1/me/push', v),
+    onMutate: (v) => {
+      const before = qc.getQueryData<Push>(keys.push);
+      if (before) qc.setQueryData<Push>(keys.push, { ...before, settings: { ...before.settings, ...v } });
+      return { before };
+    },
+    onError: (_e, _v, ctx) => ctx?.before && qc.setQueryData(keys.push, ctx.before),
+    onSuccess: (r) => qc.setQueryData(keys.push, r),
   });
 }
 

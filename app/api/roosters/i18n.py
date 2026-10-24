@@ -1,6 +1,7 @@
 """Dutch and English texts the server itself has to write: error messages and e-mails.
 
-Everything else (screens, push texts per kind) the app translates from codes."""
+Everything else (screens) the app translates from codes. Push texts are in push.py: they're written when the app
+isn't running."""
 
 LANGS = ("nl", "en")
 
@@ -59,6 +60,7 @@ ERRORS = {
     "chat_report_own": ("Dit bericht kan je niet melden.", "You can't report this message."),
     "verify_required": ("Bevestig eerst je e-mailadres om vrienden toe te voegen.",
                         "Confirm your e-mail address first to add friends."),
+    "push_token": ("Dit toestel kan geen meldingen krijgen.", "This device can't get notifications."),
     "account_disabled": ("Dit account is uitgeschakeld.", "This account has been turned off."),
 }
 

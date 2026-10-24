@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-24T11:01:00Z
+updated: 2026-10-24T13:20:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -10,7 +10,7 @@ Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen*
 | --- | --- |
 | `app/` | Screens: `index.tsx` (the gate), `welcome`, `login/`, `onboarding/`, `(tabs)/` (Today, Rooster, Chat, Me), `chat/` (a conversation, a new group), `friends/`, `settings/`, `i/[code]` (invite links), `compare`, `debug` |
 | `api/` | `hooks.ts` (every call as a TanStack Query hook) and `types.ts` (answer shapes) |
-| `lib/` | `api.ts` (the client for bad wifi), `session.ts`, `onboarding.ts`, `query.ts` (offline cache), `net.ts`, `server.ts`, `time.ts` |
+| `lib/` | `api.ts` (the client for bad wifi), `session.ts`, `onboarding.ts`, `query.ts` (offline cache), `net.ts`, `server.ts`, `time.ts`, `push.ts` |
 | `components/` | `ui/` (the design system; `ui/Motion.tsx` has the shared springs and press animation), `timetable/`, `onboarding/` (course previews), `SetupSteps`, `VerifyFirst`, `InviteCard` |
 | `i18n/` | `nl.ts` (source of truth for keys) and `en.ts` |
 
@@ -35,6 +35,14 @@ mirrored by the week strip above (`DayStrip.tsx`): they share the same animated 
 Drag the strip's dash, pinch or − / + for more or fewer days; double tap to zoom the hours; 'Vandaag' floats over
 the grid (`TodayPill.tsx`). Day math and where a swipe lands: `lib/days.ts`. Data comes a week at a time
 (`useWeeks`); every lesson kind has its own colour.
+
+## Push notifications
+
+`lib/push.ts`: once signed in, the tabs layout sends this phone's Expo push token to the server (only when
+notifications are already allowed: the phone is asked from **Ik → Meldingen**, `settings/notifications.tsx`, never
+out of the blue). A tapped push opens `data.url` (a chat, Today, the Rooster); Ja / Nee on a break request answers it.
+The server writes the texts and decides who gets what (`api/roosters/push.py`). Needs a development build and an EAS
+project id; see the guide **Running and operating**.
 
 ## Data and offline
 

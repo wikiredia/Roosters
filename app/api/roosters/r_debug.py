@@ -6,7 +6,7 @@ and the test people it made: never another real account."""
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from . import accounts, config, db, debug, friends, redisx, schedule, testdata, tokens
+from . import accounts, config, db, debug, friends, push, redisx, schedule, testdata, tokens
 from .deps import Ctx, auth, lang
 from .errors import ApiError
 from .r_auth import Device, _answer, _client_ip, _sign_in
@@ -33,6 +33,13 @@ def diagnose():
 def test_mail(body: TestMailIn, request: Request):
     redisx.rate_limit(f"debug-mail:{_client_ip(request)}", 10, 3600)
     return debug.send_test_mail(body.email.strip())
+
+
+@router.post("/push", dependencies=[Depends(dev_only)])
+def test_push(ctx: Ctx = Depends(auth)):
+    """A push to every phone you're signed in on, right away. -> {"devices": how many}"""
+    redisx.rate_limit(f"debug-push:{ctx.uid}", 20, 3600)
+    return {"devices": push.send_test(ctx.uid, ctx.user["locale"]), "mode": config.PUSH_MODE}
 
 
 # ---- Your test people ---------------------------------------------------------------
