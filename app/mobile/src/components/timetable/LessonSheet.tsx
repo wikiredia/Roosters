@@ -9,9 +9,10 @@ import { Card, Row } from '@/components/ui/Layout';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
+import { cn } from '@/lib/cn';
 import { hhmm, isoDay, parseDay, range, shortDate } from '@/lib/time';
 
-import { isOff, KIND_LABEL, lessonKind } from './Timetable';
+import { isOff, KIND_LABEL, KIND_STYLE, lessonKind } from './Timetable';
 
 type Props = {
   lesson: Lesson | null;
@@ -83,6 +84,36 @@ export function LessonSheet({ lesson, onClose, friends = [], together = [] }: Pr
         </View>
       ) : null}
       <Button variant="secondary" label={t('common.close')} onPress={onClose} />
+    </Sheet>
+  );
+}
+
+/**
+ * Lessons that overlap were tapped (or close to where they overlap): which one do you mean? Picking one opens
+ * its own sheet (the screen does that). In time order, each with its kind's colour, time and room.
+ */
+export function OverlapSheet({ choice, onClose, onPick }: { choice: { lessons: Lesson[] } | null; onClose: () => void; onPick: (l: Lesson) => void }) {
+  const { t } = useT();
+  // Keep showing the last choice while the sheet slides away
+  const [last, setLast] = useState(choice);
+  if (choice && choice !== last) setLast(choice);
+  const lessons = (choice ?? last)?.lessons ?? [];
+  return (
+    <Sheet visible={!!choice} onClose={onClose} closeLabel={t('common.close')} title={t('tt.whichLesson')}>
+      <Card>
+        {lessons.map((l, i) => (
+          <Row
+            key={`${l.start}:${l.course}:${l.location}`}
+            first={i === 0}
+            title={l.course ?? t('tt.lesson')}
+            sub={[range(l.start, l.end), t(KIND_LABEL[lessonKind(l)]), l.location].filter(Boolean).join(' · ')}
+            left={<View className={cn('w-3 h-9 rounded-full border-[1.5px]', KIND_STYLE[lessonKind(l)])} />}
+            chevron
+            accessibilityRole="button"
+            onPress={() => onPick(l)}
+          />
+        ))}
+      </Card>
     </Sheet>
   );
 }

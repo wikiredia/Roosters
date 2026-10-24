@@ -1,4 +1,6 @@
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
+import Svg, { Line } from 'react-native-svg';
+import { useCSSVariable } from 'uniwind';
 
 import type { Lesson } from '@/api/types';
 import { Icon } from '@/components/ui/Icon';
@@ -95,6 +97,81 @@ export function dayBlocks(lessons: Lesson[], together: (Span & { label: string }
     ...mergeLessons(lessons).map((l) => ({ type: 'lesson' as const, lesson: l, past: nowMin != null && l.end <= nowMin })),
     ...together.map((s) => ({ type: 'together' as const, span: { start: s.start, end: s.end }, label: s.label })),
   ];
+}
+
+/** A stretch of time where two or more (merged) lessons run at once, with the lessons involved. */
+export type Overlap = Span & { lessons: Lesson[] };
+
+/**
+ * Where a day's lessons overlap (Untis does that: two groups, a moved lesson, a class you follow twice).
+ * Cancelled lessons don't count: they don't take the time. Touching (11:00–12:00 and 12:00–13:00) isn't overlapping.
+ */
+export function overlapsOf(lessons: Lesson[]): Overlap[] {
+  const ls = mergeLessons(lessons).filter((l) => !isOff(l));
+  const parts: Overlap[] = [];
+  for (let i = 0; i < ls.length; i++)
+    for (let j = i + 1; j < ls.length; j++) {
+      const a = ls[i];
+      const b = ls[j];
+      if (a.day === b.day && a.start < b.end && b.start < a.end) parts.push({ start: Math.max(a.start, b.start), end: Math.min(a.end, b.end), lessons: [a, b] });
+    }
+  // Three lessons at once give overlapping pairs: one stretch with all of them
+  parts.sort((x, y) => x.start - y.start);
+  const out: Overlap[] = [];
+  for (const p of parts) {
+    const last = out[out.length - 1];
+    if (last && p.start < last.end) {
+      last.end = Math.max(last.end, p.end);
+      for (const l of p.lessons) if (!last.lessons.includes(l)) last.lessons.push(l);
+    } else out.push({ ...p, lessons: [...p.lessons] });
+  }
+  return out;
+}
+
+/** How close (minutes) a tap may be to an overlap to count as a tap on it: they're often only a few minutes. */
+export const OVERLAP_SLOP = 10;
+
+/** What a tap at `min` on a day means: one lesson, a choice between overlapping ones, or nothing. */
+export function lessonsAt(lessons: Lesson[], min: number): Lesson[] {
+  const near = overlapsOf(lessons).find((o) => o.start - OVERLAP_SLOP <= min && min < o.end + OVERLAP_SLOP);
+  if (near) return [...near.lessons].sort((a, b) => a.start - b.start || a.end - b.end);
+  const hit = mergeLessons(lessons).find((l) => l.start <= min && min < l.end);
+  return hit ? [hit] : [];
+}
+
+/**
+ * The hatched band over an overlap: diagonal lines, both course names. It sits on top of the blocks, which
+ * stay where they are; tapping it asks which lesson you mean.
+ */
+export function OverlapBand({ overlap, style, compact, label = true, t }: { overlap: Overlap; style: object; compact?: boolean; label?: boolean; t: (k: Key, p?: Record<string, string | number>) => string }) {
+  const stroke = String(useCSSVariable('--color-line-strong') ?? '#C9C4B8');
+  // Wider than any column: the Svg clips the lines to the band
+  const w = useWindowDimensions().width;
+  const lines: number[] = [];
+  for (let x = 0; x < w + 400; x += 7) lines.push(x);
+  const names = overlap.lessons.map((l) => (compact ? shortCourse(l.course ?? '') : l.course) || t('tt.lesson'));
+  return (
+    <View
+      className="rounded-[6px] overflow-hidden bg-surface border-[1.5px] border-line-strong"
+      style={style}
+      pointerEvents="none"
+      accessible
+      accessibilityLabel={t('tt.overlap', { names: names.join(', '), from: hhmm(overlap.start), to: hhmm(overlap.end) })}
+    >
+      <Svg width="100%" height="100%" style={{ position: 'absolute', left: 0, top: 0 }}>
+        {lines.map((x) => (
+          <Line key={x} x1={x} y1={0} x2={x - 400} y2={400} stroke={stroke} strokeWidth={1.5} />
+        ))}
+      </Svg>
+      {label ? (
+        <View className="px-1.5 py-0.5 self-start m-0.5 rounded bg-surface">
+          <Text variant="xs" bold numberOfLines={compact ? 2 : 1}>
+            {compact ? t('tt.overlapShort', { n: names.length }) : names.join(' · ')}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 function spanOf(b: Block): Span {

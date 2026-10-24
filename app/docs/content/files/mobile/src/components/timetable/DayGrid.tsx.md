@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T17:00:00Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -19,6 +19,9 @@ Lines are subtle dots (react-native-svg): hours across, a line between days. Les
 in from the side you came from; a day still loading shows a skeleton; today has the 'now' line.
 
 ## `DayGrid`, `Props`, `DayData`
+
+Overlapping lessons get an `OverlapBand` over the shared stretch. A tap there (or within 10 minutes of it,
+`Timetable.lessonsAt`) calls `onPressOverlap` with those lessons instead of opening one.
 
 As above. `DayData`: a day's lessons, its shared breaks (labelled) and whether it's still loading.
 

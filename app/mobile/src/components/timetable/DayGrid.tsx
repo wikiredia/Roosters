@@ -14,7 +14,7 @@ import { type Lang, useT } from '@/i18n';
 import { dateAt, MAX_DAYS, snap } from '@/lib/days';
 import { weekdayShort } from '@/lib/time';
 
-import { type Block, BlockView, dayBlocks, lessonLabel, mergeLessons, type Span } from './Timetable';
+import { type Block, BlockView, dayBlocks, lessonLabel, lessonsAt, OverlapBand, overlapsOf, type Span } from './Timetable';
 
 /** Height of the date above each column. */
 export const LABEL_H = 22;
@@ -46,6 +46,8 @@ type Props = {
   compact: boolean;
   lang: Lang;
   onPressLesson: (l: Lesson, day: number) => void;
+  /** A tap on (or close to) lessons that overlap: the screen asks which one you mean */
+  onPressOverlap: (ls: Lesson[], day: number) => void;
   onPressTogether: () => void;
   /** Where a swipe will land: called as the finger lets go, so dates and data update before it gets there. */
   onTarget: (start: number) => void;
@@ -115,8 +117,9 @@ export function DayGrid(p: Props) {
     const day = Math.floor(off + x / (width / n));
     const min = h0 * 60 + ((y - LABEL_H) / pxPerHour) * 60;
     const d = p.data(day);
-    const hit = mergeLessons(d?.lessons ?? []).find((l) => l.start <= min && min < l.end);
-    if (hit) p.onPressLesson(hit, day);
+    const hits = lessonsAt(d?.lessons ?? [], min);
+    if (hits.length > 1) p.onPressOverlap(hits, day);
+    else if (hits.length === 1) p.onPressLesson(hits[0], day);
     else if (d?.together.some((s) => s.start <= min && min < s.end)) p.onPressTogether();
   };
   const tap = Gesture.Tap()
@@ -155,7 +158,7 @@ export function DayGrid(p: Props) {
 type ColumnProps = Omit<Props, 'data' | 'from' | 'to'> & { day: number; pxPerHour: number; lineColor: string; data: DayData | undefined };
 
 /** One day. Placed and sized on the UI thread from `offset` and `count`; its blocks only re-render when its data changes. */
-const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, enterFrom, compact, lang, onPressLesson, onPressTogether }: ColumnProps) {
+const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, enterFrom, compact, lang, onPressLesson, onPressOverlap, onPressTogether }: ColumnProps) {
   const { t } = useT();
   const style = useAnimatedStyle(() => {
     const w = width / count.get();
@@ -165,6 +168,7 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
   const isToday = day === today;
   const [h0, h1] = hours;
   const blocks: Block[] = data ? dayBlocks(data.lessons, data.together, day === today ? nowMin : day < today ? 24 * 60 : null) : [];
+  const overlaps = data ? overlapsOf(data.lessons) : [];
   const y = (min: number) => LABEL_H + ((min - h0 * 60) / 60) * pxPerHour;
   const entering = (enterFrom > 0 ? FadeInRight : FadeInLeft).duration(240);
   return (
@@ -197,6 +201,16 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
             <View pointerEvents="none" style={{ flex: 1 }}>
               <BlockView block={b} style={{ flex: 1 }} compact={compact} t={t} />
             </View>
+          </AView>
+        );
+      })}
+      {/* Lessons at the same time: a hatched band over the shared stretch, on top of both blocks */}
+      {overlaps.map((o) => {
+        const top = y(Math.max(o.start, h0 * 60));
+        const h = Math.max(y(Math.min(o.end, h1 * 60)) - top - 3, 6);
+        return (
+          <AView key={`overlap:${o.start}`} entering={entering} layout={layout} style={{ position: 'absolute', top, height: h, left: 2, right: 2 }} accessible accessibilityRole="button" onAccessibilityTap={() => onPressOverlap(o.lessons, day)}>
+            <OverlapBand overlap={o} style={{ flex: 1 }} compact={compact} label={h >= 20} t={t} />
           </AView>
         );
       })}
