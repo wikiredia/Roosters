@@ -9,6 +9,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { describe, requestLog } from '@/lib/debuglog';
+import { type GoogleSupport, googleSupport } from '@/lib/google';
 import { pushState, registerPush, sendTestPush } from '@/lib/push';
 import { apiOverride, automaticApiBase, debugEnabled, setApiOverride } from '@/lib/server';
 
@@ -28,6 +29,15 @@ type Diagnose = {
 };
 
 type Check = { ok: boolean; text: string } | null;
+
+/** Why 'Continue with Google' does or doesn't show on this phone */
+const GOOGLE_STATUS: Record<GoogleSupport, string> = {
+  ready: 'Ready: the button shows on welcome (and for guests on the e-mail screen). The server needs the web client id in GOOGLE_CLIENT_IDS.',
+  web: 'Not on the web: Google sign-in is native only.',
+  expoGo: "Hidden in Expo Go: it needs native code. Use a development build (npx expo run:ios|android).",
+  notConfigured: 'Hidden: set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (and on iOS EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) in app/mobile/.env, then rebuild (iOS needs the URL scheme from app.config.ts) and restart Metro with -c.',
+  notInBuild: 'Hidden: this build has no Google sign-in module. Make a new development build.',
+};
 
 function errorText(e: unknown) {
   if (e instanceof NetworkError && e.log) return describe(e.log);
@@ -205,6 +215,15 @@ export default function DebugScreen() {
           </Text>
           <Button variant="tonal" icon="bell" label="Send a test push" loading={busy === 'push'} onPress={testPush} />
           {pushResult ? <Banner kind={pushResult.ok ? 'neutral' : 'bad'} title={pushResult.ok ? 'Test push' : 'Test push failed'} body={pushResult.text} /> : null}
+        </Card>
+      </View>
+
+      <View>
+        <ListHead>Sign in with Google</ListHead>
+        <Card className="p-4">
+          <Text variant="sm" tone="ink2">
+            {GOOGLE_STATUS[googleSupport()]}
+          </Text>
         </Card>
       </View>
 

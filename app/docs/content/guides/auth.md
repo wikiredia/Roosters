@@ -1,7 +1,7 @@
 ---
 title: Auth, sessions and guests
 position: 20
-updated: 2026-10-24T16:00:00Z
+updated: 2026-10-24T16:01:00Z
 ---
 
 ## Ways in
@@ -10,8 +10,17 @@ updated: 2026-10-24T16:00:00Z
 | --- | --- | --- |
 | E-mail code | `POST /api/v1/auth/email/start` → `/email/verify` | 6 digits, 10 minutes, 5 tries; only keyed hashes stored |
 | Apple | `POST /api/v1/auth/apple` | ID token checked against Apple's keys, audience and nonce |
-| Google | `POST /api/v1/auth/google` | ID token checked against Google's keys and audience |
+| Google | `POST /api/v1/auth/google` | ID token checked against Google's keys and audience (the **web** client id) |
 | **Guest** | `POST /api/v1/auth/guest` | no sign-in method yet; straight into the app |
+
+In the app: e-mail in `mobile/src/app/login/`, Apple on the welcome screen (iOS), Google in
+`mobile/src/lib/google.ts` + `mobile/src/components/GoogleButton.tsx` (welcome, and for guests the e-mail screen).
+Apple and Google need a **development build** (native code): in Expo Go, on the web or without client ids the
+buttons simply don't show.
+
+**Google's audience.** The app asks Google for an ID token for the **web** OAuth client (`webClientId`), on Android
+and iOS alike, so the token's `aud` is the web client id and that is what `GOOGLE_CLIENT_IDS` must contain. The iOS and
+Android clients only identify the app to Google (bundle id; package + SHA-1). Setup: guide **Running and operating**.
 
 All of them end in `tokens.start_session`: a **15-minute access token** (a JWT) and a **refresh token** that
 rotates on every use (180 days). The app keeps both in the phone's secure storage.
@@ -29,7 +38,7 @@ A guest has `users.is_guest = 1` and no identity. Guests can do everything **wit
 uses `Depends(verified)` and answers 403 `verify_required`, and guests never show up for anyone else
 (classmates, friend requests).
 
-When a guest signs in, the app sends the guest's token along (`mobile/src/lib/onboarding.ts`):
+When a guest signs in (e-mail code, or Google from the e-mail screen), the app sends the guest's token along (`mobile/src/lib/onboarding.ts`):
 - **new identity** → the guest account *becomes* the account (`r_auth._sign_in`): nothing is lost;
 - **existing account** → that account wins, and the guest's school and timetable come along only where the
   account has none (`accounts.fold_guest`); then the guest is deleted.

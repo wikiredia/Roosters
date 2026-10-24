@@ -24,6 +24,7 @@ export const nl = {
   'welcome.title': 'Zie wanneer je vrienden vrij zijn',
   'welcome.body': 'Je rooster komt rechtstreeks van school. Je ziet meteen met wie je pauze kan nemen.',
   'welcome.email': 'Ga verder met e-mail',
+  'welcome.google': 'Ga verder met Google',
   'welcome.legal': 'Door verder te gaan, ga je akkoord met de',
   'welcome.legalLink': 'voorwaarden en het privacybeleid',
   'welcome.guest': 'Verder zonder aan te melden',
@@ -36,6 +37,7 @@ export const nl = {
   'login.emailLabel': 'E-mailadres',
   'login.emailHint': 'Je schoolmail of je eigen mail, allebei goed.',
   'login.sendCode': 'Stuur code',
+  'login.or': 'of',
   'login.codeTitle': 'Vul de code in',
   'login.codeSent': 'We stuurden een code naar',
   'login.otherEmail': 'Ander e-mailadres',
@@ -46,6 +48,10 @@ export const nl = {
   'login.later': 'Later',
   'login.skipBody': 'Geen mail? Tik op Overslaan: je kan je e-mail later bevestigen via Vandaag.',
   'login.laterInApp': 'Nog geen mail? Tik op Later en probeer het wanneer je wil opnieuw.',
+
+  'google.playServices': 'Google Play-services ontbreken of zijn te oud op deze telefoon. Werk ze bij, of gebruik je e-mail.',
+  'google.notSetUp': 'Aanmelden met Google is nog niet goed ingesteld. Gebruik voorlopig je e-mail.',
+  'google.failed': 'Aanmelden met Google lukte niet. Probeer het opnieuw.',
 
   'school.viaUntis': 'Scholen met een Untis-rooster',
   'school.title': 'Op welke school zit je?',
