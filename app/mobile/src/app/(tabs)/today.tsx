@@ -41,7 +41,6 @@ export default function TodayScreen() {
           />
         ) : null
       }
-      refreshing={today.isRefetching}
       onRefresh={() => today.refetch()}
     >
       {!d ? (

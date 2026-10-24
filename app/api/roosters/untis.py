@@ -84,9 +84,10 @@ def search_schools(query: str) -> list[dict]:
     return out
 
 
-def list_classes(server: str, login: str) -> list[dict]:
+def list_classes(server: str, login: str, day: dt.date | None = None) -> list[dict]:
+    """The classes Untis has on `day` (default today): classes can differ per semester."""
     server = check_server(server)
-    day = dt.date.today().isoformat()
+    day = (day or dt.date.today()).isoformat()
     res = _get_json(server, f"/WebUntis/api/public/timetable/weekly/pageconfig?type={CLASS}&date={day}", login)
     elements = ((res or {}).get("data") or {}).get("elements") or []
     if not elements:
@@ -146,6 +147,11 @@ def parse_week(data: dict, class_id: int) -> list[dict]:
             "state": STATE_MAP.get(cell, "normal"),
         })
     return out
+
+
+def fetch_week(server: str, login: str, class_id: int, monday: dt.date) -> list[dict]:
+    """Lessons of one class in the week starting `monday` (the course scan of a whole school year)."""
+    return parse_week(_week(check_server(server), login, class_id, monday), class_id)
 
 
 def fetch_class(server: str, login: str, class_id: int, weeks: int | None = None, today: dt.date | None = None) -> list[dict]:

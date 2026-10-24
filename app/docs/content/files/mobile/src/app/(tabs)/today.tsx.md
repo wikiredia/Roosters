@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T02:00:00Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
@@ -43,7 +43,7 @@ The type of `t()` passed to the parts below.
 
 ## `TodayScreen`
 
-Puts the sections together; pull to refresh.
+Puts the sections together; pull to refresh (the spinner only for your own pull).
 
 ## `Together`
 

@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T02:00:00Z
 ---
 
 Tap on a lesson: when, what, where, and who else is free if it's cancelled.
 
 ## `Props`, `LessonSheet`
 
-A bottom sheet.
+A bottom sheet. Keeps the last lesson while it slides away (`lesson` becomes null when it closes).

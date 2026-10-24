@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T00:30:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -16,15 +16,19 @@ Social.
 
 A lesson: day, start/end minutes, busy, and (with detail) course, location, state, recently changed.
 
-## `Source`, `School`, `Campus`, `SchoolClass`, `Courses`
+## `Source`, `School`, `Campus`, `SchoolClass`, `Courses`, `Semester`, `Terms`, `SchoolClasses`
 
-Timetable sources and onboarding lists.
+Timetable sources (a class source has `semester`: 1, 2 or null for the whole year) and onboarding lists:
+classes with the semesters they exist in plus the school year's semester dates (`Terms`), and courses with
+`scanning` while the rest of the school year is still being fetched.
 
 ## `StatusCode`, `Status`
 
 Now-board status codes and times.
 
 ## `Today`, `Schedule`, `FriendSchedule`, `Compare`
+
+`loading` on Today, Schedule and FriendSchedule: a week far back or ahead is still being fetched.
 
 Whole answers of the main screens.
 

@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T00:30:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -70,6 +70,7 @@ notifies the people affected.
 | Add a background job | `@jobs.handler` in the owning module, import it in `worker.py` |
 | Add or change a screen | `mobile/src/app/` (file = route); texts in `mobile/src/i18n/nl.ts` + `en.ts` |
 | Change onboarding or 'Complete the following steps' | `mobile/src/app/onboarding/`, `mobile/src/lib/onboarding.ts`, `mobile/src/components/SetupSteps.tsx` |
+| Change semesters or the course list of the school year | `api/roosters/terms.py`, `sync.scan_courses`, `r_schools.courses`; guide **Timetables** |
 | Change a design token or component | `mobile/src/global.css`, `mobile/src/components/ui/` |
 | Add something to the management console | `api/roosters/admin.py` (+ the console's `roosters.js`); guide **Management console and docs** |
 | Change settings or secrets | `api/roosters/config.py`, `.env.example` |

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T00:30:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -31,11 +31,11 @@ Friends, requests, your invite link, a friend's week, Compare, classmates.
 
 ## `useMe`, `useToday`, `useTodays`, `useSchedule`, `useSources`
 
-Your account, Today (refetched every minute), several days side by side (Rooster tab), a week, your sources (polled every 2.5 s while one is still fetching for the first time).
+Your account, Today (refetched every minute), several days side by side (Rooster tab), a week, your sources (polled every 2.5 s while one is still fetching for the first time). Today, several days, a week and a friend's schedule poll every 2 s while the API says `loading` (a week far back or ahead is being fetched from Untis).
 
 ## `useSchools`, `useCampuses`, `useClasses`, `useCourses`
 
-Onboarding lists (ETag-cached, filtered offline).
+Onboarding lists (ETag-cached, filtered offline). `useClasses` returns `{classes, terms}`; `useCourses` takes an optional semester and polls every 2 s while the class is fetched for the first time, every 4 s while the rest of the year is scanned.
 
 ## `useSocial`
 

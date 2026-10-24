@@ -2,22 +2,28 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { useCourses, useDeleteSource, useMe, useSources, useUpdateSource } from '@/api/hooks';
-import type { Source } from '@/api/types';
-import { Chip } from '@/components/ui/Bits';
+import { useClasses, useCourses, useDeleteSource, useMe, useSources, useUpdateSource } from '@/api/hooks';
+import type { Semester, Source, Terms } from '@/api/types';
+import { Chip, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Section, SectionHead } from '@/components/ui/Layout';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { useT } from '@/i18n';
+import { type Lang, useT } from '@/i18n';
 import { useFinishOnboarding } from '@/lib/onboarding';
+import { monthSpan, parseDay } from '@/lib/time';
 
-/** Step 4: all courses on; tap the ones you don't take. From settings (source=<id>) for one class. */
+const SEMESTERS: Semester[] = [1, 2];
+
+/** Step 4: per semester, every course of your classes this school year (not only the coming weeks);
+ * all on, tap the ones you don't take. From settings (source=<id>) for one class. */
 export default function CoursesStep() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { source: onlySource, from } = useLocalSearchParams<{ source?: string; from?: string }>();
   const settings = from === 'settings';
   const me = useMe();
+  const schoolId = me.data?.school_id ?? null;
+  const terms = useClasses(schoolId).data?.terms;
   const sources = useSources();
   const update = useUpdateSource();
   const del = useDeleteSource();
@@ -50,6 +56,8 @@ export default function CoursesStep() {
     router.back();
   }
 
+  // A class for the whole year (from before semesters) shows in both; its choices count for both
+  const semesters = SEMESTERS.filter((sem) => !onlySource || classes.some((s) => !s.semester || s.semester === sem));
   return (
     <Screen
       back
@@ -64,15 +72,30 @@ export default function CoursesStep() {
         </Text>
         <Text tone="ink2">{t('courses.body')}</Text>
       </View>
-      {classes.map((s) => (
-        <ClassCourses
-          key={s.id}
-          source={s}
-          schoolId={me.data?.school_id ?? null}
-          excluded={excluded[s.id] ?? []}
-          onChange={(list) => setExcluded((p) => ({ ...p, [s.id]: list }))}
-        />
-      ))}
+      {semesters.map((sem) => {
+        const inSem = classes.filter((s) => !s.semester || s.semester === sem);
+        return (
+          <View key={sem} className="gap-4">
+            <SemesterHead semester={sem} terms={terms} lang={lang} />
+            {inSem.length === 0 ? (
+              <Text variant="sm" tone="ink2">
+                {t('courses.noClass')}
+              </Text>
+            ) : (
+              inSem.map((s) => (
+                <ClassCourses
+                  key={`${sem}:${s.id}`}
+                  source={s}
+                  semester={sem}
+                  schoolId={schoolId}
+                  excluded={excluded[s.id] ?? []}
+                  onChange={(list) => setExcluded((p) => ({ ...p, [s.id]: list }))}
+                />
+              ))
+            )}
+          </View>
+        );
+      })}
       <Text variant="sm" tone="ink2">
         {t('courses.hiddenNote')}
       </Text>
@@ -83,9 +106,27 @@ export default function CoursesStep() {
   );
 }
 
-function ClassCourses({ source, schoolId, excluded, onChange }: { source: Source; schoolId: number | null; excluded: string[]; onChange: (l: string[]) => void }) {
+function SemesterHead({ semester, terms, lang }: { semester: Semester; terms?: Terms; lang: Lang }) {
   const { t } = useT();
-  const courses = useCourses(schoolId, source.class_id ?? 0);
+  const range = terms ? terms[semester === 1 ? 's1' : 's2'] : null;
+  return (
+    <View className="flex-row items-center gap-2 border-b border-line pb-2">
+      <Text variant="eyebrow" accessibilityRole="header">
+        {t('classes.semester', { n: semester })}
+      </Text>
+      {range ? (
+        <Text variant="xs" tone="ink3">
+          {monthSpan(parseDay(range.start), parseDay(range.end), lang)}
+        </Text>
+      ) : null}
+      {terms?.current === semester ? <Tag kind="you">{t('classes.now')}</Tag> : null}
+    </View>
+  );
+}
+
+function ClassCourses({ source, semester, schoolId, excluded, onChange }: { source: Source; semester: Semester; schoolId: number | null; excluded: string[]; onChange: (l: string[]) => void }) {
+  const { t } = useT();
+  const courses = useCourses(schoolId, source.class_id ?? 0, semester);
   const list = courses.data?.courses ?? [];
   const on = list.filter((c) => !excluded.includes(c.name)).length;
   return (
@@ -102,25 +143,37 @@ function ClassCourses({ source, schoolId, excluded, onChange }: { source: Source
             ))}
           </View>
         </View>
-      ) : list.length === 0 ? (
+      ) : list.length === 0 && !courses.data?.scanning ? (
         <Text variant="sm" tone="ink2">
           {t('courses.empty')}
         </Text>
       ) : (
-        <View className="flex-row flex-wrap gap-2">
-          {list.map((c) => {
-            const off = excluded.includes(c.name);
-            return (
-              <Chip
-                key={c.name}
-                label={c.name}
-                state={off ? 'off' : 'sel'}
-                icon={off ? 'plus' : 'check'}
-                accessibilityLabel={`${c.name}, ${off ? t('courses.off') : t('courses.on')}`}
-                onPress={() => onChange(off ? excluded.filter((x) => x !== c.name) : [...excluded, c.name])}
-              />
-            );
-          })}
+        <View className="gap-2">
+          <View className="flex-row flex-wrap gap-2">
+            {list.map((c) => {
+              const off = excluded.includes(c.name);
+              return (
+                <Chip
+                  key={c.name}
+                  label={c.name}
+                  state={off ? 'off' : 'sel'}
+                  icon={off ? 'plus' : 'check'}
+                  accessibilityLabel={`${c.name}, ${off ? t('courses.off') : t('courses.on')}`}
+                  onPress={() => onChange(off ? excluded.filter((x) => x !== c.name) : [...excluded, c.name])}
+                />
+              );
+            })}
+            {courses.data?.scanning ? <Skeleton width={110} className="h-11 rounded-chip" /> : null}
+          </View>
+          {courses.data?.scanning ? (
+            <Text variant="sm" tone="ink2" accessibilityLiveRegion="polite">
+              {t('courses.scanning')}
+            </Text>
+          ) : courses.data?.error ? (
+            <Text variant="sm" tone="ink2">
+              {t('courses.scanFailed')}
+            </Text>
+          ) : null}
         </View>
       )}
     </Section>

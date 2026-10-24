@@ -58,6 +58,11 @@ SYNC_EVERY_NIGHT = 480
 REFRESH_COOLDOWN = 90     # seconds between two manual refreshes per user
 UNTIS_MIN_INTERVAL = 1.0  # seconds between two requests to the same Untis server (all workers together)
 WEEKS_AHEAD = 3
+SCAN_MAX_WEEKS = 53     # weeks of one school year the course scan fetches at most
+COURSES_RESCAN_DAYS = 7
+KEEP_PAST_DAYS = 400     # class lessons are kept this long, so you can scroll back through the school year
+WEEK_STALE_HOURS = 24    # a future week fetched on demand is fetched again when it's older than this
+WEEKS_MAX_DISTANCE = 104 # how many weeks back or ahead someone can look (Untis has nothing further anyway)  # the course list of a class is fetched again when it's older than this
 
 # Friends
 MAX_FRIENDS = 300

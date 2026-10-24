@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T02:00:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -27,7 +27,7 @@ Ghost mode, check-ins and sources change what **friends** see. That logic lives 
 
 ## `MAX_SOURCES`, `SOURCE_OUT`
 
-At most 8 sources per user; the columns returned for a source.
+At most 16 sources per user (the same class in S1 and S2 is two); the columns returned for a source.
 
 ## `ProfileIn`, `me`, `update_me`
 
@@ -38,6 +38,7 @@ finish **or skip** onboarding (`mobile/src/lib/onboarding.ts`), and from then on
 ## `UntisSourceIn`, `IcsSourceIn`, `SourceConfigIn`, `_clean`
 
 Inputs for sources. Course names in include/exclude are trimmed, deduplicated and sorted.
+`UntisSourceIn.semester`: 1 or 2 to follow the class in that semester only, `null` for the whole school year.
 
 ## `_ts`
 
@@ -49,7 +50,8 @@ Datetime → ISO string with Z, or None.
 
 ## `add_untis`
 
-`POST /api/v1/me/sources/untis`: follow a class of your school (400 `school_required` without one). If the class wasn't fetched recently it's queued **with high priority**: that's the onboarding 'aha' moment when your week appears.
+`POST /api/v1/me/sources/untis`: follow a class of your school (400 `school_required` without one). If the class wasn't fetched recently it's queued **with high priority**: that's the onboarding 'aha' moment when your week appears. Its course list of the whole year (`sync.queue_scan`) is queued too when it was never made.
+With `semester`, the same class can be followed once per semester (two sources, each with its own course choices); a second source for a semester it already covers (or a whole-year one next to a semester one) is 409 `source_exists`.
 
 ## `delete_account`
 
@@ -69,7 +71,7 @@ List notifications (newest first, `after` for polling) and mark them read up to 
 
 ## `my_schedule`
 
-`GET /api/v1/me/schedule?start=&days=`: your lessons for up to 28 days (default: this week), plus the sources' sync state, with an ETag.
+`GET /api/v1/me/schedule?start=&days=`: your lessons for up to 28 days (default: this week), plus the sources' sync state, with an ETag. Any week, past or future: `loading: true` while a week outside the routine sync is being fetched from Untis (`schedule.ensure_weeks`).
 
 ## `refresh`
 
@@ -77,7 +79,7 @@ List notifications (newest first, `after` for polling) and mark them read up to 
 
 ## `source_out`, `my_sources`
 
-A source for the app. For a class, the **class's** sync state counts (it's shared); `syncing` is true until the first successful fetch, and the app polls while it is.
+A source for the app, with `semester` (1, 2 or null) for a class. For a class, the **class's** sync state counts (it's shared); `syncing` is true until the first successful fetch, and the app polls while it is.
 
 ## `sources`
 
@@ -89,7 +91,7 @@ Summary for the app's banners: how many sources, oldest 'updated at', still sync
 
 ## `today`
 
-`GET /api/v1/me/today?day=`: **one round trip** for the Today screen (slow wifi): your status now, your
+`GET /api/v1/me/today?day=`: **one round trip** for the Today screen and each day column of the Rooster tab (slow wifi), with `loading` like `my_schedule`: your status now, your
 check-in, today's lessons, friends with their status on the now-board (sorted: on a break first),
 who you share breaks with (`logic.partners`), today's and upcoming changes, and the sources' state.
 With an ETag, so an unchanged screen costs a few bytes. Hidden (ghost) friends show as 'hidden' and are

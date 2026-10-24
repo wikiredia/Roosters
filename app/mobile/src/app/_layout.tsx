@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { useEffect, useState } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
@@ -40,15 +41,18 @@ export default function RootLayout() {
 
   if (!show) return null;
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <PersistQueryClientProvider
         client={queryClient}
         // Bump `buster` when cached shapes change, so old caches are thrown away
-        persistOptions={{ persister, maxAge: 7 * 24 * 60 * 60_000, buster: 'v2-1' }}
+        persistOptions={{ persister, maxAge: 7 * 24 * 60 * 60_000, buster: 'v2-2' }}
       >
         <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: String(bg ?? '#F4F3EF') } }} />
+        {/* The same native push on iOS and Android, with the swipe back */}
+        <Stack screenOptions={{ headerShown: false, animation: 'ios_from_right', contentStyle: { backgroundColor: String(bg ?? '#F4F3EF') } }} />
       </PersistQueryClientProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

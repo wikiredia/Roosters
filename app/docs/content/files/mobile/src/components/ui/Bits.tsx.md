@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T02:00:00Z
 ---
 
 Small parts: avatars, tags, chips, banners, selection controls.
@@ -14,7 +14,7 @@ An inline note (neutral, ink, bad) with an optional action.
 
 ## `ChipProps`, `Chip`
 
-Chips: on = chosen, sel = picked option, off = switched off (dashed).
+Chips: on = chosen, sel = picked option, off = switched off (dashed). Scale a touch while pressed.
 
 ## `IconTile`
 

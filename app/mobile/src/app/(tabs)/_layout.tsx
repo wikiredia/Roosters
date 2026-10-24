@@ -68,7 +68,7 @@ export default function TabsLayout() {
 
   if (s.status === 'signedOut') return <Redirect href="/welcome" />;
   return (
-    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, animation: 'fade' }}>
       <Tabs.Screen name="today" />
       <Tabs.Screen name="rooster" />
       <Tabs.Screen name="chat" />

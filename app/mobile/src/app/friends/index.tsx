@@ -26,11 +26,7 @@ export default function FriendsScreen() {
     <Screen
       back
       navTitle={t('me.friends')}
-      refreshing={friends.isRefetching}
-      onRefresh={() => {
-        friends.refetch();
-        requests.refetch();
-      }}
+      onRefresh={() => Promise.all([friends.refetch(), requests.refetch()])}
     >
       <Button icon="plus" label={t('me.addFriend')} onPress={() => router.push('/friends/add')} />
 

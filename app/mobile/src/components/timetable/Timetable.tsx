@@ -28,11 +28,39 @@ export type Column = { key: string; label?: string; blocks: Block[] };
 
 export const START_HOUR = 8;
 export const END_HOUR = 19;
+/** Two lessons of the same course at most this many minutes apart show as one block (a double period). */
+export const MERGE_GAP = 15;
+
+/** Back-to-back lessons of the same course, room and state become one block: 11:00–12:00 + 12:00–13:00
+ * shows as 11:00–13:00. Lessons may be of several days; the order of the result is by day and start. */
+export function mergeLessons(lessons: Lesson[]): Lesson[] {
+  const out: Lesson[] = [];
+  const sorted = [...lessons].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : a.start - b.start || a.end - b.end));
+  for (const l of sorted) {
+    const prev = out[out.length - 1];
+    if (
+      prev &&
+      prev.day === l.day &&
+      prev.course !== undefined &&
+      prev.course === l.course &&
+      (prev.location ?? null) === (l.location ?? null) &&
+      prev.state === l.state &&
+      prev.busy === l.busy &&
+      l.start >= prev.start &&
+      l.start - prev.end <= MERGE_GAP
+    ) {
+      out[out.length - 1] = { ...prev, end: Math.max(prev.end, l.end), recently_changed: prev.recently_changed || l.recently_changed };
+    } else {
+      out.push(l);
+    }
+  }
+  return out;
+}
 
 /** Lessons + shared breaks of one day as blocks for a column. */
 export function dayBlocks(lessons: Lesson[], together: (Span & { label: string })[], nowMin: number | null): Block[] {
   return [
-    ...lessons.map((l) => ({ type: 'lesson' as const, lesson: l, past: nowMin != null && l.end <= nowMin })),
+    ...mergeLessons(lessons).map((l) => ({ type: 'lesson' as const, lesson: l, past: nowMin != null && l.end <= nowMin })),
     ...together.map((s) => ({ type: 'together' as const, span: { start: s.start, end: s.end }, label: s.label })),
   ];
 }

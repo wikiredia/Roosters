@@ -130,6 +130,10 @@ class SchoolIn(BaseModel):
     untis_server: str | None = Field(None, max_length=120)
     untis_login: str | None = Field(None, max_length=120)
     campuses: list[str] = Field(default_factory=list, max_length=50)
+    # Semesters as 'MM-DD' (see terms.py): S1 from year_start, S2 from s2_start until year_end
+    year_start: str = Field("09-01", pattern=r"^\d\d-\d\d$")
+    s2_start: str = Field("02-01", pattern=r"^\d\d-\d\d$")
+    year_end: str = Field("07-15", pattern=r"^\d\d-\d\d$")
 
 
 class SchoolPatch(BaseModel):
@@ -139,6 +143,9 @@ class SchoolPatch(BaseModel):
     tz: str | None = Field(None, max_length=40)
     untis_server: str | None = Field(None, max_length=120)
     untis_login: str | None = Field(None, max_length=120)
+    year_start: str | None = Field(None, pattern=r"^\d\d-\d\d$")
+    s2_start: str | None = Field(None, pattern=r"^\d\d-\d\d$")
+    year_end: str | None = Field(None, pattern=r"^\d\d-\d\d$")
     active: bool | None = None
 
 
@@ -153,6 +160,12 @@ def _check_school_fields(f: dict):
             f["untis_server"] = untis.check_server(f["untis_server"])
         except untis.UntisError:
             raise ApiError(400, "invalid", field="untis_server")
+    for k in ("year_start", "s2_start", "year_end"):
+        if f.get(k):
+            try:
+                dt.date(2024, *(int(x) for x in f[k].split("-")))
+            except ValueError:
+                raise ApiError(400, "invalid", field=k)
     if "country" in f and f["country"]:
         f["country"] = f["country"].upper()
 
@@ -192,9 +205,10 @@ def add_school(body: SchoolIn, actor: str = Depends(admin)):
     with db.tx() as c:
         if db.one("SELECT id FROM schools WHERE slug=%s", (f["slug"],), c):
             raise ApiError(409, "slug_taken")
-        sid = db.run("INSERT INTO schools (slug, name, short_name, country, tz, untis_server, untis_login) "
-                     "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+        sid = db.run("INSERT INTO schools (slug, name, short_name, country, tz, year_start, s2_start, year_end, "
+                     "untis_server, untis_login) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                      (f["slug"], f["name"].strip(), (f["short_name"] or "").strip() or None, f["country"], f["tz"],
+                      f["year_start"], f["s2_start"], f["year_end"],
                       f["untis_server"] or None, (f["untis_login"] or "").strip() or None), c)
         for name in {n.strip()[:120] for n in f["campuses"] if n.strip()}:
             db.run("INSERT IGNORE INTO campuses (school_id, name) VALUES (%s,%s)", (sid, name), c)

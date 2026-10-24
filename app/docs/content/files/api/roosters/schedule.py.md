@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T02:00:00Z
 ---
 
 **Reading timetables**: someone's lessons from the classes they follow and their own calendar links,
@@ -22,9 +22,17 @@ Free/busy view: merged busy blocks per day, nothing about what or where.
 
 One lesson for the app. Without detail (a friend who shares only free/busy) it says only when.
 
+## `ensure_weeks`
+
+Weeks outside the routine sync (`sync.synced_weeks`) are fetched from Untis when someone looks at them, up
+to `WEEKS_MAX_DISTANCE` weeks away. Per followed class and week (`class_weeks`): never fetched → queued and
+the answer says `loading` (the app shows a skeleton and asks again); a future week older than
+`WEEK_STALE_HOURS` or a past week fetched before it was over → refreshed in the background; Untis said no
+→ tried again after an hour. Called by `/me/schedule`, `/me/today` and a friend's schedule.
+
 ## `lessons`
 
-All lessons of several people between two days: classes (filtered per source with include/exclude and hidden courses) and personal calendars, sorted, with duplicates removed (two sources with the same lesson).
+All lessons of several people between two days: classes (filtered per source with include/exclude and hidden courses, and for a source of one semester only on that semester's days, `terms.covers` with the school's dates) and personal calendars, sorted, with duplicates removed (two sources with the same lesson).
 
 ## `local_now`
 

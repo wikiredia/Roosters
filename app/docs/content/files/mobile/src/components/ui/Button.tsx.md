@@ -1,8 +1,9 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T02:00:00Z
 ---
 
-Buttons in the design system: primary, secondary, ghost, ink, onYou; sizes; loading state.
+Buttons in the design system: primary, secondary, ghost, ink, onYou; sizes; loading state. They scale down
+a touch while pressed (`Motion.usePressScale`).
 
 ## `IconButton`
 
