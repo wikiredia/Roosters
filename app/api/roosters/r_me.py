@@ -1,5 +1,5 @@
 """Your own account: profile, timetable sources, your schedule, the Today screen, check-in,
-notifications, data export and deleting your account."""
+notifications and push (token + Meldingen), data export and deleting your account."""
 import base64
 import datetime as dt
 from typing import Literal
@@ -7,7 +7,21 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from . import accounts, breaks, config, crypto, db, friends, logic, netfetch, notifications, redisx, schedule, sync
+from . import (
+    accounts,
+    breaks,
+    config,
+    crypto,
+    db,
+    friends,
+    logic,
+    netfetch,
+    notifications,
+    push,
+    redisx,
+    schedule,
+    sync,
+)
 from .deps import Ctx, auth, etag_json, parse_day
 from .errors import ApiError
 
@@ -458,6 +472,53 @@ def read(body: ReadIn, ctx: Ctx = Depends(auth)):
     return Response(status_code=204)
 
 
+# ---- Push --------------------------------------------------------------------------
+
+class PushTokenIn(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
+
+
+@router.put("/push-token", status_code=204)
+def put_push_token(body: PushTokenIn, ctx: Ctx = Depends(auth)):
+    """This phone's Expo push token (the app sends it at every start once you allowed notifications). It belongs to
+    this session: signing out stops push to this phone."""
+    redisx.rate_limit(f"push-token:{ctx.session_id}", 30, 3600)
+    push.register(ctx.session_id, body.token)
+    return Response(status_code=204)
+
+
+@router.delete("/push-token", status_code=204)
+def delete_push_token(ctx: Ctx = Depends(auth)):
+    """No more push to this phone (notifications turned off in the phone's settings)."""
+    push.unregister(ctx.session_id)
+    return Response(status_code=204)
+
+
+def _push_out(ctx: Ctx) -> dict:
+    return {"settings": push.settings(ctx.uid), "device": push.has_token(ctx.session_id)}
+
+
+@router.get("/push")
+def get_push(ctx: Ctx = Depends(auth)):
+    """Meldingen: what you get a push for, and whether this phone is registered (`device`)."""
+    return _push_out(ctx)
+
+
+class PushIn(BaseModel):
+    requests: bool | None = None
+    changes: bool | None = None
+    chat: bool | None = None
+    quiet_from: int | None = Field(None, ge=0, lt=24 * 60)
+    quiet_until: int | None = Field(None, ge=0, lt=24 * 60)
+
+
+@router.patch("/push")
+def patch_push(body: PushIn, ctx: Ctx = Depends(auth)):
+    """Only the fields you send. Quiet hours: both times, or both null to turn them off."""
+    push.save_settings(ctx.uid, body.model_dump(exclude_unset=True))
+    return _push_out(ctx)
+
+
 # ---- Your data -------------------------------------------------------------------
 
 @router.get("/export")
@@ -488,8 +549,11 @@ def export(ctx: Ctx = Depends(auth)):
                          "WHERE m.user_id=%s", (uid,)),
         "chat_messages": db.rows("SELECT chat_id, body, created_at, deleted_at FROM chat_messages WHERE user_id=%s", (uid,)),
         "chat_reports": db.rows("SELECT message_id, reason, note, created_at FROM chat_reports WHERE reporter_id=%s", (uid,)),
-        "notifications": db.rows("SELECT kind, payload, day, created_at, read_at FROM notifications WHERE user_id=%s",
-                                 (uid,)),
+        "notifications": db.rows("SELECT kind, payload, day, created_at, read_at, push_sent_at FROM notifications "
+                                 "WHERE user_id=%s", (uid,)),
+        "push_settings": push.settings(uid),
+        "push_devices": db.rows("SELECT device_name, platform, push_token_at FROM sessions WHERE user_id=%s "
+                                "AND push_token IS NOT NULL", (uid,)),
         "personal_calendar_lessons": db.rows("SELECT day, start_min, end_min, course, location, state FROM source_lessons "
                                              "WHERE user_id=%s", (uid,)),
     }

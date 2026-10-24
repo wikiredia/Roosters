@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:10:00Z
 ---
 
 **Chat**: one-to-one chats between friends and groups of friends, text messages and events, read up to where,
@@ -19,7 +19,8 @@ Who sees what, the rules everything here keeps:
   writes the sentence (`mobile/src/lib/chat.ts` `eventText`). Types: created, added, left, renamed,
   break_planned.
 
-No push yet: that comes with the push notifications round (push per chat, off by default in the design).
+Push: the **bell** per chat (`chat_members.push`, only for you, off by default; `edit`). `send` queues
+`push.py`'s `push_chat` job, which sends the message to everyone with the bell on (and not to who blocked the writer).
 
 ## `MAX_BODY`, `MAX_GROUP`, `MAX_NAME`, `PAGE`, `REASONS`
 
@@ -60,12 +61,13 @@ at once get the same chat). Not friends or blocked: 404 `not_friends`.
 
 Groups: only your own friends go in (`_check_friends`), 30 at most (`chat_full`). Someone added starts with
 everything before read (no unread pile). Leaving or renaming leaves an event; renaming or leaving a one-to-one
-chat is `chat_direct`. `edit` also pins (only for you).
+chat is `chat_direct`. `edit` also pins and turns the bell on or off (both only for you).
 
 ## `send`
 
 A message from you (inside the route's transaction, the chat row locked so `last_message_id` stays right); what
-you send counts as read. Retries on bad wifi are caught by the Idempotency-Key (`idempotency.py`), not here.
+you send counts as read, and a `push_chat` job is queued in the same transaction (`push.py`). Retries on bad wifi are
+caught by the Idempotency-Key (`idempotency.py`), not here.
 
 ## `take_back`
 

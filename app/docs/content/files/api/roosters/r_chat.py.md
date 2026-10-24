@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T13:10:00Z
 ---
 
 Routes for **chat** (`/api/v1/chats`); the rules are in `chat.py`. Everything needs a signed-in, non-guest
@@ -30,7 +30,8 @@ Errors (translated in `i18n.py`): `chat_gone`, `not_friends`, `chat_name`, `chat
 
 ## `ChatPatch`, `edit_chat`
 
-`PATCH /api/v1/chats/{id}` `{name?, pinned?}`: rename a group, pin a chat (only for you).
+`PATCH /api/v1/chats/{id}` `{name?, pinned?, push?}`: rename a group, pin a chat or turn its bell (a push for every
+message) on, the last two only for you. Every chat in the answers has `push`.
 
 ## `MembersIn`, `add_members`, `leave`
 

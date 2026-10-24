@@ -8,7 +8,7 @@ signed-in user (guests included: everything here works for guests).
 - Profile: `GET/PATCH /api/v1/me`, ghost mode.
 - Timetable sources: classes (`untis`) and calendar links (`ics`), hidden courses, manual refresh.
 - Reading: `/schedule` (a week) and `/today` (everything the Today screen needs in one request, with an ETag).
-- Check-in, notifications, export (GDPR) and account deletion.
+- Check-in, notifications, push (this phone's token, Meldingen), export (GDPR) and account deletion.
 
 Ghost mode, check-ins and sources change what **friends** see. That logic lives in `friends.py` and
 `schedule.py`, and this file only stores them.
@@ -70,6 +70,19 @@ including the classes you skip, the break requests you made and your answers, yo
 ## `my_notifications`, `ReadIn`, `read`
 
 List notifications (newest first, `after` for polling) and mark them read up to an id.
+
+## `PushTokenIn`, `put_push_token`, `delete_push_token`
+
+`PUT /api/v1/me/push-token` `{token}` → 204: this phone's Expo push token, on **this session** (`push.register`;
+400 `push_token` when it isn't one). The app sends it at every start once notifications are allowed (30 per hour per
+session). `DELETE` → 204: no more push to this phone (turned off in the phone's settings). Signing out does the same
+by itself: the token is on the session.
+
+## `get_push`, `PushIn`, `patch_push`, `_push_out`
+
+Meldingen: `GET /api/v1/me/push` → `{settings: {requests, changes, chat, quiet_from, quiet_until}, device}` (`device`:
+this session has a token). `PATCH` with only what changed; quiet hours in minutes since midnight, both or both null
+(else 400 `invalid`). The rules are in `push.py`.
 
 ## `together_days`
 

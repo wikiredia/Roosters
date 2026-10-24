@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, useWindowDimensions, View } from 'react-native';
 import { FadeInDown, FadeOut, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import { ApiError } from '@/lib/api';
 import { clock, dayLabel, eventText, type Outgoing } from '@/lib/chat';
 import { cn } from '@/lib/cn';
 import { confirm } from '@/lib/confirm';
+import { setOpenChat } from '@/lib/push';
 import { statusLine } from '@/lib/status';
 import { isoDay } from '@/lib/time';
 
@@ -41,6 +42,13 @@ export default function ChatScreen() {
   const { t, lang } = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
   const chatId = Number(id);
+  // While it's on screen, its messages don't come in as a push banner (lib/push)
+  useFocusEffect(
+    useCallback(() => {
+      setOpenChat(chatId);
+      return () => setOpenChat(0);
+    }, [chatId]),
+  );
   const me = useMe();
   const chat = useChat(chatId);
   const page = useMessages(chatId);

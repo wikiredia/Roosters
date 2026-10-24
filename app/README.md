@@ -183,8 +183,10 @@ listen on this laptop only: the admin API (`api/roosters/admin.py`, `ADMIN_TOKEN
 
 1. ~~Break requests ("Pauze samen?")~~ (done: `api/roosters/breaks.py`, `mobile/src/components/BreakSheet.tsx`),
    ~~"Voor jou"~~ (done: Today), ~~chat with moderation~~ (done: `api/roosters/chat.py`, `mobile/src/app/chat/`;
-   reported messages are in the admin API, not yet in the console tab), push notifications (Expo Push) and their
-   settings (push per chat too), skipping one lesson ("Vak overslaan")
+   reported messages are in the admin API, not yet in the console tab), ~~push notifications (Expo Push) and their
+   settings (push per chat too)~~ (done: `api/roosters/push.py`, `mobile/src/lib/push.ts`, Ik → Meldingen; needs an
+   EAS project id and a development build; "a friend is free" and "travelling together" pushes still to come),
+   ~~skipping one lesson ("Vak overslaan")~~ (done: `r_me.skip`, `mobile/src/components/timetable/SkipDrag.tsx`)
 2. In the app after that: Google Sign-In (needs client IDs), QR codes, pinned friends, the notifications step in onboarding
 3. Premium (RevenueCat), widgets
 4. Server: Caddy (HTTPS, HTTP/3) + backups + monitoring on Hetzner

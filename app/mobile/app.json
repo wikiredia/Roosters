@@ -38,6 +38,14 @@
       "expo-localization",
       "expo-apple-authentication",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2E5BFF",
+          "defaultChannel": "requests"
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Roosters+ gebruikt je camera om de QR-code van een vriend te scannen.",

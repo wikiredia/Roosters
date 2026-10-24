@@ -9,12 +9,13 @@ Who sees what:
 - a group: whoever is in it; anyone in it can add their own friends, and leave
 - messages from someone you blocked are gone for you (in groups too); they don't notice
 
-Tables: chats, chat_members, chat_messages, chat_reports (migrations/0009_chat.sql). No push yet: that comes with
-the notifications round (push per chat, off by default)."""
+Push: the bell per chat (`chat_members.push`, off by default); `send` queues push.py's `push_chat` job.
+
+Tables: chats, chat_members, chat_messages, chat_reports (migrations/0009_chat.sql, 0013_push.sql)."""
 import datetime as dt
 import re
 
-from . import db, friends, tokens
+from . import db, friends, jobs, tokens
 from .errors import ApiError
 
 MAX_BODY = 1000
@@ -97,7 +98,7 @@ def _visible(uid: int, chat: dict, members: list[dict], mates: set[int]) -> bool
 
 def _summary(uid: int, chat: dict, members: list[dict], mine: dict, last: dict | None, unread: int) -> dict:
     others = [m for m in members if m["id"] != uid]
-    out = {"id": chat["id"], "kind": chat["kind"], "pinned": bool(mine["pinned"]), "unread": unread,
+    out = {"id": chat["id"], "kind": chat["kind"], "pinned": bool(mine["pinned"]), "push": bool(mine["push"]), "unread": unread,
            "last_read_id": mine["last_read_id"], "last": message_out(last) if last else None,
            "members": [_person(m) for m in others], "count": len(members)}
     if chat["kind"] == "direct":
@@ -113,7 +114,7 @@ def _summary(uid: int, chat: dict, members: list[dict], mine: dict, last: dict |
 def list_for(uid: int) -> dict:
     """Your chats, pinned first, then the latest message first; with what's unread and the newest message you can see.
     -> {"chats": [...], "unread": total unread messages}"""
-    rows = db.rows("SELECT c.*, m.last_read_id, m.pinned FROM chat_members m JOIN chats c ON c.id=m.chat_id "
+    rows = db.rows("SELECT c.*, m.last_read_id, m.pinned, m.push FROM chat_members m JOIN chats c ON c.id=m.chat_id "
                    "WHERE m.user_id=%s", (uid,))
     members = _members([r["id"] for r in rows])
     mates = _friend_ids(uid)
@@ -256,8 +257,8 @@ def leave(c, uid: int, chat_id: int):
         _add_event(c, chat_id, {"type": "left", "by": uid, "names": _names(c, [uid])})
 
 
-def edit(c, uid: int, chat_id: int, name: str | None = None, pinned: bool | None = None):
-    """Rename a group (everyone sees it), or pin a chat (only for you)."""
+def edit(c, uid: int, chat_id: int, name: str | None = None, pinned: bool | None = None, push: bool | None = None):
+    """Rename a group (everyone sees it), or pin a chat or turn its bell on (only for you)."""
     chat, _, _ = _load(uid, chat_id, c, lock=True)
     if name is not None:
         if chat["kind"] != "group":
@@ -268,6 +269,8 @@ def edit(c, uid: int, chat_id: int, name: str | None = None, pinned: bool | None
             _add_event(c, chat_id, {"type": "renamed", "by": uid, "name": name, "names": _names(c, [uid])})
     if pinned is not None:
         db.run("UPDATE chat_members SET pinned=%s WHERE chat_id=%s AND user_id=%s", (1 if pinned else 0, chat_id, uid), c)
+    if push is not None:
+        db.run("UPDATE chat_members SET push=%s WHERE chat_id=%s AND user_id=%s", (1 if push else 0, chat_id, uid), c)
 
 
 def send(c, uid: int, chat_id: int, body: str) -> dict:
@@ -283,6 +286,7 @@ def send(c, uid: int, chat_id: int, body: str) -> dict:
     db.run("UPDATE chats SET last_message_id=%s WHERE id=%s", (mid, chat_id), c)
     db.run("UPDATE chat_members SET last_read_id=GREATEST(last_read_id,%s) WHERE chat_id=%s AND user_id=%s",
            (mid, chat_id, uid), c)
+    jobs.enqueue("push_chat", {"message_id": mid}, priority=2, max_attempts=4, c=c)
     return message_out(db.one("SELECT * FROM chat_messages WHERE id=%s", (mid,), c))
 
 

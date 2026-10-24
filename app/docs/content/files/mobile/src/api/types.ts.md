@@ -16,6 +16,11 @@ Parts of the Today answer.
 
 Social.
 
+## `PushSettings`, `Push`
+
+Meldingen (`api/roosters/push.py`): requests, timetable changes, chat, and quiet hours (minutes since midnight,
+both or neither); `Push` adds `device`, whether this phone is registered for push.
+
 ## `LessonState`, `Lesson`
 
 A lesson: day, start/end minutes, busy, and (with detail) course, location, state, recently changed; `skipped` on
@@ -42,7 +47,8 @@ into words from your side. Today carries them in `breaks` (optional: an API from
 
 ## `Chat`, `ChatDetail`, `ChatMessage`, `ChatEvent`, `ChatPerson`, `ReportReason`
 
-Chat (`api/roosters/chat.py`): a chat in the list (one-to-one: the friend's name and colour, `with_id`), one chat
+Chat (`api/roosters/chat.py`): a chat in the list (one-to-one: the friend's name and colour, `with_id`; `push`: its
+bell is on, only for you), one chat
 with everyone in it and how far they read, a message (`body` null when taken back or removed), an event (the app
 writes the sentence, `lib/chat.ts`), and the report reasons.
 

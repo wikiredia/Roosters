@@ -9,6 +9,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { describe, requestLog } from '@/lib/debuglog';
+import { pushState, registerPush, sendTestPush } from '@/lib/push';
 import { apiOverride, automaticApiBase, debugEnabled, setApiOverride } from '@/lib/server';
 
 /**
@@ -46,8 +47,29 @@ export default function DebugScreen() {
   const [mailTo, setMailTo] = useState('');
   const [mailResult, setMailResult] = useState<Check>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const push = pushState.use();
+  const [pushResult, setPushResult] = useState<Check>(null);
 
   if (!debugEnabled) return null;
+
+  /** Registers this phone again (asking if needed), then has the server push to every phone you're signed in on. */
+  async function testPush() {
+    setBusy('push');
+    setPushResult(null);
+    try {
+      const state = await registerPush(true);
+      const r = await sendTestPush();
+      setPushResult(
+        r.devices
+          ? { ok: true, text: r.mode === 'expo' ? `Sent to ${r.devices} phone(s) through Expo. It should arrive in a few seconds.` : `PUSH_MODE=${r.mode}: only in the API log.` }
+          : { ok: false, text: `The server has no phone for you (here: ${state}).` },
+      );
+    } catch (e) {
+      setPushResult({ ok: false, text: errorText(e) });
+    } finally {
+      setBusy(null);
+    }
+  }
 
   /** Plain fetch, no retries: shows exactly what answers on this address. */
   async function testConnection() {
@@ -172,6 +194,17 @@ export default function DebugScreen() {
           <Input label="Send a test mail to" placeholder="you@example.com" value={mailTo} onChangeText={setMailTo} autoCapitalize="none" keyboardType="email-address" />
           <Button variant="secondary" label="Send test mail" disabled={!mailTo.includes('@')} loading={busy === 'mail'} onPress={sendTestMail} />
           {mailResult ? <Banner kind={mailResult.ok ? 'neutral' : 'bad'} title={mailResult.ok ? 'Test mail' : 'Test mail failed'} body={mailResult.text} /> : null}
+        </Card>
+      </View>
+
+      <View>
+        <ListHead>Push</ListHead>
+        <Card className="p-4 gap-3">
+          <Text variant="sm" tone="ink2">
+            {`On this phone: ${push}. Needs a development build (not Expo Go on Android) and extra.eas.projectId in app.json (npx eas-cli init).`}
+          </Text>
+          <Button variant="tonal" icon="bell" label="Send a test push" loading={busy === 'push'} onPress={testPush} />
+          {pushResult ? <Banner kind={pushResult.ok ? 'neutral' : 'bad'} title={pushResult.ok ? 'Test push' : 'Test push failed'} body={pushResult.text} /> : null}
         </Card>
       </View>
 

@@ -1,13 +1,13 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T13:10:00Z
 ---
 
 Test setup. The tests run against a **real MySQL and Valkey**, not mocks: start them with
 `docker compose -f app/docker-compose.test.yml up -d` (CI uses service containers), then `cd app/api && pytest`.
 
 The schema is dropped and migrated once per session; every test starts with **empty tables** and an empty
-Redis database. The environment (database, SECRET_KEY, client ids, ADMIN_TOKEN) is set at the top,
-before `roosters` is imported.
+Redis database. The environment (database, SECRET_KEY, client ids, ADMIN_TOKEN, `MAIL_MODE` and `PUSH_MODE`
+console: nothing leaves the machine) is set at the top, before `roosters` is imported.
 
 ## `client`, `mails`
 

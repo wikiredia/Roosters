@@ -1,7 +1,7 @@
 ---
 title: Running and operating
 position: 70
-updated: 2026-10-23T18:55:00Z
+updated: 2026-10-24T13:20:00Z
 ---
 
 ## Start, stop, update
@@ -41,6 +41,20 @@ From the console: **Roosters+ → Overview** (Up, Restart, shells), or the **Doc
 | The app says 'That didn't work' | The app's debug screen (server address, last requests) |
 | A class shows old lessons | Schools → Classes (sync errors) → Fetch now; Background jobs |
 | No schools in onboarding | Schools & classes: add one, or turn it on |
+| No push arrives | The app's debug screen → **Send a test push** (says what's missing on the phone); `docker compose logs worker` (`push to …`, refusals); `PUSH_MODE` in `.env` |
+
+## Push notifications
+
+The worker sends them through Expo's push service (`api/roosters/push.py`): no account or key needed on the server
+(`PUSH_MODE=expo`, the default; `console` only logs). What the phone needs:
+
+1. An EAS project: `cd mobile && npx eas-cli init` (adds `extra.eas.projectId` to `app.json`).
+2. A development build (`npx expo run:ios|android` or `eas build --profile development`): Expo Go on Android can't
+   get push. iOS needs an Apple developer account (EAS sets up the push key); Android needs FCM credentials
+   uploaded to EAS (`eas credentials`).
+3. Ik → Meldingen → **Zet meldingen aan**.
+
+Turning on "enhanced push security" in the Expo dashboard later means setting `EXPO_ACCESS_TOKEN` in `.env`.
 
 ## Backups
 

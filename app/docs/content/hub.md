@@ -26,13 +26,14 @@ deeper per topic.
                                         └───────────────────────────────────────────────────────────┘
                                              │ worker fetches                     ▲
                                              ▼                                    │
-                                      WebUntis (public class timetables), personal calendar links (.ics)
+                                      WebUntis (public class timetables), personal calendar links (.ics);
+                                      the worker also hands push notifications to Expo's push service
 ```
 
 | Part | What it does | Start reading |
 | --- | --- | --- |
 | **API** | Every request from the app: sign-in, your timetable, Today, friends, onboarding lists | `api/roosters/app.py` |
-| **Worker** | Everything slow or retryable, from a job queue in MySQL | `api/roosters/worker.py`, `api/roosters/jobs.py` |
+| **Worker** | Everything slow or retryable (mail, timetable syncs, push), from a job queue in MySQL | `api/roosters/worker.py`, `api/roosters/jobs.py` |
 | **Database** | MySQL; the schema with comments is in the migrations | `api/roosters/migrations/0001_init.sql` |
 | **Admin API** | Schools, users, jobs and tables for the management console (loopback only) | `api/roosters/admin.py` |
 | **Docs service** | This documentation: live, with history, checked against the code | `docs/roostersdocs/app.py` |
