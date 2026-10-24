@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:30:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -34,6 +34,11 @@ double tap (`DayGrid`), the sheet starts sliding in the frame it appears (`Sheet
 
 As above. `onView` tells the screen the first day, the number of days and whether it's not the standard view
 (the Rooster tab's 'Terug' and the eyebrow); `control.reset()` goes back to the standard view.
+
+**Skipping**: drag a class into the bin (`SkipDrag`, the card and bin drawn over the grid) or 'Skip this class' in
+its sheet. `doSkip` keeps the day as it was (lessons and shared breaks) to say what changed, shows `SkipToast`
+right away (your breaks first, friends once the server answers) and Undo takes the last skip back (`unskip`, also
+'I'll go after all' in a skipped class's sheet).
 
 ## `CalendarView`, `CalendarControl`
 

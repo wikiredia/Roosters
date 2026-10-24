@@ -1,13 +1,12 @@
 import { router } from 'expo-router';
-import { type ReactNode, useState } from 'react';
-import { useCSSVariable } from 'uniwind';
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { useAnswerBreak, useCheckin, useOpenDirect, useToday } from '@/api/hooks';
 import type { BreakRequest, Checkin, Friend, Notification, Today } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { SetupSteps } from '@/components/SetupSteps';
-import { type BreakState, Hatch, isFree, isOff, STATE_LABEL } from '@/components/timetable/Timetable';
+import { type BreakState, isFree, isOff, STATE_LABEL } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, StatusOption, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
@@ -16,7 +15,6 @@ import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
 import { dayWord, howText, otherPeople, slotState } from '@/lib/breaks';
-import { cn } from '@/lib/cn';
 import { currentLesson, isAway, joinNames, nextLesson, statusLine } from '@/lib/status';
 import { addDays, hhmm, isoDay, longDate, minutesAgo, parseDay, range, shortDate } from '@/lib/time';
 
@@ -272,7 +270,9 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
               {/* Asked already, planned or a no: says so (the sheet won't ask the same twice) */}
               {state ? (
                 <View className="flex-row pt-1">
-                  <Tag kind={state === 'planned' ? 'together' : state === 'declined' ? 'bad' : 'line'}>{t(STATE_LABEL[state])}</Tag>
+                  <Tag kind={STATE_TAG[state]} icon={state === 'planned' ? 'check' : undefined}>
+                    {t(STATE_LABEL[state])}
+                  </Tag>
                 </View>
               ) : null}
             </Row>
@@ -323,10 +323,10 @@ function ForYou({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: BreakR
 }
 
 /**
- * "Jouw pauzes": what you asked and the ones you said yes to, in a section per state, each with its own look:
- * planned (someone said yes, or you did) bright yellow; asked and waiting for an answer hatched yellow; nobody can
- * soft red. You can take a question back, remove a no, or say no after all. Questions you haven't answered are in
- * "Voor jou".
+ * "Jouw pauzes": what you asked and the ones you said yes to, in one plain card: planned first, then the ones waiting
+ * for an answer, then the ones nobody can make, each row with a small tag in its state's colour (the same as the
+ * calendar's legend), so the section stays calm. You can take a question back, remove a no, or say no after all.
+ * Questions you haven't answered are in "Voor jou".
  */
 function Requests({ d, t }: { d: Today; t: T }) {
   const { lang } = useT();
@@ -336,72 +336,56 @@ function Requests({ d, t }: { d: Today; t: T }) {
   if (list.length === 0) return null;
   const act = (b: BreakRequest, action: 'declined' | 'cancel') => answer.mutate({ id: b.id, action });
   const stateOf = (b: BreakRequest): BreakState => (b.state === 'planned' || b.my_response === 'accepted' ? 'planned' : b.state === 'declined' ? 'declined' : 'asked');
-  const groups = (['planned', 'asked', 'declined'] as const).map((st) => ({ st, items: list.filter((b) => stateOf(b) === st) })).filter((g) => g.items.length);
+  const order: Record<BreakState, number> = { planned: 0, asked: 1, declined: 2 };
+  const items = list.map((b) => ({ b, st: stateOf(b) })).sort((x, y) => order[x.st] - order[y.st]);
   return (
     <Reveal className="gap-3">
       <SectionHead title={t('break.requests')} left={<TogetherIcon />} />
-      {groups.map((g) => (
-        <View key={g.st} className="gap-2">
-          <Text variant="sm" bold tone={g.st === 'declined' ? 'danger' : 'ink2'}>
-            {t(SECTION[g.st], { n: g.items.length })}
-          </Text>
-          <StateCard state={g.st}>
-            {g.items.map((b, i) => {
+      <Card>
+            {items.map(({ b, st }, i) => {
               const names = joinNames(
                 (b.mine && b.state === 'planned' ? b.members.filter((m) => m.response === 'accepted') : otherPeople(b)).map((p) => p.display_name),
                 t('common.and'),
               );
               const when = `${dayWord(b.day, d.day, t, lang)} ${range(b.start, b.end)}`;
-              const title = g.st === 'planned' ? t('break.planned', { names }) : g.st === 'declined' ? t('break.declined', { names }) : t('break.askedTo', { names });
-              const sub = [when, g.st === 'asked' ? t('break.waiting') : howText(b, t)].join(' · ');
+              const title = st === 'planned' ? t('break.planned', { names }) : st === 'declined' ? t('break.declined', { names }) : t('break.askedTo', { names });
+              const sub = [when, st === 'asked' ? t('break.waiting') : howText(b, t)].join(' · ');
               return (
                 <Row
                   key={b.id}
                   first={i === 0}
-                  divider={g.st === 'declined' ? 'line' : 'together'}
                   title={title}
                   sub={sub}
-                  left={<AvatarStack people={otherPeople(b).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring={g.st === 'declined' ? 'surface' : 'together'} />}
+                  left={<AvatarStack people={otherPeople(b).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring="surface" />}
+                  right={
+                    // Small and on the side: the row says what it is, the action doesn't shout
+                    !b.mine ? (
+                      <Button variant="ghost" size="sm" label={t('break.notAnymore')} className="px-2" onPress={() => act(b, 'declined')} />
+                    ) : (
+                      <Button variant="ghost" size="sm" label={b.state === 'declined' ? t('break.remove') : t('break.cancel')} className="px-2" onPress={() => act(b, 'cancel')} />
+                    )
+                  }
                 >
+                  <View className="flex-row pt-0.5">
+                    <Tag kind={STATE_TAG[st]} icon={st === 'planned' ? 'check' : undefined}>
+                      {t(STATE_LABEL[st])}
+                    </Tag>
+                  </View>
                   {b.note ? (
                     <Text variant="sm" tone="ink2" numberOfLines={2}>
                       “{b.note}”
                     </Text>
                   ) : null}
-                  <View className="flex-row flex-wrap gap-2 pt-1.5">
-                    {!b.mine ? (
-                      <Button variant="secondary" size="sm" label={t('break.notAnymore')} onPress={() => act(b, 'declined')} />
-                    ) : (
-                      <Button variant="secondary" size="sm" label={b.state === 'declined' ? t('break.remove') : t('break.cancel')} onPress={() => act(b, 'cancel')} />
-                    )}
-                  </View>
                 </Row>
               );
             })}
-          </StateCard>
-        </View>
-      ))}
+      </Card>
     </Reveal>
   );
 }
 
-const SECTION = { planned: 'break.secPlanned', asked: 'break.secAsked', declined: 'break.secDeclined' } as const;
-
-/** A card in the colour and pattern of a break's state (the same as the blocks in the calendar). */
-function StateCard({ state, children }: { state: BreakState; children: ReactNode }) {
-  const hatch = String(useCSSVariable('--color-together') ?? '#FFC21A');
-  return (
-    <View
-      className={cn(
-        'rounded-card overflow-hidden border-[1.5px]',
-        state === 'planned' ? 'bg-together border-together-ink' : state === 'asked' ? 'bg-together-soft border-together' : 'bg-danger-soft border-danger',
-      )}
-    >
-      {state === 'asked' ? <Hatch color={hatch} gap={12} /> : null}
-      {children}
-    </View>
-  );
-}
+/** A break's state as a small tag: the same colours as the calendar, at the size of a word. */
+const STATE_TAG = { planned: 'together', asked: 'line', declined: 'bad' } as const;
 
 /** "Wie is er nu?" — free first; people who aren't on campus folded into one row. */
 function Board({ d, t }: { d: Today; t: T }) {

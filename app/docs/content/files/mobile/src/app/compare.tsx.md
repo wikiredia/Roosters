@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:30:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 **Vergelijken**, in two steps that slide sideways:
@@ -22,4 +22,4 @@ The free limit (same as the server) and the screen.
 
 ## `lessonWeek`
 
-The Monday to show: this week while you still have a lesson ahead in it, otherwise next week.
+The Monday to show: this week while you still have a lesson ahead in it (a skipped one doesn't count), otherwise next week.

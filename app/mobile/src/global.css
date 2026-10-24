@@ -73,6 +73,10 @@
       --color-friend-soft: #FDE4EB;
       --color-together-ink: #6B4E00;
       --color-together-soft: #FFF1C4;
+      /* The edge of a planned break: darker than the yellow in both themes */
+      --color-together-edge: #6B4E00;
+      /* The faint lines over a break you asked for */
+      --color-together-line: #FFC21A;
       --color-danger-ink: #C42A30;
       --color-danger-strong: #C42A30;
       --color-danger-soft: #FDE6E6;
@@ -147,6 +151,8 @@
       --color-friend-soft: #44202F;
       --color-together-ink: #FFD24D;
       --color-together-soft: #3A3115;
+      --color-together-edge: #FFE9A8;
+      --color-together-line: #8A6E1C;
       --color-danger-ink: #FF8A8D;
       --color-danger-strong: #D93A40;
       --color-danger-soft: #4A1F22;

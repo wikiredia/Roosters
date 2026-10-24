@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:30:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -66,6 +66,13 @@ lesson leaves its time free.
 The week strip's dots: a day's kinds of lessons that take place, in the order they come, each as its strong colour
 (`bg-theory`, `bg-lab`, …; an exam is ink).
 
+## `isFree`, `SkippedBlock`
+
+`isFree`: a lesson that doesn't keep you busy, cancelled or skipped (`lib/skips.ts`); free gaps, overlaps and the
+strip's dots use it. A skipped class stays on your timetable as `SkippedBlock`: a dashed outline with its name struck
+through, so the free time and a shared break (drawn over it) show through; a tap opens its sheet to take the skip
+back. `lessonsAt` finds skipped ones only when asked (`skipped`), so a shared break over one wins the tap.
+
 ## `lessonKind`, `isOff`, `LessonKind`, `KIND_STYLE`, `KIND_LABEL`
 
 The kind of a lesson as the API tells it (`api/roosters/kinds.py`: theory, lab, exercises, project, support,
@@ -85,13 +92,18 @@ Accessible label of a lesson.
 
 A shared break: the icon in the top corner with who it's with next to it, two names at most then "+2" (first names
 in narrow columns), so it never needs more room than the block has. Its look follows its state (`TOGETHER_STYLE`):
-open soft yellow, **asked** hatched light/dark yellow, **planned** solid bright yellow with a check, **declined** soft
-red. `muted` (over, or more than 13 days ahead: you can't ask for it): faded with a dashed edge, and no tap. Free moments (`BlockView` 'free')
+**open** solid yellow, **asked** soft yellow with faint lines (the names on a patch, `HatchLabel`), **planned** solid
+yellow with a check and a darker edge (`--color-together-edge`, so it differs from open in dark mode too),
+**declined** soft red. On the solid yellow the text is always dark; on the soft looks it's `together-ink`, readable in
+both themes. `muted` (over, or more than 13 days ahead: you can't ask for it): faded with a dashed edge, and no tap. Free moments (`BlockView` 'free')
 have a coffee cup in the corner, 18 px (15 in narrow columns).
 
-## `Hatch`
+## `Hatch`, `HatchLabel`
 
-Diagonal lines over a block (overlaps, muted shared breaks); wider than any column, the parent clips them.
+Diagonal lines over a block (overlaps, breaks you asked for, the skip bin); wider than any column, the parent clips
+them. Thin (1 px) and faint (`opacity`) on purpose: a texture, never louder than the text on it; a break's lines use
+`--color-together-line`, dimmer in dark mode. Text over lines goes on `HatchLabel`: a rounded patch in the block's
+own colour, so the lines stop around the text (the overlap band does the same with its course names).
 
 ## `BreakState`, `STATE_LABEL`, `TOGETHER_STYLE`
 

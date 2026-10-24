@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-24T13:20:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -73,7 +73,7 @@ notifies the people affected.
 | Change onboarding or 'Complete the following steps' | `mobile/src/app/onboarding/`, `mobile/src/lib/onboarding.ts`, `mobile/src/components/SetupSteps.tsx` |
 | Change semesters or the course list of the school year | `api/roosters/terms.py`, `sync.scan_courses`, `r_schools.courses`; guide **Timetables** |
 | Change the calendar (Rooster tab and Vergelijken) | `mobile/src/components/timetable/Calendar.tsx`, `DayGrid.tsx`, `DayStrip.tsx` |
-| Change push notifications (texts, who gets what, Meldingen) | `api/roosters/push.py`, `notifications.py`, `mobile/src/lib/push.ts`, `mobile/src/app/settings/notifications.tsx` |
+| Change skipping a class (drag to the bin, summary, Undo) | `mobile/src/components/timetable/SkipDrag.tsx`, `SkipToast.tsx`, `mobile/src/lib/skips.ts`; API `r_me.skip`, `schedule.takes_place` |
 | Change profile photos | `api/roosters/r_me.py` (`put_photo`), `r_friends.photo`, `mobile/src/lib/photo.ts`, `components/ui/Bits.tsx` (`Avatar`) |
 | Change a design token or component | `mobile/src/global.css`, `mobile/src/components/ui/` |
 | Add something to the management console | `api/roosters/admin.py` (+ the console's `roosters.js`); guide **Management console and docs** |

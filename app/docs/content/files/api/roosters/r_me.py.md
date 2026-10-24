@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:10:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -65,8 +65,7 @@ Soft-deletes the source, forgets its encrypted link and deletes its personal les
 ## `export`
 
 `GET /api/v1/me/export`: everything stored about you (GDPR art. 15/20) as JSON, without secrets (no encrypted links),
-including the break requests you made and your answers, your chats, the messages you wrote and the reports you made,
-your Meldingen and which devices get push (without the tokens).
+including the classes you skip, the break requests you made and your answers, your chats, the messages you wrote and the reports you made.
 
 ## `my_notifications`, `ReadIn`, `read`
 
@@ -133,3 +132,11 @@ The user as the app sees it: name, e-mail, locale, school, campus, colour, ghost
 most 300 KB, and it must start like a JPEG: `photo_invalid`). Stored in `user_photos`; `users.photo_v` goes up so
 every phone loads the new one. `DELETE` goes back to the coloured initial. `user_out` and every person the API
 returns carry `photo` (the version, or null).
+
+## `SkipIn`, `skip`
+
+`PUT /api/v1/me/skips` `{day, start, end, course, skipped}`: skip a class or take that back (the app's drag into the
+bin and its sheet, `mobile/src/lib/skips.ts`). A double period is one call (start to end of the whole block). Only
+your own lessons, today or later (`skip_unknown`, `skip_day`); taking back removes every skip of that course that
+overlaps, so a lesson is never half skipped. Answers with that day's skips and who you now share a break with
+(`together_days`), for the app's summary. Idempotent through the Idempotency-Key like every write.

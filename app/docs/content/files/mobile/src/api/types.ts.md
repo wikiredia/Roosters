@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:20:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -23,7 +23,8 @@ both or neither); `Push` adds `device`, whether this phone is registered for pus
 
 ## `LessonState`, `Lesson`
 
-A lesson: day, start/end minutes, busy, and (with detail) course, location, state, recently changed.
+A lesson: day, start/end minutes, busy, and (with detail) course, location, state, recently changed; `skipped` on
+your own lessons that you skip (`lib/skips.ts`).
 
 ## `ClassLesson`, `ClassLessons`
 
@@ -61,3 +62,7 @@ Whole answers of the main screens.
 ## `Tokens`, `User`
 
 The token answer, and your account (`guest`: started without signing in).
+
+## `Skip`, `SkipAnswer`
+
+A class you skip, and the answer of `PUT /me/skips`: that day's skips and who you now share a break with.

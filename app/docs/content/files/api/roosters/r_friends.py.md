@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 **Friends**: the social side. Friend list and visibility, requests within your school, invite links,
@@ -65,7 +65,7 @@ An invite that exists, isn't revoked or expired and has uses left, or 404 `invit
 
 ## `friend_schedule`
 
-`GET /api/v1/friends/{id}/schedule`: a friend's lessons for up to 28 days, full, without rooms, or free/busy only (`schedule.busy_only`), or nothing while they're hidden. Far weeks are fetched on demand (`loading`, see `schedule.ensure_weeks`).
+`GET /api/v1/friends/{id}/schedule`: a friend's lessons for up to 28 days, full, without rooms, or free/busy only (`schedule.busy_only`), or nothing while they're hidden. Far weeks are fetched on demand (`loading`, see `schedule.ensure_weeks`). Classes they skip are left out: you see free time, never that they skipped.
 
 ## `invite_preview`
 

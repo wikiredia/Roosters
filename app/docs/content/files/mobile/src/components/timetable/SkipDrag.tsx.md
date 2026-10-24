@@ -1,0 +1,43 @@
+---
+updated: 2026-10-24T12:55:00Z
+---
+
+**Dragging a class into the bin to skip it.** The gesture lives in `DayGrid` (first in its gesture tree, so the swipe
+through the days and the taps wait for it to fail); what you see lives in `Calendar` over the grid (`DragLayer`).
+They share one `SkipDrag` of shared values, so the card follows the finger on the UI thread without a React render.
+
+Watch out: the hard part is telling a drag apart from a swipe through the days and from a tap. Change `HOLD` or the
+direction rule in `useSkipGesture` and test both on a phone.
+
+## `useSkipGesture`, `GestureProps`
+
+A pan with manual activation. Touch down: is there a draggable class under the finger (`DragTarget`s, hit-tested on
+the UI thread)? No: fail at once. Yes: get the card ready (`onPick`) and lift it after `LIFT_AFTER` if the finger
+stays still. Then the first 6 px of movement decide: rested `HOLD` ms, or more up/down than sideways → pick it up;
+quick and sideways → fail (it's a swipe through the days). Let go over the bin, or throw it right faster than
+`THROW_V` → it flies into the bin and `onDrop` skips it; anywhere else it springs back. While dragging, the card
+swings with the finger's speed (smoothed) around the point you hold it, and tilts a little over the bin.
+
+## `DragLayer`
+
+What you see, never taking a touch: a dashed hole where the class was, the card (the lesson's own `BlockView`, a
+shadow, bigger when lifted, smaller over the bin), and the bin on the right: a see-through zone of faint grey
+diagonal lines (`Hatch`) that darkens a little when the card is over it. The bin icon and its word ('Skip', 'Let
+go') sit on a fixed-width patch in the background colour, so the lines stop around them and both words (also Dutch)
+fit on one line.
+
+## `SkipDrag`, `useSkipDrag`
+
+The shared state: `phase` (0 nothing, 1 finger resting on a class, 2 dragging, 3 flying into the bin, 4 going
+back), the card's place and size (`rect`, grid coordinates), where you hold it (`grab`), and the animated
+offsets, rotation, lift, over-the-bin and gone values.
+
+## `DragTarget`, `useDragTargets`
+
+The classes that can be dragged (`lib/skips.canSkip`, merged as the grid draws them), copied into a shared value
+for the gesture whenever the list changes.
+
+## `BIN_W`, `HOLD`, `LIFT_AFTER`, `THROW_V`, `SWING`, `BACK`
+
+The bin's width, the rest before a drag in any direction, when a still finger lifts the card, the throw speed, and
+the springs for the swing and the way back.

@@ -1,14 +1,15 @@
 ---
-updated: 2026-10-24T08:00:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 **Reading timetables**: someone's lessons from the classes they follow and their own calendar links,
 filtered by their course choices, and turned into the `PersonDay` objects the break logic works with.
 Used by Today, the week view, a friend's timetable and Compare.
 
-## `OFF`
+## `OFF`, `takes_place`
 
-Lesson states that don't make you busy (cancelled, removed).
+Lesson states that don't make you busy (cancelled, removed). `takes_place`: not one of those and not a class you skip;
+everything that decides when you're busy (`person_days`, `busy_only`, `lesson_out`'s `busy`) goes through it.
 
 ## `RECENT`
 
@@ -21,6 +22,8 @@ Free/busy view: merged busy blocks per day, nothing about what or where.
 ## `lesson_out`
 
 One lesson for the app, with its kind (the colour). Without detail (a friend who shares only free/busy) it says only when.
+`skipped: true` on a lesson you skip; only your own timetable ever has it (`r_friends.friend_schedule` leaves skipped
+lessons out, so friends see free time).
 
 ## `ensure_weeks`
 
@@ -37,7 +40,7 @@ Mondays of a range the routine sync doesn't cover.
 
 ## `lessons`
 
-All lessons of several people between two days: classes (filtered per source with include/exclude and hidden courses, and for a source of one semester only on that semester's days, `terms.covers` with the school's dates) and personal calendars, sorted, with duplicates removed (two sources with the same lesson).
+All lessons of several people between two days: classes (filtered per source with include/exclude and hidden courses, and for a source of one semester only on that semester's days, `terms.covers` with the school's dates) and personal calendars, sorted, with duplicates removed (two sources with the same lesson). Lessons inside a person's `skipped_lessons` (same day and course, inside the skipped stretch) come with `skipped: True`.
 
 ## `local_now`
 
