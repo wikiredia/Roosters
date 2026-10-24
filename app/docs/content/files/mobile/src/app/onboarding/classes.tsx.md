@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:30:00Z
+updated: 2026-10-24T19:20:00Z
 ---
 
 Step 4 of 8: your **classes per semester**. Two sections, **Semester 1** and **Semester 2** (with their months

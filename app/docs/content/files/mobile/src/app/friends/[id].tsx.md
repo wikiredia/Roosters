@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-24T19:20:00Z
 ---
 
 **One friend**: chat with them (their one-to-one chat, made the first time), their week (full, without rooms or free/busy, as they chose, with a line saying so), what you show them (the same

@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, useWindowDimensions, View } from 'react-native';
 import { FadeInDown, FadeOut, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -229,7 +229,7 @@ export default function ChatScreen() {
                 <Text tone="ink2" className="text-center py-10">
                   {t('chat.empty')}
                 </Text>
-              ) : null
+              ) : undefined
             }
             renderItem={({ item }) =>
               fresh(item) ? (
@@ -380,7 +380,7 @@ const msgItem = (m: ChatMessage): Item => ({ type: 'msg', key: `m${m.id}`, m, wh
 
 /** One row of the chat. `lifted`: just the bubble, for the copy over the message sheet's scrim. */
 function Bubble({ item, c, myId, onLong, onRetry, t, lifted }: { item: Item; c: ChatDetail | undefined; myId: number | undefined; onLong: (m: ChatMessage, r: Rect | null) => void; onRetry: (o: Outgoing) => void; t: T; lifted?: boolean }) {
-  const box = useRef<View>(null);
+  const box = useRef<ComponentRef<typeof View>>(null);
   if (item.type === 'day') {
     return (
       <Text variant="sm" bold tone="ink2" className="self-center py-1">

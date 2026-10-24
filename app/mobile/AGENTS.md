@@ -19,6 +19,7 @@ npx expo lint               # lint
 npx tsc --noEmit            # typecheck
 npx expo-doctor             # diagnose dependency and config issues
 npx expo install --fix      # fix incompatible package versions
+./upgrade-sdk.sh            # upgrade to a new Expo SDK (docs recipe "Upgrading the Expo SDK")
 ```
 
 Run lint and typecheck before declaring any task done.

@@ -1,7 +1,7 @@
 ---
 title: Recipes: common changes
 position: 100
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T19:03:00Z
 ---
 
 ## A new API endpoint
@@ -31,6 +31,22 @@ in `i18n/nl.ts` and `en.ts`; data through a hook.
 Add the screen under `app/onboarding/`, link it from the previous step, give it `navRight` with **Skip**
 (`useFinishOnboarding` or the next step), and add a matching item to `components/SetupSteps.tsx` so
 skipping it shows on Today.
+
+## Upgrading the Expo SDK
+
+Once per SDK release (roughly three a year). From `mobile/`:
+
+1. Read the SDK's changelog (`https://expo.dev/changelog`): breaking changes, the minimum Node version, what
+   Expo Go supports. Search `src/` for anything it removes or renames.
+2. `./upgrade-sdk.sh` (or `./upgrade-sdk.sh <major>`): moves every Expo package to the SDK's versions and runs the
+   CI checks (`files/mobile/upgrade-sdk.sh`).
+3. Fix what `tsc` reports. Going to SDK 58 that was React Native's stricter types (refs as
+   `useRef<ComponentRef<typeof View>>`, not `useRef<View>`) and Expo Router's own tab bar props
+   (`emitter` + `navigateToTab` instead of `navigation`).
+4. Docs: the versions in `files/mobile/package.json.md`, plus a doc for every file you changed.
+5. A **new development build** (`npx expo run:ios|android` or `eas build`), then try sign-in (Apple, Google),
+   push, the camera and the timetable gestures on a phone. Expo Go only runs the newest SDK, so it needs updating too.
+6. Store builds: `eas build` picks up the new SDK by itself; raise `version` in `app.json` for the next release.
 
 ## Something in the console
 

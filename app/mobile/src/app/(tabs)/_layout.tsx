@@ -21,7 +21,7 @@ const TABS: Record<string, { icon: IconName; label: Key }> = {
   ik: { icon: 'user', label: 'tabs.me' },
 };
 
-function TabBar({ state, navigation }: BottomTabBarProps) {
+function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
   const unread = useChats().data?.unread ?? 0;
@@ -43,8 +43,8 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
             accessibilityState={{ selected: on }}
             accessibilityLabel={badge ? `${t(tab.label)}, ${t('chat.unreadLabel', { n: badge })}` : t(tab.label)}
             onPress={() => {
-              const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!on && !e.defaultPrevented) navigation.navigate(route.name, route.params);
+              const e = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+              if (!on && !e.defaultPrevented) navigateToTab(route.key);
             }}
             className="flex-1 items-center justify-center gap-0.5 min-h-[52px]"
           >

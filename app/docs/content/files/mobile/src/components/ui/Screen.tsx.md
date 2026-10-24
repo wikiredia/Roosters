@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:30:00Z
+updated: 2026-10-24T19:20:00Z
 ---
 
 **Every screen** uses this: safe area, the header (large title for tabs, or a back button with a small title, or onboarding progress), the network banner, scrollable content with pull-to-refresh, and an optional sticky footer.

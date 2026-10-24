@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { type ComponentRef, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -38,7 +38,7 @@ export default function FriendScreen() {
   const insets = useSafeAreaInsets();
   const screenH = useWindowDimensions().height;
   // Where the week starts on screen (before you scroll); the hours fill what's left of it below
-  const weekRef = useRef<View>(null);
+  const weekRef = useRef<ComponentRef<typeof View>>(null);
   const [weekTop, setWeekTop] = useState<number | null>(null);
   const room = weekTop == null ? 0 : screenH - Math.max(insets.bottom, 8) - weekTop - WEEK_CHROME;
   const pxPerHour = weekTop == null ? 32 : Math.max(24, Math.min(56, room / (END_HOUR - START_HOUR)));

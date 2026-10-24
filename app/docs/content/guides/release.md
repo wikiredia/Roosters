@@ -1,7 +1,7 @@
 ---
 title: Releasing to TestFlight and Play
 position: 75
-updated: 2026-10-24T18:00:00Z
+updated: 2026-10-24T19:03:00Z
 ---
 
 From "it runs in Expo Go on my laptop" to testers installing Roosters+ from **TestFlight** (iOS) and **Google Play
@@ -263,7 +263,7 @@ You don't need Xcode for TestFlight (part 3 builds in the cloud). Use it to run 
 crashes, or archive by hand. Needs a Mac.
 
 1. Install **Xcode** from the Mac App Store, open it once, accept the license, and let it install the iOS
-   platform. Then in a terminal: `xcode-select --install` (command line tools), Node 20+, and
+   platform. Then in a terminal: `xcode-select --install` (command line tools), Node 22.13+, and
    [CocoaPods](https://cocoapods.org) (`brew install cocoapods`).
 2. **Xcode → Settings → Accounts → +**: your Apple ID, so Xcode knows your team.
 3. Generate the native project (it is **generated, never edited and never committed**: `ios/` is in

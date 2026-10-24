@@ -66,7 +66,7 @@ Another address: `API_URL=http://<ip>:<port> ./server-restart.sh`; without Expo:
 
 ### The app
 
-Needs Node 20+. On your phone: install **Expo Go** (App Store / Play Store), same wifi as your laptop.
+Needs Node 22.13+ (Expo SDK 58). On your phone: install **Expo Go** (App Store / Play Store), same wifi as your laptop.
 
 ```bash
 cd app/mobile
