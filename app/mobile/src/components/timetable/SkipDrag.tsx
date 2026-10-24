@@ -21,7 +21,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 
-import { BlockView } from './Timetable';
+import { BlockView, Hatch } from './Timetable';
 
 /** Width of the bin that slides in on the right while you drag a class. */
 export const BIN_W = 84;
@@ -215,13 +215,14 @@ export function useSkipGesture(p: GestureProps) {
 
 /**
  * What you see while dragging, over the grid (it never takes a touch): a dashed hole where the class was, the card
- * hanging from your finger (it swings as you move, and shrinks over the bin), and the bin on the right, which turns
- * red and opens up when the card is over it. `lesson`: the class under your finger (Calendar keeps it).
+ * hanging from your finger (it swings as you move, and shrinks over the bin), and the bin on the right: a see-through
+ * zone of faint grey diagonal lines (the grid stays visible through it) that darkens, and whose bin opens up, when the
+ * card is over it. The bin and its word sit on a patch, so the lines stop around them. `lesson`: the class under your
+ * finger (Calendar keeps it).
  */
 export function DragLayer({ drag, lesson, width, height, compact }: { drag: SkipDrag; lesson: Lesson | null; width: number; height: number; compact: boolean }) {
   const { t } = useT();
-  const danger = String(useCSSVariable('--color-danger') ?? '#E5484D');
-  const dangerSoft = String(useCSSVariable('--color-danger-soft') ?? '#FDE6E6');
+  const lines = String(useCSSVariable('--color-ink-3') ?? '#6E6A62');
   const show = useDerivedValue(() => withSpring(drag.phase.get() === 2 || drag.phase.get() === 3 ? 1 : 0, SWING));
 
   const hole = useAnimatedStyle(() => {
@@ -247,8 +248,10 @@ export function DragLayer({ drag, lesson, width, height, compact }: { drag: Skip
   });
   const bin = useAnimatedStyle(() => ({
     transform: [{ translateX: interpolate(show.get(), [0, 1], [BIN_W + 24, 0]) }],
-    backgroundColor: interpolateColor(drag.over.get(), [0, 1], [dangerSoft, danger]),
+    // Barely tinted, so the days behind it stay visible; a little more when the card is over it
+    backgroundColor: interpolateColor(drag.over.get(), [0, 1], ['rgba(110,106,98,0.04)', 'rgba(110,106,98,0.12)']),
   }));
+  const hatch = useAnimatedStyle(() => ({ opacity: 0.55 + 0.45 * drag.over.get() }));
   const lid = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + 0.3 * drag.over.get() }, { rotate: `${-14 * drag.over.get()}deg` }],
   }));
@@ -258,28 +261,36 @@ export function DragLayer({ drag, lesson, width, height, compact }: { drag: Skip
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, width, height }}>
       <Animated.View style={[{ position: 'absolute' }, hole]} className="rounded-block border-[1.5px] border-dashed border-line-strong bg-surface-sunken" />
-      <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, right: 0, width: BIN_W }, bin]} className="rounded-l-card items-center justify-center gap-2">
-        <Animated.View style={lid}>
-          <View>
+      <Animated.View
+        style={[{ position: 'absolute', top: 0, bottom: 0, right: 0, width: BIN_W }, bin]}
+        className="rounded-l-card overflow-hidden border-l-[1.5px] border-y-[1.5px] border-dashed border-line-strong items-center justify-center"
+      >
+        <Animated.View style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }, hatch]}>
+          <Hatch color={lines} gap={9} opacity={0.35} />
+        </Animated.View>
+        <View className="items-center gap-1.5 rounded-card bg-bg px-1 py-2" style={{ width: BIN_W - 12 }}>
+          <Animated.View style={lid}>
+            <View>
+              <Animated.View style={idle}>
+                <Icon name="trash" size={26} color="ink-3" strokeWidth={2} />
+              </Animated.View>
+              <Animated.View style={[{ position: 'absolute' }, hot]}>
+                <Icon name="trash" size={26} color="ink" strokeWidth={2.25} />
+              </Animated.View>
+            </View>
+          </Animated.View>
+          <View className="self-stretch">
             <Animated.View style={idle}>
-              <Icon name="trash" size={30} color="danger-ink" strokeWidth={2} />
+              <Text variant="xs" bold tone="ink3" numberOfLines={1} className="text-center">
+                {t('skip.drop')}
+              </Text>
             </Animated.View>
-            <Animated.View style={[{ position: 'absolute' }, hot]}>
-              <Icon name="trash" size={30} color="#FFFFFF" strokeWidth={2.25} />
+            <Animated.View style={[{ position: 'absolute', left: 0, right: 0 }, hot]}>
+              <Text variant="xs" bold numberOfLines={1} className="text-center">
+                {t('skip.release')}
+              </Text>
             </Animated.View>
           </View>
-        </Animated.View>
-        <View>
-          <Animated.View style={idle}>
-            <Text variant="xs" bold tone="danger" className="text-center">
-              {t('skip.drop')}
-            </Text>
-          </Animated.View>
-          <Animated.View style={[{ position: 'absolute', left: 0, right: 0 }, hot]}>
-            <Text variant="xs" bold tone="inverse" className="text-center">
-              {t('skip.release')}
-            </Text>
-          </Animated.View>
         </View>
       </Animated.View>
       <Animated.View style={[{ position: 'absolute', shadowColor: '#161F2A', shadowRadius: 14, shadowOffset: { width: 0, height: 8 } }, card]}>

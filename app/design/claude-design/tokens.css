@@ -45,6 +45,8 @@
   --color-friend-soft: #FDE4EB;      /* friends' lessons */
   --color-together-ink: #6B4E00;     /* text on together-soft — 6.8:1 */
   --color-together-soft: #FFF1C4;    /* quiet "together" surfaces */
+  --color-together-edge: #6B4E00;    /* edge of a planned break */
+  --color-together-line: #FFC21A;    /* faint lines over an asked break */
   --color-danger-ink: #C42A30;       /* "Vervalt" text — 5.6:1 on white */
   --color-danger-strong: #C42A30;    /* destructive button fill (white text 6.2:1) */
   --color-danger-soft: #FDE6E6;
@@ -150,6 +152,8 @@
   --color-friend-soft: #44202F;
   --color-together-ink: #FFD24D;
   --color-together-soft: #3A3115;
+  --color-together-edge: #FFE9A8;
+  --color-together-line: #8A6E1C;
   --color-danger-ink: #FF8A8D;
   --color-danger-strong: #D93A40;
   --color-danger-soft: #4A1F22;

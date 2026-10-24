@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -26,6 +26,10 @@ Overlapping lessons get an `OverlapBand` over the shared stretch. A tap there (o
 `Timetable.lessonsAt`) calls `onPressOverlap` with those lessons instead of opening one.
 
 As above. `DayData`: a day's lessons, its shared breaks (labelled) and whether it's still loading.
+
+With `drag` a class of yours can be picked up and dropped into the bin to skip it: the gesture is
+`SkipDrag.useSkipGesture`, first in the gesture tree (the swipe and taps wait until it fails, which is at once
+when the finger isn't on a draggable class). A tap on a skipped class opens it, unless a shared break is over it.
 
 ## `ColumnProps`
 
