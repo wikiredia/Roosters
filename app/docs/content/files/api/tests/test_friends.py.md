@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T18:00:00Z
 ---
 
 Friends end to end: invite links work both ways, shared breaks and the now-board, free/busy hiding what

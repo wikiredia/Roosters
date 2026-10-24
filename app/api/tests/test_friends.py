@@ -110,8 +110,13 @@ def test_today_has_an_etag(client, mails, school):
     reda, _ = _setup(client, mails, school)
     q = {"day": DAY.isoformat()}
     r = client.get("/api/v1/me/today", headers=reda["headers"], params=q)
-    again = client.get("/api/v1/me/today", headers={**reda["headers"], "If-None-Match": r.headers["etag"]}, params=q)
-    assert again.status_code == 304 and again.content == b""
+    assert r.headers["cache-control"] == "no-store"
+    again = client.get("/api/v1/me/today", headers={**reda["headers"], "X-If-None-Match": r.headers["etag"]}, params=q)
+    # Never a real 304: iOS would answer that with its own (possibly stale 401) copy
+    assert again.status_code == 200 and again.headers["x-not-modified"] == "1" and again.content == b""
+    # A plain If-None-Match (the phone's HTTP cache adding one by itself) gets the full answer
+    full = client.get("/api/v1/me/today", headers={**reda["headers"], "If-None-Match": r.headers["etag"]}, params=q)
+    assert full.status_code == 200 and full.json() == r.json()
 
 
 def test_delete_account_removes_everything(client, mails, school):
