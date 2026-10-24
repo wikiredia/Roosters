@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T00:30:00Z
+updated: 2026-10-24T03:30:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -10,11 +10,16 @@ One block (lesson or together).
 
 ## `GridProps`, `TimeGrid`
 
-The grid itself.
+The grid itself. `axis={false}` leaves the time axis out (the Rooster tab keeps one still axis while the
+days slide past it). Columns glide to their new width when their number changes (layout animation).
 
-## `Legend`
+## `TimeAxis`, `axisWidth`
 
-Colour legend under a grid.
+The hours on the left of a grid, on its own; its width (narrower when compact).
+
+## `Legend`, `LegendItem`
+
+Colour legend under a grid; the Rooster tab passes only what's on screen.
 
 ## `START_HOUR`, `END_HOUR`
 

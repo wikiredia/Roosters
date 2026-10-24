@@ -147,7 +147,9 @@ export default function ClassesStep() {
               accessibilityHint={t('classes.rowHint')}
               right={
                 <View className="flex-row gap-1.5">
-                  {c.semesters.map((sem) => {
+                  {SEMESTERS.map((sem) => {
+                    // Keep S1 and S2 in their own column, also for a class that exists in one semester only
+                    if (!c.semesters.includes(sem)) return <View key={sem} style={{ width: 52 }} />;
                     const p = pick(c.id, sem);
                     const on = chosen.has(p);
                     return (

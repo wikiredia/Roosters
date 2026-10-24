@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T03:30:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -25,6 +25,12 @@ Welcome → (e-mail → code, or **continue without signing in**) → school →
 → friends. Classes are picked **per semester** (S1 and S2 sections on one screen), and courses per semester
 from the **whole school year** (`onboarding/classes.tsx`, `onboarding/courses.tsx`). Every step has **Skip**. What's skipped shows on Today as **Complete the following steps**
 (`components/SetupSteps.tsx`): confirm your e-mail, choose your school, add your timetable, add friends.
+
+## The Rooster tab
+
+1–5 days side by side, set by dragging the handle on the week strip (`components/timetable/DayStrip.tsx`);
+swipe through time with `DayPager.tsx` (a short swipe shows the weekend, a long one skips it); the pages
+are `lib/days.ts`. Any week back or ahead works: the API fetches it from Untis when you look.
 
 ## Data and offline
 

@@ -2,6 +2,7 @@ import { Pressable, View } from 'react-native';
 
 import type { Lesson } from '@/api/types';
 import { Icon } from '@/components/ui/Icon';
+import { AView, layout } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
 import { cn } from '@/lib/cn';
@@ -90,33 +91,49 @@ type GridProps = {
   onPressLesson?: (l: Lesson) => void;
   onPressTogether?: (s: Span) => void;
   hours?: [number, number];
+  /** false: no time axis (the Rooster tab keeps one axis still while the days slide past it) */
+  axis?: boolean;
 };
 
-/** Time axis on the left, one or more day columns, a "now" line. */
-export function TimeGrid({ columns, pxPerHour = 48, nowMin, compact, onPressLesson, onPressTogether, hours = [START_HOUR, END_HOUR] }: GridProps) {
+export function axisWidth(compact?: boolean) {
+  return compact ? 24 : 44;
+}
+
+/** The hours on the left of a grid, with the 'now' time when it's on screen. */
+export function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOUR] }: { pxPerHour?: number; compact?: boolean; hours?: [number, number] }) {
+  const [h0, h1] = hours;
+  const height = (h1 - h0) * pxPerHour;
+  return (
+    <View style={{ width: axisWidth(compact), height }}>
+      {Array.from({ length: h1 - h0 + 1 }, (_, i) => h0 + i)
+        .filter((h) => !compact || (h - h0) % 2 === 0)
+        .map((h) => (
+          <Text key={h} variant="xs" bold tone="ink3" className="absolute" style={{ top: (h - h0) * pxPerHour - 9, fontSize: compact ? 11 : 12 }}>
+            {compact ? String(h) : `${String(h).padStart(2, '0')}:00`}
+          </Text>
+        ))}
+    </View>
+  );
+}
+
+/** Time axis on the left, one or more day columns, a "now" line. Columns resize smoothly when their
+ * number changes (layout animation), so going from 2 to 3 days glides instead of jumping. */
+export function TimeGrid({ columns, pxPerHour = 48, nowMin, compact, onPressLesson, onPressTogether, hours = [START_HOUR, END_HOUR], axis = true }: GridProps) {
   const { t } = useT();
   const [h0, h1] = hours;
   const height = (h1 - h0) * pxPerHour;
   const y = (min: number) => ((min - h0 * 60) / 60) * pxPerHour;
-  const axisW = compact ? 24 : 44;
+  const axisW = axisWidth(compact);
   return (
     <View className="flex-row" style={{ height: height + 10 }}>
-      <View style={{ width: axisW, height }}>
-        {Array.from({ length: h1 - h0 + 1 }, (_, i) => h0 + i)
-          .filter((h) => !compact || (h - h0) % 2 === 0)
-          .map((h) => (
-            <Text key={h} variant="xs" bold tone="ink3" className="absolute" style={{ top: (h - h0) * pxPerHour - 9, fontSize: compact ? 11 : 12 }}>
-              {compact ? String(h) : `${String(h).padStart(2, '0')}:00`}
-            </Text>
-          ))}
-      </View>
+      {axis ? <TimeAxis pxPerHour={pxPerHour} compact={compact} hours={hours} /> : null}
       <View className="flex-1 flex-row gap-1" style={{ height }}>
         {!compact &&
           Array.from({ length: h1 - h0 + 1 }, (_, i) => (
             <View key={i} className="absolute left-0 right-0 h-px bg-line" style={{ top: i * pxPerHour }} />
           ))}
         {columns.map((col) => (
-          <View key={col.key} className="flex-1" style={{ height }}>
+          <AView key={col.key} className="flex-1" style={{ height }} layout={layout}>
             {col.blocks.map((b, i) => {
               const s = spanOf(b);
               const top = y(Math.max(s.start, h0 * 60));
@@ -126,15 +143,19 @@ export function TimeGrid({ columns, pxPerHour = 48, nowMin, compact, onPressLess
               const pos = sharesWithOther ? (b.type === 'together' ? { left: '55%' as const, right: 0 } : { left: 0, right: '47%' as const }) : { left: 0, right: 0 };
               return <BlockView key={i} block={b} style={{ position: 'absolute', top, height: h, ...pos }} compact={compact} onPressLesson={onPressLesson} onPressTogether={onPressTogether} t={t} />;
             })}
-          </View>
+          </AView>
         ))}
         {nowMin != null && nowMin >= h0 * 60 && nowMin <= h1 * 60 ? (
           <View className="absolute left-0 right-0 h-0.5 bg-ink" style={{ top: y(nowMin) }} pointerEvents="none">
-            <View className="absolute bg-ink rounded px-1" style={{ left: -axisW, top: -10 }}>
-              <Text variant="xs" bold tone="inverse" style={{ fontSize: 12 }}>
-                {hhmm(nowMin)}
-              </Text>
-            </View>
+            {axis ? (
+              <View className="absolute bg-ink rounded px-1" style={{ left: -axisW, top: -10 }}>
+                <Text variant="xs" bold tone="inverse" style={{ fontSize: 12 }}>
+                  {hhmm(nowMin)}
+                </Text>
+              </View>
+            ) : (
+              <View className="absolute bg-ink rounded-full w-2 h-2" style={{ left: -3, top: -3 }} />
+            )}
           </View>
         ) : null}
       </View>
@@ -264,7 +285,9 @@ export function shortCourse(name: string) {
   return `${first.slice(0, 5)}.`;
 }
 
-export function Legend({ items }: { items: ('theory' | 'lab' | 'cancelled' | 'together' | 'friend' | 'exam')[] }) {
+export type LegendItem = 'theory' | 'lab' | 'cancelled' | 'together' | 'friend' | 'exam';
+
+export function Legend({ items }: { items: LegendItem[] }) {
   const { t } = useT();
   const sw: Record<string, string> = {
     theory: 'bg-theory-soft border-[1.5px] border-theory',

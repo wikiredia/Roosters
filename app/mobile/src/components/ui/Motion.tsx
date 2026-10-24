@@ -26,16 +26,16 @@ export const layout = LinearTransition.duration(200).easing(Easing.out(Easing.qu
 export function usePressScale(to = 0.96, props?: { onPressIn?: ((e: GestureResponderEvent) => void) | null; onPressOut?: ((e: GestureResponderEvent) => void) | null }) {
   const reduced = useReducedMotion();
   const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
   return {
     style,
     handlers: {
       onPressIn: (e: GestureResponderEvent) => {
-        if (!reduced) scale.value = withSpring(to, PRESS_IN);
+        if (!reduced) scale.set(withSpring(to, PRESS_IN));
         props?.onPressIn?.(e);
       },
       onPressOut: (e: GestureResponderEvent) => {
-        if (!reduced) scale.value = withSpring(1, PRESS_OUT);
+        if (!reduced) scale.set(withSpring(1, PRESS_OUT));
         props?.onPressOut?.(e);
       },
     },
@@ -48,9 +48,11 @@ export function useFlash() {
   return {
     value: v,
     flash: () => {
-      v.value = withTiming(1, { duration: 120 }, () => {
-        v.value = withTiming(0, { duration: 260 });
-      });
+      v.set(
+        withTiming(1, { duration: 120 }, () => {
+          v.set(withTiming(0, { duration: 260 }));
+        }),
+      );
     },
   };
 }

@@ -34,15 +34,19 @@ export function Sheet({ visible, onClose, title, sub, left, children, closeLabel
   const drag = useSharedValue(0);
   const height = useSharedValue(600);
 
+  // Opening mounts right away (during render, not in an effect); closing unmounts after the slide
+  if (visible && !mounted) setMounted(true);
+
   useEffect(() => {
     if (visible) {
-      setMounted(true);
-      drag.value = 0;
-      progress.value = withTiming(1, OPEN);
+      drag.set(0);
+      progress.set(withTiming(1, OPEN));
     } else if (mounted) {
-      progress.value = withTiming(0, CLOSE, (done) => {
-        if (done) scheduleOnRN(setMounted, false);
-      });
+      progress.set(
+        withTiming(0, CLOSE, (done) => {
+          if (done) scheduleOnRN(setMounted, false);
+        }),
+      );
     }
   }, [visible]);
 
@@ -50,21 +54,21 @@ export function Sheet({ visible, onClose, title, sub, left, children, closeLabel
     .activeOffsetY(8)
     .onUpdate((e) => {
       // Down follows the finger, up resists
-      drag.value = e.translationY > 0 ? e.translationY : e.translationY / 6;
+      drag.set(e.translationY > 0 ? e.translationY : e.translationY / 6);
     })
     .onEnd((e) => {
       if (e.translationY > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY) {
         scheduleOnRN(onClose);
       } else {
-        drag.value = withSpring(0, { damping: 18, stiffness: 220 });
+        drag.set(withSpring(0, { damping: 18, stiffness: 220 }));
       }
     });
 
   const scrim = useAnimatedStyle(() => ({
-    opacity: progress.value * interpolate(drag.value, [0, height.value], [1, 0.2], 'clamp'),
+    opacity: progress.get() * interpolate(drag.get(), [0, height.get()], [1, 0.2], 'clamp'),
   }));
   const sheet = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * (height.value + 40) + drag.value }],
+    transform: [{ translateY: (1 - progress.get()) * (height.get() + 40) + drag.get() }],
   }));
 
   if (!mounted) return null;
@@ -79,7 +83,7 @@ export function Sheet({ visible, onClose, title, sub, left, children, closeLabel
           <Animated.View
             accessibilityViewIsModal
             onLayout={(e) => {
-              height.value = e.nativeEvent.layout.height;
+              height.set(e.nativeEvent.layout.height);
             }}
             style={[{ maxHeight: '90%' }, sheet]}
           >

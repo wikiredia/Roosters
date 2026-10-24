@@ -1,146 +1,167 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 
-import { useFriends, useSchedule, useTodays } from '@/api/hooks';
+import { useTodays } from '@/api/hooks';
 import type { Lesson, Today } from '@/api/types';
+import { DayPager } from '@/components/timetable/DayPager';
+import { DayStrip } from '@/components/timetable/DayStrip';
 import { LessonSheet } from '@/components/timetable/LessonSheet';
-import { type Column, dayBlocks, Legend, TimeGrid } from '@/components/timetable/Timetable';
-import { WeekView } from '@/components/timetable/WeekView';
-import { Segmented } from '@/components/ui/Bits';
-import { Button, IconButton } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Layout';
+import { type Column, dayBlocks, Legend, type LegendItem, lessonKind, TimeAxis, TimeGrid } from '@/components/timetable/Timetable';
+import { Button } from '@/components/ui/Button';
+import { AView, enter, exit } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { cn } from '@/lib/cn';
+import { type Page, homePage, MAX_DAYS, page as makePage, pageDays, samePage } from '@/lib/days';
 import { joinNames } from '@/lib/status';
-import { addDays, isoDay, monday, monthRange, nowMin, shortDate, weekdayShort } from '@/lib/time';
+import { prefs } from '@/lib/storage';
+import { addDays, isoDay, monthRange, nowMin, shortDate, weekdayShort } from '@/lib/time';
 
-type Mode = 'day' | 'week';
-
-/** Monday–Friday only: skip the weekend when stepping through days. */
-function schoolDay(d: Date, dir: 1 | -1 = 1) {
-  let x = d;
-  while ([0, 6].includes(x.getDay())) x = addDays(x, dir);
-  return x;
-}
+/** Hours always on screen; a page with earlier or later lessons stretches them. */
+const HOURS: [number, number] = [8, 18];
+/** Below this the day doesn't fit any more and the grid scrolls up and down. */
+const MIN_PX_PER_HOUR = 34;
+const LABELS = 22;
 
 export default function RoosterScreen() {
   const { t, lang } = useT();
-  const [mode, setMode] = useState<Mode>('day');
-  const [day, setDay] = useState(() => schoolDay(new Date()));
-  const [count, setCount] = useState(1);
+  const [want, setWant] = useState(3);
+  const [page, setPage] = useState<Page>(() => homePage(3));
+  const [hint, setHint] = useState(false);
   const [open, setOpen] = useState<{ lesson: Lesson; data?: Today } | null>(null);
-  const friends = useFriends();
+  const [height, setHeight] = useState(0);
 
-  const days = useMemo(() => {
-    const out: Date[] = [];
-    let d = day;
-    while (out.length < count) {
-      out.push(d);
-      d = schoolDay(addDays(d, 1));
+  // Remember how many days you like to see, and whether you've seen the hint
+  useEffect(() => {
+    prefs.get('rooster.days', 3).then((n) => {
+      const k = Math.max(1, Math.min(MAX_DAYS, n));
+      setWant(k);
+      setPage(homePage(k));
+    });
+    prefs.get('hint.days', false).then((seen) => setHint(!seen));
+  }, []);
+
+  function resize(n: number) {
+    const k = Math.max(1, Math.min(MAX_DAYS, n));
+    setWant(k);
+    setPage((p) => makePage(p.start, k));
+    prefs.set('rooster.days', k);
+    if (hint) dismissHint();
+  }
+
+  function dismissHint() {
+    setHint(false);
+    prefs.set('hint.days', true);
+  }
+
+  const days = pageDays(page);
+  const home = homePage(want);
+  const atHome = samePage(page, home) || days.some((d) => isoDay(d) === isoDay(new Date()));
+  // The hours this page needs (same cache as the page itself: no extra requests)
+  const current = useTodays(days.map(isoDay));
+  const stamp = current.map((r) => r.dataUpdatedAt).join();
+  const hours = useMemo<[number, number]>(() => {
+    let [h0, h1] = HOURS;
+    for (const r of current) {
+      for (const l of r.data?.me.lessons ?? []) {
+        h0 = Math.min(h0, Math.floor(l.start / 60));
+        h1 = Math.max(h1, Math.ceil(l.end / 60));
+      }
     }
-    return out;
-  }, [day, count]);
-  const week = monday(day);
+    return [h0, h1];
+  }, [stamp]);
+  // The legend explains what's on screen (theory and lab always), so it fits on one line
+  const legend = useMemo<LegendItem[]>(() => {
+    const out = new Set<LegendItem>(['theory', 'lab']);
+    for (const r of current) {
+      if (r.data?.together.length) out.add('together');
+      for (const l of r.data?.me.lessons ?? []) {
+        if (l.state === 'exam') out.add('exam');
+        else if (l.state === 'cancelled' || l.state === 'removed') out.add('cancelled');
+        else out.add(lessonKind(l.course));
+      }
+    }
+    return (['theory', 'lab', 'exam', 'cancelled', 'together'] as LegendItem[]).filter((i) => out.has(i));
+  }, [stamp]);
+  const fit = height ? (height - LABELS - 12) / (hours[1] - hours[0]) : 44;
+  const pxPerHour = Math.max(MIN_PX_PER_HOUR, Math.min(64, fit));
+  const compact = want > 2;
+
+  const grid = (
+    <View className="flex-row" style={{ height: LABELS + (hours[1] - hours[0]) * pxPerHour + 10 }}>
+      <View style={{ paddingTop: LABELS }}>
+        <TimeAxis pxPerHour={pxPerHour} hours={hours} compact={compact} />
+      </View>
+      <DayPager
+        page={page}
+        want={want}
+        onChange={setPage}
+        renderPage={(p) => <PageView p={p} hours={hours} pxPerHour={pxPerHour} compact={p.n > 2} onPress={(lesson, data) => setOpen({ lesson, data })} />}
+      />
+    </View>
+  );
 
   return (
     <Screen
       title={t('tabs.rooster')}
-      eyebrow={mode === 'week' ? monthRange(week, addDays(week, 4), lang) : shortDate(day, lang)}
+      eyebrow={page.n > 1 ? monthRange(page.start, addDays(page.start, page.n - 1), lang) : shortDate(page.start, lang)}
       right={
-        <Button
-          variant="secondary"
-          size="sm"
-          label={t('rooster.compare')}
-          onPress={() => router.push('/compare')}
-          icon={friends.data?.length ? undefined : 'users'}
-        />
+        <View className="flex-row gap-2">
+          {!atHome ? (
+            <AView entering={enter} exiting={exit}>
+              <Button variant="tonal" size="sm" label={t('rooster.today')} onPress={() => setPage(home)} />
+            </AView>
+          ) : null}
+          <Button variant="secondary" size="sm" icon="users" label={t('rooster.compareShort')} accessibilityLabel={t('rooster.compare')} onPress={() => router.push('/compare')} />
+        </View>
       }
+      scroll={false}
+      contentClassName="flex-1 gap-3 pb-3"
     >
-      <Segmented<Mode>
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: 'day', label: t('rooster.day') },
-          { value: 'week', label: t('rooster.week') },
-        ]}
-      />
-      {mode === 'day' ? (
-        <>
-          <DayPicker day={day} onPick={setDay} lang={lang} t={t} />
-          <DayColumns days={days} onPress={(lesson, data) => setOpen({ lesson, data })} />
-          <Legend items={['theory', 'lab', 'cancelled', 'together']} />
-          <View className="flex-row items-center gap-2 self-start" accessibilityLabel={t('rooster.daysLabel', { n: count })}>
-            <Text variant="sm" bold tone="ink2">
-              {t('rooster.days')}
-            </Text>
-            <IconButton icon="minus" filled label={t('rooster.fewer')} disabled={count <= 1} onPress={() => setCount((c) => Math.max(1, c - 1))} />
-            <Text bold className="w-6 text-center">
-              {count}
-            </Text>
-            <IconButton icon="plus" filled label={t('rooster.more')} disabled={count >= 3} onPress={() => setCount((c) => Math.min(3, c + 1))} />
-          </View>
-        </>
-      ) : (
-        <Week start={week} onWeek={(d) => setDay(schoolDay(d))} onPress={(lesson) => setOpen({ lesson })} t={t} lang={lang} />
-      )}
+      {/* Above the grid (zIndex): the first-time hint may hang over it */}
+      <View style={{ zIndex: 10, elevation: 10 }}>
+        <DayStrip page={page} onPick={(d) => setPage(makePage(d, want))} onResize={resize} lang={lang} nudge={hint} />
+        <View className="flex-row items-center justify-center gap-3 pt-2" accessibilityLabel={t('rooster.daysLabel', { n: want })}>
+          <Button variant="secondary" size="sm" icon="minus" accessibilityLabel={t('rooster.fewer')} className="w-24" disabled={want <= 1} onPress={() => resize(want - 1)} />
+          <Text bold className="w-20 text-center" accessibilityLiveRegion="polite">
+            {t('rooster.nDays', { n: want })}
+          </Text>
+          <Button variant="secondary" size="sm" icon="plus" accessibilityLabel={t('rooster.more')} className="w-24" disabled={want >= MAX_DAYS} onPress={() => resize(want + 1)} />
+        </View>
+        {hint ? (
+          <AView entering={enter} exiting={exit} className="absolute right-0 top-[60px] left-8 z-10">
+            <View className="self-end w-3 h-3 bg-ink rotate-45 mr-6 -mb-1.5" />
+            <View className="bg-ink rounded-card px-4 py-3 flex-row items-center gap-3">
+              <Text variant="sm" tone="inverse" className="flex-1">
+                {t('rooster.hint')}
+              </Text>
+              <Button variant="onYou" size="sm" label={t('rooster.hintOk')} onPress={dismissHint} />
+            </View>
+          </AView>
+        ) : null}
+      </View>
+      <View className="flex-1" onLayout={(e) => setHeight(e.nativeEvent.layout.height)}>
+        {fit >= MIN_PX_PER_HOUR ? (
+          grid
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false}>{grid}</ScrollView>
+        )}
+      </View>
+      <Legend items={legend} />
       <LessonSheet lesson={open?.lesson ?? null} onClose={() => setOpen(null)} friends={open?.data?.friends} together={open?.data?.together} />
     </Screen>
   );
 }
 
-type T = ReturnType<typeof useT>['t'];
-
-/** Ma 19 · Di 20 · ... with arrows to the previous / next week. */
-function DayPicker({ day, onPick, lang, t }: { day: Date; onPick: (d: Date) => void; lang: 'nl' | 'en'; t: T }) {
-  const start = monday(day);
-  const todayIso = isoDay(new Date());
-  return (
-    <View className="flex-row items-center gap-1">
-      <IconButton icon="back" label={t('rooster.prevWeek')} onPress={() => onPick(addDays(start, -7))} />
-      {Array.from({ length: 5 }, (_, i) => addDays(start, i)).map((d) => {
-        const on = isoDay(d) === isoDay(day);
-        const today = isoDay(d) === todayIso;
-        return (
-          <Pressable
-            key={isoDay(d)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={shortDate(d, lang)}
-            onPress={() => onPick(d)}
-            className={cn('flex-1 items-center py-1.5 rounded-chip min-h-12 justify-center', on ? 'bg-ink' : today ? 'bg-you-soft' : '')}
-          >
-            <Text variant="xs" bold tone={on ? 'inverse' : 'ink2'}>
-              {weekdayShort(d, lang)}
-            </Text>
-            <Text bold tone={on ? 'inverse' : 'ink'}>
-              {d.getDate()}
-            </Text>
-          </Pressable>
-        );
-      })}
-      <IconButton icon="forward" label={t('rooster.nextWeek')} onPress={() => onPick(addDays(start, 7))} />
-    </View>
-  );
-}
-
-/** 1–3 days side by side, with shared breaks in yellow. */
-function DayColumns({ days, onPress }: { days: Date[]; onPress: (l: Lesson, d?: Today) => void }) {
+/** One page: its days side by side, with shared breaks in yellow. Data per day from Today (cached). */
+function PageView({ p, hours, pxPerHour, compact, onPress }: { p: Page; hours: [number, number]; pxPerHour: number; compact: boolean; onPress: (l: Lesson, d?: Today) => void }) {
   const { t, lang } = useT();
+  const days = pageDays(p);
   const isos = days.map(isoDay);
   const results = useTodays(isos);
   const todayIso = isoDay(new Date());
   const now = nowMin();
-  if (results.every((r) => !r.data)) {
-    return (
-      <Card className="p-4 gap-3 h-64">
-        <Skeleton width={200} />
-        <Skeleton width={140} />
-      </Card>
-    );
-  }
   const columns: Column[] = results.map((r, i) => {
     const data = r.data;
     if (!data) return { key: isos[i], blocks: [] };
@@ -161,63 +182,47 @@ function DayColumns({ days, onPress }: { days: Date[]; onPress: (l: Lesson, d?: 
       end: g.end,
       label: t('rooster.with', { names: joinNames(g.ids.map((id) => names.get(id) ?? '?'), t('common.and')) }),
     }));
-    return {
-      key: isos[i],
-      label: days.length > 1 ? shortDate(days[i], lang) : undefined,
-      blocks: dayBlocks(data.me.lessons, together, isos[i] === todayIso ? now : isos[i] < todayIso ? 24 * 60 : null),
-    };
+    return { key: isos[i], blocks: dayBlocks(data.me.lessons, together, isos[i] === todayIso ? now : isos[i] < todayIso ? 24 * 60 : null) };
   });
-  const showNow = isos.includes(todayIso) && days.length === 1;
+  const loading = results.some((r) => !r.data || (r.data.loading && r.data.me.lessons.length === 0));
+  const empty = !loading && results.every((r) => r.data && r.data.me.lessons.length === 0);
+  const weekend = days.every((d) => d.getDay() === 0 || d.getDay() === 6);
   return (
-    <View className="gap-1.5">
-      {days.length > 1 ? (
-        <View className="flex-row gap-1" style={{ paddingLeft: 44 }}>
-          {columns.map((c) => (
-            <Text key={c.key} variant="xs" bold tone="ink2" className="flex-1 text-center">
-              {c.label}
-            </Text>
-          ))}
-        </View>
-      ) : null}
+    <View>
+      <View className="flex-row gap-1" style={{ height: LABELS }}>
+        {days.map((d, i) => (
+          <Text key={isos[i]} variant="xs" bold tone={isos[i] === todayIso ? 'you' : 'ink2'} className="flex-1 text-center" numberOfLines={1}>
+            {p.n > 2 ? `${weekdayShort(d, lang).toLowerCase()} ${d.getDate()}` : shortDate(d, lang)}
+          </Text>
+        ))}
+      </View>
       <TimeGrid
         columns={columns}
-        nowMin={showNow ? now : null}
-        compact={days.length > 2}
+        axis={false}
+        hours={hours}
+        pxPerHour={pxPerHour}
+        compact={compact}
+        nowMin={isos.includes(todayIso) && p.n === 1 ? now : null}
         onPressLesson={(l) => onPress(l, results[isos.indexOf(l.day)]?.data)}
         onPressTogether={() => router.push('/compare')}
       />
-      {results.every((r) => r.data && r.data.me.lessons.length === 0) ? (
-        <Text tone="ink2" className="text-center">
-          {t('rooster.empty')}
-        </Text>
+      {loading ? (
+        <AView entering={enter} exiting={exit} className="absolute left-0 right-0 flex-row gap-1" style={{ top: LABELS + pxPerHour * 0.5 }} pointerEvents="none">
+          {days.map((d) => (
+            <View key={isoDay(d)} className="flex-1 gap-2">
+              <Skeleton className="h-16 rounded-block" />
+              <Skeleton className="h-10 rounded-block" />
+              <Skeleton className="h-20 rounded-block" />
+            </View>
+          ))}
+        </AView>
+      ) : empty ? (
+        <AView entering={enter} className="absolute left-0 right-0 items-center" style={{ top: LABELS + pxPerHour * 2 }} pointerEvents="none">
+          <Text tone="ink2" className="text-center">
+            {weekend ? t('rooster.emptyWeekend') : p.n > 1 ? t('rooster.emptyDays') : t('rooster.empty')}
+          </Text>
+        </AView>
       ) : null}
     </View>
-  );
-}
-
-function Week({ start, onWeek, onPress, t, lang }: { start: Date; onWeek: (d: Date) => void; onPress: (l: Lesson) => void; t: T; lang: 'nl' | 'en' }) {
-  const schedule = useSchedule(isoDay(start), 5);
-  const lessons = schedule.data?.lessons ?? [];
-  return (
-    <>
-      <View className="flex-row items-center justify-between">
-        <IconButton icon="back" label={t('rooster.prevWeek')} onPress={() => onWeek(addDays(start, -7))} />
-        <Text bold>{monthRange(start, addDays(start, 4), lang)}</Text>
-        <IconButton icon="forward" label={t('rooster.nextWeek')} onPress={() => onWeek(addDays(start, 7))} />
-      </View>
-      {schedule.data ? (
-        <WeekView monday={start} lessons={lessons} todayIso={isoDay(new Date())} nowMin={nowMin()} onPressLesson={onPress} />
-      ) : (
-        <Card className="p-4 gap-3 h-64">
-          <Skeleton width={200} />
-        </Card>
-      )}
-      <Legend items={['theory', 'lab', 'cancelled', 'exam']} />
-      {schedule.data && lessons.length === 0 ? (
-        <Text tone="ink2" className="text-center">
-          {t('rooster.emptyWeek')}
-        </Text>
-      ) : null}
-    </>
   );
 }
