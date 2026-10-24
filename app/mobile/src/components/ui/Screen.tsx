@@ -16,6 +16,8 @@ type ScreenProps = {
   /** Large title header (tabs) */
   title?: string;
   eyebrow?: string;
+  /** In place of the large title's text (the Rooster tab turns it into 'Terug'); `title` still names the screen */
+  heading?: ReactNode;
   right?: ReactNode;
   /** Small centered title with a back button (pushed screens) */
   navTitle?: string;
@@ -36,7 +38,7 @@ type ScreenProps = {
 };
 
 /** Every screen: safe area, header, network banner, scrollable content and an optional sticky footer. */
-export function Screen({ children, title, eyebrow, right, navTitle, back, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
+export function Screen({ children, title, eyebrow, heading, right, navTitle, back, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const hasNav = back || progress || navTitle !== undefined;
@@ -92,9 +94,11 @@ export function Screen({ children, title, eyebrow, right, navTitle, back, progre
             </Text>
           ) : null}
           <View className="flex-row items-end justify-between gap-3 min-h-11">
-            <Text variant="title" accessibilityRole="header" numberOfLines={1} className="flex-shrink">
-              {title}
-            </Text>
+            {heading ?? (
+              <Text variant="title" accessibilityRole="header" numberOfLines={1} className="flex-shrink">
+                {title}
+              </Text>
+            )}
             {right}
           </View>
         </View>

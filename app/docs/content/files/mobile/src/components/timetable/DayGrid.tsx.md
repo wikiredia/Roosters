@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T17:00:00Z
+updated: 2026-10-24T05:00:04Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -16,7 +16,9 @@ Gestures (Gesture Handler, all on the grid):
   buttons for screen readers.
 
 Lines are subtle dots (react-native-svg): hours across, a line between days. Lessons that arrive while you look slide
-in from the side you came from; a day still loading shows a skeleton; today has the 'now' line.
+in from the side you came from; a day still loading shows a skeleton; today has the 'now' line. Free moments between
+lessons (`Timetable.freeGaps`) are light grey with a small coffee cup, drawn behind everything: a shared break or a
+cancelled lesson goes over them. They aren't tappable (screen readers read 'Vrij, 10:00 tot 11:00').
 
 ## `DayGrid`, `Props`, `DayData`
 

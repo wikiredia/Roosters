@@ -1,17 +1,18 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { useSharedValue, withSpring } from 'react-native-reanimated';
+import { FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { useFriends, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
 import { type DayData, DayGrid, LABEL_H, RESIZE, SWIPE } from '@/components/timetable/DayGrid';
 import { DayStrip } from '@/components/timetable/DayStrip';
 import { LessonSheet, OverlapSheet } from '@/components/timetable/LessonSheet';
-import { Legend, type LegendItem, lessonKind, TimeAxis } from '@/components/timetable/Timetable';
+import { kindsOf, Legend, type LegendItem, lessonKind, TimeAxis } from '@/components/timetable/Timetable';
 import { TodayPill } from '@/components/timetable/TodayPill';
 import { Button, IconButton } from '@/components/ui/Button';
-import { AView, enter, exit, layout } from '@/components/ui/Motion';
+import { Icon } from '@/components/ui/Icon';
+import { APressable, AView, enter, exit, layout, usePressScale } from '@/components/ui/Motion';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
@@ -112,6 +113,8 @@ export default function RoosterScreen() {
     busyWeekends.set(busySats);
   }, [busySats, busyWeekends]);
   const emptyWeekend = (sat: number) => !busySats.includes(sat);
+  // The dots under the strip's dates
+  const kinds = useMemo(() => new Map([...byDay].map(([day, d]) => [day, kindsOf(d.lessons)])), [byDay]);
 
   // Remember how many days you like; without a choice: 5, or 7 when this week's weekend has something on it
   useEffect(() => {
@@ -179,6 +182,13 @@ export default function RoosterScreen() {
     setDays(n, false);
   }
 
+  /** Back to the standard view: this week, Monday to Friday, zoomed out (also remembered: 5 days). */
+  function reset() {
+    setZoomed(false);
+    setDays(5, false);
+    moveTo(homeStart(5, today, emptyWeekend), 5);
+  }
+
   const visible = Array.from({ length: want }, (_, i) => start + i);
   const home = homeStart(want, today, emptyWeekend);
   // 'Vandaag' only when you've moved away from today (and from where the tab opens)
@@ -206,11 +216,14 @@ export default function RoosterScreen() {
     }
     return [...out];
   }, [stamp, start, want]);
+  // Anything else than the standard view (zoomed, other than 5 days, not starting on a Monday): the title becomes 'Terug'
+  const custom = zoomed || want !== 5 || weekdayOf(start) !== 0;
   const pxPerHour = size.h ? (size.h - LABEL_H) / (hours[1] - hours[0]) : 40;
 
   return (
     <Screen
       title={t('tabs.rooster')}
+      heading={<TitleOrBack title={t('tabs.rooster')} back={custom ? t('common.back') : null} hint={t('rooster.resetHint')} onBack={reset} />}
       eyebrow={rangeLabel(dateAt(start), dateAt(start + want - 1), lang)}
       right={<Button variant="secondary" size="sm" icon="users" label={t('rooster.compareShort')} accessibilityLabel={t('rooster.compare')} onPress={() => router.push('/compare')} />}
       scroll={false}
@@ -228,9 +241,18 @@ export default function RoosterScreen() {
           to={to}
           today={today}
           lang={lang}
+          busyWeekends={busyWeekends}
+          kinds={(day) => kinds.get(day) ?? []}
+          onTarget={onTarget}
           onPick={(day) => moveTo(want >= 5 ? Math.max(mondayOf(day), Math.min(day, mondayOf(day) + 7 - want)) : day)}
           onResize={(n) => setWant(n)}
-          onResizeEnd={(n) => setDays(n, true)}
+          onResizeEnd={(n, s) => {
+            if (s !== undefined && s !== start) {
+              setEnterFrom(s >= start ? 1 : -1);
+              setStart(s);
+            }
+            setDays(n, true);
+          }}
           nudge={hint === 'days'}
         />
         {!learned ? (
@@ -306,6 +328,44 @@ export default function RoosterScreen() {
       />
       <LessonSheet lesson={open?.lesson ?? null} onClose={() => setOpen(null)} friends={friends.data} together={open?.together} />
     </Screen>
+  );
+}
+
+/**
+ * The large title, or 'Terug' (the arrow curling left) once you've changed the view: the one slides out as the
+ * other slides in, in the same place. 'Terug' goes back to the standard view.
+ */
+function TitleOrBack({ title, back, hint, onBack }: { title: string; back: string | null; hint: string; onBack: () => void }) {
+  const press = usePressScale();
+  return (
+    <View className="flex-shrink min-h-11 justify-end">
+      {back ? (
+        <APressable
+          key="back"
+          entering={FadeInRight.duration(220)}
+          exiting={FadeOutRight.duration(160)}
+          accessibilityRole="button"
+          accessibilityLabel={back}
+          accessibilityHint={hint}
+          hitSlop={8}
+          onPress={onBack}
+          {...press.handlers}
+          style={press.style}
+          className="flex-row items-center gap-1.5"
+        >
+          <Icon name="undo" size={26} color="you-ink" strokeWidth={2} />
+          <Text variant="title" tone="you" numberOfLines={1}>
+            {back}
+          </Text>
+        </APressable>
+      ) : (
+        <AView key="title" entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)}>
+          <Text variant="title" accessibilityRole="header" numberOfLines={1}>
+            {title}
+          </Text>
+        </AView>
+      )}
+    </View>
   );
 }
 

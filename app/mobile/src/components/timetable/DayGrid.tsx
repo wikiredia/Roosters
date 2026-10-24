@@ -12,9 +12,9 @@ import { Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { dateAt, MAX_DAYS, snap } from '@/lib/days';
-import { weekdayShort } from '@/lib/time';
+import { hhmm, weekdayShort } from '@/lib/time';
 
-import { type Block, BlockView, dayBlocks, lessonLabel, lessonsAt, OverlapBand, overlapsOf, type Span } from './Timetable';
+import { type Block, BlockView, dayBlocks, freeGaps, lessonLabel, lessonsAt, OverlapBand, overlapsOf, type Span } from './Timetable';
 
 /** Height of the date above each column. */
 export const LABEL_H = 22;
@@ -169,6 +169,7 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
   const [h0, h1] = hours;
   const blocks: Block[] = data ? dayBlocks(data.lessons, data.together, day === today ? nowMin : day < today ? 24 * 60 : null) : [];
   const overlaps = data ? overlapsOf(data.lessons) : [];
+  const free = data ? freeGaps(data.lessons) : [];
   const y = (min: number) => LABEL_H + ((min - h0 * 60) / 60) * pxPerHour;
   const entering = (enterFrom > 0 ? FadeInRight : FadeInLeft).duration(240);
   return (
@@ -181,6 +182,25 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
           {`${weekdayShort(date, lang).toLowerCase()} ${date.getDate()}`}
         </Text>
       </View>
+      {/* Free moments between lessons: behind everything (a shared break or a cancelled lesson goes over them) */}
+      {free.map((f) => {
+        const top = y(Math.max(f.start, h0 * 60));
+        const h = Math.max(y(Math.min(f.end, h1 * 60)) - top - 3, 10);
+        return (
+          <AView
+            key={`free:${f.start}`}
+            entering={entering}
+            layout={layout}
+            style={{ position: 'absolute', top, height: h, left: 2, right: 2 }}
+            accessible
+            accessibilityLabel={`${t('tt.free')}, ${hhmm(f.start)} ${t('tt.to')} ${hhmm(f.end)}`}
+          >
+            <View pointerEvents="none" style={{ flex: 1 }}>
+              <BlockView block={{ type: 'free', span: f }} style={{ flex: 1 }} compact={compact} t={t} />
+            </View>
+          </AView>
+        );
+      })}
       {blocks.map((b) => {
         const s = b.type === 'lesson' ? { start: b.lesson.start, end: b.lesson.end } : 'span' in b ? b.span : { start: 0, end: 0 };
         const top = y(Math.max(s.start, h0 * 60));
