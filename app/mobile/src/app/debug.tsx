@@ -187,9 +187,9 @@ export default function DebugScreen() {
               <Row
                 key={`${e.at}-${i}`}
                 first={i === 0}
-                title={`${e.outcome === 'ok' ? '✓' : '✗'} ${e.method} ${e.url.replace(current, '')}`}
+                title={`${e.outcome === 'ok' ? '✓' : e.recovered ? '↻' : '✗'} ${e.method} ${e.url.replace(current, '')}`}
                 sub={[describe(e).split(' → ')[1], `${e.ms} ms`, new Date(e.at).toLocaleTimeString(), e.snippet].filter(Boolean).join(' · ')}
-                tone={e.outcome === 'ok' ? 'ink' : 'danger'}
+                tone={e.outcome === 'ok' || e.recovered ? 'ink' : 'danger'}
               />
             ))
           )}

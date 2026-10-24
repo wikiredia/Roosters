@@ -19,6 +19,8 @@ type Props = {
    * first day sits (0 = the strip's first cell). The strip shows offset - k … offset - k + 7. */
   offset: SharedValue<number>;
   count: SharedValue<number>;
+  /** The number of days as React knows it (for the screen reader label: render never reads `count`) */
+  n: number;
   k: SharedValue<number>;
   width: number;
   from: number;
@@ -39,7 +41,7 @@ type Props = {
  * grid's columns get thinner or wider with your finger and settle with a bounce. It follows the grid exactly:
  * swipe the timetable a day and the dates under the band move a day. Tap a day to start there.
  */
-export function DayStrip({ offset, count, k, width, from, to, today, lang, onPick, onResize, onResizeEnd, nudge }: Props) {
+export function DayStrip({ offset, count, n, k, width, from, to, today, lang, onPick, onResize, onResizeEnd, nudge }: Props) {
   const { t } = useT();
   const cell = width / 7;
   const startCount = useSharedValue(1);
@@ -65,31 +67,31 @@ export function DayStrip({ offset, count, k, width, from, to, today, lang, onPic
       last.set(Math.round(count.get()));
     })
     .onUpdate((e) => {
-      let n = startCount.get() + e.translationX / cell;
+      let live = startCount.get() + e.translationX / cell;
       // Rubber band past 1 and 7
-      if (n < 1) n = 1 - (1 - n) / 4;
-      if (n > MAX_DAYS) n = MAX_DAYS + (n - MAX_DAYS) / 4;
-      count.set(n);
+      if (live < 1) live = 1 - (1 - live) / 4;
+      if (live > MAX_DAYS) live = MAX_DAYS + (live - MAX_DAYS) / 4;
+      count.set(live);
       // The band stays inside the strip: when it grows past Sunday the dates slide left under it
-      k.set(Math.max(0, Math.min(startK.get(), 7 - n)));
-      const r = Math.max(1, Math.min(MAX_DAYS, Math.round(n)));
+      k.set(Math.max(0, Math.min(startK.get(), 7 - live)));
+      const r = Math.max(1, Math.min(MAX_DAYS, Math.round(live)));
       if (r !== last.get()) {
         last.set(r);
         scheduleOnRN(onResize, r);
       }
     })
     .onFinalize(() => {
-      const n = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
-      count.set(withSpring(n, RESIZE));
-      k.set(withSpring(Math.max(0, Math.min(Math.round(k.get()), 7 - n)), RESIZE));
-      scheduleOnRN(onResizeEnd, n);
+      const days = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
+      count.set(withSpring(days, RESIZE));
+      k.set(withSpring(Math.max(0, Math.min(Math.round(k.get()), 7 - days)), RESIZE));
+      scheduleOnRN(onResizeEnd, days);
     });
 
   const days: number[] = [];
   for (let i = from; i <= to; i++) days.push(i);
 
   return (
-    <View className="overflow-hidden" style={{ height: H }} accessibilityLabel={t('rooster.stripLabel', { n: Math.round(count.get()) })}>
+    <View className="overflow-hidden" style={{ height: H }} accessibilityLabel={t('rooster.stripLabel', { n })}>
       {width ? (
         <>
           <AView className="absolute top-0 bottom-0 rounded-chip bg-surface-sunken" style={band} pointerEvents="none" />
@@ -127,9 +129,9 @@ export function DayStrip({ offset, count, k, width, from, to, today, lang, onPic
               accessibilityLabel={t('rooster.handle')}
               accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
               onAccessibilityAction={(e) => {
-                const n = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get()) + (e.nativeEvent.actionName === 'increment' ? 1 : -1)));
-                count.set(withSpring(n, RESIZE));
-                onResizeEnd(n);
+                const next = Math.max(1, Math.min(MAX_DAYS, n + (e.nativeEvent.actionName === 'increment' ? 1 : -1)));
+                count.set(withSpring(next, RESIZE));
+                onResizeEnd(next);
               }}
             >
               <AView className="w-1 h-6 rounded-full bg-ink-3" style={dash} />

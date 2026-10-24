@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T14:00:00Z
 ---
 
 **Rooster**: your days side by side (1–7), one continuous strip you scroll through day by day, as far back or
@@ -19,6 +19,9 @@ sits in the strip), so everything moves together in the same frame, on the UI th
 - **Tips**: the dash first (`hint.days`), then double tap / pinch once you've learned the dash (`hint.zoom`).
 - The eyebrow ('26 – 30 okt') is one short line; the legend one line that scrolls sideways (only what's on screen),
   so nothing pushes the grid around.
+
+Busy weekends go to the grid's swipe (a shared value, set in an effect) and to `homeStart` from a plain array
+computed with the data: render never reads a shared value.
 
 Data: whole weeks with shared breaks (`useWeeks`, `GET /me/schedule?together=1`), three or four weeks around what
 you see. Tapping a lesson opens `LessonSheet` with that day's shared breaks.

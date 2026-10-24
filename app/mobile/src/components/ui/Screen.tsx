@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, type RefObject, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -31,10 +31,12 @@ type ScreenProps = {
   contentClassName?: string;
   /** No offline banner (onboarding before sign-in) */
   noBanner?: boolean;
+  /** The scroll view, for a screen that scrolls something into view (a search field above the keyboard) */
+  scrollRef?: RefObject<ScrollView | null>;
 };
 
 /** Every screen: safe area, header, network banner, scrollable content and an optional sticky footer. */
-export function Screen({ children, title, eyebrow, right, navTitle, back, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner }: ScreenProps) {
+export function Screen({ children, title, eyebrow, right, navTitle, back, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const hasNav = back || progress || navTitle !== undefined;
@@ -99,8 +101,12 @@ export function Screen({ children, title, eyebrow, right, navTitle, back, progre
       ) : null}
       {scroll ? (
         <ScrollView
+          ref={scrollRef}
           className="flex-1"
           keyboardShouldPersistTaps="handled"
+          // iOS: the keyboard doesn't cover the end of the page, it can still be scrolled into view
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="on-drag"
           contentContainerStyle={{ paddingTop: hasNav ? 16 : 4 }}
           refreshControl={onRefresh ? <RefreshControl refreshing={pulling} onRefresh={pull} /> : undefined}
         >

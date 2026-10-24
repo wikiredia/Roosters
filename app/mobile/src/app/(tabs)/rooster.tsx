@@ -100,18 +100,23 @@ export default function RoosterScreen() {
   }, [stamp, names, from]);
 
   // Weekends with something on them: a swipe doesn't skip those
-  useEffect(() => {
+  // (also kept here on the JS side: render code never reads a shared value)
+  const busySats = useMemo(() => {
     const busy: number[] = [];
     for (const [day, d] of byDay) if (day % 7 === 5 && (d.lessons.length || byDay.get(day + 1)?.lessons.length)) busy.push(day);
-    busyWeekends.set(busy);
-  }, [byDay, busyWeekends]);
+    return busy;
+  }, [byDay]);
+  useEffect(() => {
+    busyWeekends.set(busySats);
+  }, [busySats, busyWeekends]);
+  const emptyWeekend = (sat: number) => !busySats.includes(sat);
 
   // Remember how many days you like; without a choice: 5, or 7 when this week's weekend has something on it
   useEffect(() => {
     prefs.get<number | null>('rooster.days', null).then((n) => {
       if (n) {
         chosen.current = true;
-        moveTo(homeStart(n, today, (sat) => !busyWeekends.get().includes(sat)), n, false);
+        moveTo(homeStart(n, today, () => true), n, false);
       }
     });
     prefs.get('hint.days', false).then((seen) => setHint(seen ? null : 'days'));
@@ -173,7 +178,7 @@ export default function RoosterScreen() {
   }
 
   const visible = Array.from({ length: want }, (_, i) => start + i);
-  const home = homeStart(want, today, (sat) => !busyWeekends.get().includes(sat));
+  const home = homeStart(want, today, emptyWeekend);
   // 'Vandaag' only when you've moved away from today (and from where the tab opens)
   const showsToday = visible.includes(today) || start === home;
   const hours = useMemo<[number, number]>(() => {
@@ -214,6 +219,7 @@ export default function RoosterScreen() {
         <DayStrip
           offset={offset}
           count={count}
+          n={want}
           k={k}
           width={stripW}
           from={from}

@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto';
 
-import { logRequest, type RequestLog } from './debuglog';
+import { logRequest, markRecovered, type RequestLog } from './debuglog';
 import { reportResult } from './net';
 import { apiBase } from './server';
 import { accessToken, clearSession, refreshToken, saveTokens, type Tokens } from './session';
@@ -156,6 +156,7 @@ export async function request<T>(method: string, path: string, opts: Options = {
       if (e instanceof ApiError && e.status === 401 && opts.auth !== false && !refreshed) {
         refreshed = true;
         if (await refreshTokens()) {
+          markRecovered(method, apiBase() + path);
           attempt--;
           continue;
         }

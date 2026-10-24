@@ -74,6 +74,7 @@ export const en: Record<Key, string> = {
   'classes.chosenIn': 'Chosen classes in semester {n}',
   'classes.inSemester': '{name} in semester {n}',
   'classes.rowHint': 'Picks the class for every semester it exists in',
+  'classes.onlyIn': 'Courses found in semester {n} only',
 
   'courses.editTitle': 'Courses',
   'courses.next': 'Done',

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T14:00:00Z
 ---
 
 **Talking to the Roosters+ API on bad school wifi.** Every request goes through `api.get/post/put/patch/del`.
@@ -39,7 +39,7 @@ Swap the refresh token for a new pair, shared by concurrent requests.
 
 ## `request`
 
-The retry loop around `once`: a 401 refreshes and retries once; network errors, 5xx and `idempotency_busy` retry with backoff.
+The retry loop around `once`: a 401 refreshes and retries once (marking the 401 in the debug log as recovered); network errors, 5xx and `idempotency_busy` retry with backoff.
 
 ## `setApiLanguage`
 
