@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:00Z
+updated: 2026-10-24T16:00:00Z
 ---
 
 Step 4: **per semester, every course of your classes this school year** (not only the coming weeks: the choice
@@ -11,6 +11,10 @@ nothing chosen asks to be removed. **Skip** keeps every course (a skipped step n
 timetable). From settings (`source=<id>`) for one class, starting from what's saved, with 'remove this class'.
 
 ## `CoursesStep`
+
+A class followed in one semester only gets a row in the other semester's section: '1ITA ook in semester 2?'
+with **Ook volgen** (`alsoIn`: adds that class for that semester; its courses show up there right away), so a
+course that runs in both semesters can be taken in both.
 
 Groups your class sources per semester (a whole-year source shows in both, with one set of choices), keeps the
 choices in state (`Choices`), and saves them.

@@ -2,12 +2,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { useClasses, useCourses, useDeleteSource, useMe, useSources, useUpdateSource } from '@/api/hooks';
+import { useAddClass, useClasses, useCourses, useDeleteSource, useMe, useSources, useUpdateSource } from '@/api/hooks';
 import type { Semester, Source, Terms } from '@/api/types';
 import { ClassWeekSheet, PreviewSheet } from '@/components/onboarding/CoursePreview';
 import { Chip, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
-import { Section, SectionHead } from '@/components/ui/Layout';
+import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
 import { AView, enter, layout } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -33,6 +33,8 @@ export default function CoursesStep() {
   const sources = useSources();
   const update = useUpdateSource();
   const del = useDeleteSource();
+  const add = useAddClass();
+  const [adding, setAdding] = useState<string | null>(null);
   const classes = (sources.data ?? []).filter((s) => s.kind === 'untis' && (!onlySource || String(s.id) === onlySource));
   const [choices, setChoices] = useState<Choices>({});
   const [removed, setRemoved] = useState<number[]>([]);
@@ -85,6 +87,19 @@ export default function CoursesStep() {
     router.back();
   }
 
+  /** A class you follow in the other semester only: follow it in this one too (its courses show up here). */
+  async function alsoIn(s: Source, sem: Semester) {
+    if (!s.class_id) return;
+    setAdding(`${s.class_id}:${sem}`);
+    try {
+      await add.mutateAsync({ class_id: s.class_id, semester: sem });
+    } catch {
+      // A 409 (already there after a retry) or no network: the sources list tells the truth after the refetch
+    } finally {
+      setAdding(null);
+    }
+  }
+
   const set = (id: number, c: Choice) => setChoices((p) => ({ ...p, [id]: c }));
   // A class for the whole year (from before semesters) shows in both; its choices count for both
   const semesters = SEMESTERS.filter((sem) => !onlySource || shown.some((s) => !s.semester || s.semester === sem));
@@ -109,6 +124,8 @@ export default function CoursesStep() {
       </View>
       {semesters.map((sem) => {
         const inSem = shown.filter((s) => !s.semester || s.semester === sem);
+        // Followed in the other semester only: one tap to take its courses in this one as well
+        const elsewhere = shown.filter((s) => s.semester && s.semester !== sem && !inSem.some((o) => o.class_id === s.class_id));
         return (
           <View key={sem} className="gap-4">
             <SemesterHead semester={sem} terms={terms} lang={lang} />
@@ -121,6 +138,19 @@ export default function CoursesStep() {
                 <ClassCourses key={`${sem}:${s.id}`} source={s} semester={sem} schoolId={schoolId} choice={choices[s.id]} onChange={(c) => set(s.id, c)} onWeek={() => setClassWeek(s)} />
               ))
             )}
+            {elsewhere.length ? (
+              <Card>
+                {elsewhere.map((s, i) => (
+                  <Row
+                    key={s.id}
+                    first={i === 0}
+                    title={t('courses.alsoTitle', { name: s.label, n: sem })}
+                    sub={t('courses.alsoSub', { n: s.semester ?? 1 })}
+                    right={<Button variant="secondary" size="sm" icon="plus" label={t('courses.alsoIn')} loading={adding === `${s.class_id}:${sem}`} onPress={() => alsoIn(s, sem)} />}
+                  />
+                ))}
+              </Card>
+            ) : null}
           </View>
         );
       })}

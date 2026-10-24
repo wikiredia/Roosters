@@ -13,6 +13,7 @@ import { useT } from '@/i18n';
 import { api, ApiError } from '@/lib/api';
 import { debugEnabled } from '@/lib/server';
 import { resetTo } from '@/lib/nav';
+import { session } from '@/lib/session';
 import { afterSignIn, startAsGuest } from '@/lib/onboarding';
 
 const LEGAL_URL = process.env.EXPO_PUBLIC_LEGAL_URL ?? 'https://github.com/wikiredia/Roosters';
@@ -23,6 +24,9 @@ export default function Welcome() {
   const [apple, setApple] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guestBusy, setGuestBusy] = useState(false);
+  // Here because the server ended the session (not because you signed out yourself): say so
+  const s = session.use();
+  const ended = s.status === 'signedOut' && s.ended ? s.ended : null;
 
   useEffect(() => {
     if (Platform.OS === 'ios') AppleAuthentication.isAvailableAsync().then(setApple).catch(() => {});
@@ -102,6 +106,10 @@ export default function Welcome() {
         {error ? (
           <Text variant="sm" tone="danger" className="text-center">
             {error}
+          </Text>
+        ) : ended ? (
+          <Text variant="sm" tone="ink2" className="text-center">
+            {t(ended === 'reuse' ? 'welcome.endedElsewhere' : 'welcome.ended')}
           </Text>
         ) : null}
         <Text variant="xs" tone="ink2" className="text-center pt-1.5">

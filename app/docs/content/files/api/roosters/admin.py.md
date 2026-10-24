@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T00:30:00Z
+updated: 2026-10-24T16:00:00Z
 ---
 
 The **admin API** for the management console (Smart-Room console → Roosters+ tab). It is a separate
@@ -52,7 +52,7 @@ The user columns the console shows, plus computed last seen, friend count and ti
 ## `UserPatch`, `edit_user`
 
 `PATCH /admin/v1/users/{id}`: rename, change school or campus, or turn the account off or on.
-- **disabled: true** sets `users.disabled_at` and revokes every session. `deps.auth` refuses disabled
+- **disabled: true** sets `users.disabled_at` and revokes every session (reason `disabled`; logout-all: `admin`). `deps.auth` refuses disabled
   users at once, and `r_auth._existing` refuses them at sign-in (403 `account_disabled`).
 - Changing school resets the campus (it belongs to the old school).
 

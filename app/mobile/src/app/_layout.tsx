@@ -15,6 +15,7 @@ import { fonts } from '@/lib/fonts';
 import { startNetworkWatch } from '@/lib/net';
 import { persister, queryClient, startFocusWatch } from '@/lib/query';
 import { loadServer } from '@/lib/server';
+import { resetTo } from '@/lib/nav';
 import { loadSession, session } from '@/lib/session';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -28,9 +29,14 @@ export default function RootLayout() {
     startNetworkWatch();
     startFocusWatch();
     Promise.all([loadServer(), loadSession(), loadLanguage()]).finally(() => setReady(true));
-    // Signing out: forget everything that was cached for that account
+    // Signing out: forget everything that was cached for that account. Ended by the server (wherever you
+    // are: onboarding, a sheet, settings): back to welcome, which says why, instead of errors on every screen
+    let was = session.get().status;
     return session.subscribe(() => {
-      if (session.get().status === 'signedOut') queryClient.clear();
+      const s = session.get();
+      if (s.status === 'signedOut') queryClient.clear();
+      if (s.status === 'signedOut' && s.ended && was === 'signedIn') resetTo('/welcome');
+      was = s.status;
     });
   }, []);
 

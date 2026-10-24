@@ -1,13 +1,13 @@
 ---
 title: Security model
 position: 80
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T16:00:00Z
 ---
 
 | Threat | Defence | Where |
 | --- | --- | --- |
 | Stolen database | Login codes, e-mail lookups and refresh tokens only as **keyed hashes**; calendar links **encrypted** | `crypto.py` |
-| Stolen refresh token | Rotation on every use; reuse after 2 minutes revokes the session | `tokens.py` |
+| Stolen refresh token | Rotation on every use; the previous token used after the newer pair was used (and after 2 minutes) revokes the session | `tokens.py` |
 | Signing in as someone else | Codes rate-limited per IP and address, 5 tries; Apple/Google tokens checked (keys, audience, issuer, nonce); unverified e-mail never links | `r_auth.py`, `providers.py` |
 | Impersonation by guests | Guests can't use any social feature and are invisible to others | `deps.verified` |
 | SSRF through calendar links | Public IPs only, pinned connections, redirects re-checked, limits | `netfetch.py` |
