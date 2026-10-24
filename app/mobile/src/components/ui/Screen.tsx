@@ -23,7 +23,11 @@ type ScreenProps = {
   navTitle?: string;
   /** A small line under navTitle ("5 leden · 2 nu vrij") */
   navSub?: string;
+  /** In place of the small title (a chat: the photo and name, tappable) */
+  navCenter?: ReactNode;
   back?: boolean;
+  /** What the back button does instead of going back (a screen with steps goes to the previous step) */
+  onBack?: () => void;
   /** Onboarding progress: [step, of] */
   progress?: [number, number];
   navRight?: ReactNode;
@@ -40,7 +44,7 @@ type ScreenProps = {
 };
 
 /** Every screen: safe area, header, network banner, scrollable content and an optional sticky footer. */
-export function Screen({ children, title, eyebrow, heading, right, navTitle, navSub, back, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
+export function Screen({ children, title, eyebrow, heading, right, navTitle, navSub, navCenter, back, onBack, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const hasNav = back || progress || navTitle !== undefined;
@@ -64,7 +68,7 @@ export function Screen({ children, title, eyebrow, heading, right, navTitle, nav
       {hasNav ? (
         <View className="flex-row items-center gap-1 px-3 min-h-[52px]">
           {back ? (
-            <IconButton icon="back" label={t('common.back')} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
+            <IconButton icon="back" label={t('common.back')} onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))} />
           ) : (
             <View className="w-11" />
           )}
@@ -79,6 +83,8 @@ export function Screen({ children, title, eyebrow, heading, right, navTitle, nav
                 {progress[0]}/{progress[1]}
               </Text>
             </>
+          ) : navCenter ? (
+            <View className="flex-1 items-center">{navCenter}</View>
           ) : navSub ? (
             <View className="flex-1 items-center" accessible accessibilityRole="header">
               <Text bold numberOfLines={1}>

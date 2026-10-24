@@ -1,17 +1,18 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 
 import { useAnswerBreak, useAskBreak } from '@/api/hooks';
 import type { BreakMode, BreakRequest } from '@/api/types';
-import { AvatarStack, Chip, Segmented } from '@/components/ui/Bits';
+import { Avatar, AvatarStack, Segmented } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Inputs';
 import { Card, Row } from '@/components/ui/Layout';
+import { AView } from '@/components/ui/Motion';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { breakError, dayWord } from '@/lib/breaks';
+import { breakError, dayWord, duration } from '@/lib/breaks';
 import { joinNames } from '@/lib/status';
 import { hhmm, isoDay, range } from '@/lib/time';
 
@@ -19,45 +20,80 @@ const STEP = 5;
 /** "Ander uur" may go anywhere in the school day */
 const DAY_SPAN: [number, number] = [7 * 60, 22 * 60];
 
-export type BreakPick = { id: number; display_name: string; avatar_color: number; start: number; end: number };
+export type BreakPick = { id: number; display_name: string; avatar_color: number; photo?: number | null; start: number; end: number };
 
 /** What the sheet is for: asking for a shared break (the people in it, each with their own free window), or
  * proposing another time for a request you got. */
 export type BreakTarget = { kind: 'ask'; day: string; people: BreakPick[] } | { kind: 'counter'; request: BreakRequest } | null;
 
+/** The sheet's pages, in order: who (asking only), how and when, a note. */
+type Step = 'who' | 'how' | 'note';
+const ORDER: Step[] = ['who', 'how', 'note'];
+
 /**
- * "Pauze samen?": tap a shared break (Today, Rooster) and ask to spend it together. Who (when you share it with
- * several friends), how (I come to you, you come to me, meet at a place), from–until (the whole break by default,
- * in steps of 5 minutes, within the break) and a short note. "Ander uur" uses the same sheet for a counter-proposal:
- * any time that day. The server checks that everyone is free and nobody was asked already; what's wrong shows here.
+ * "Pauze samen?": tap a shared break (Today, Rooster) and ask to spend it together, in three short pages that
+ * slide sideways: who (a row per friend with their free window, even when there's one; "Allemaal" when several
+ * are free at the same time), how and when (I come to you, you come to me, meet at a place; from–until in steps
+ * of 5 minutes within the break) and a short note. "Ander uur" uses the same sheet for a counter-proposal, from
+ * the second page: any time that day. The server checks that everyone is free and nobody was asked already;
+ * what's wrong shows on the last page.
  */
 export function BreakSheet({ target, onClose }: { target: BreakTarget; onClose: () => void }) {
-  const { t } = useT();
-  // Keep showing the last target while the sheet slides away
+  const { t, lang } = useT();
+  // Keep showing the last target while the sheet slides away; a new one starts on its first page
   const [last, setLast] = useState(target);
-  if (target && target !== last) setLast(target);
+  const [step, setStep] = useState<Step>('who');
+  const [dir, setDir] = useState<1 | -1>(1);
+  if (target && target !== last) {
+    setLast(target);
+    setStep(target.kind === 'counter' ? 'how' : 'who');
+    setDir(1);
+  }
   const shown = target ?? last;
   const counter = shown?.kind === 'counter';
+  const first: Step = counter ? 'how' : 'who';
+  const go = (s: Step) => {
+    setDir(ORDER.indexOf(s) > ORDER.indexOf(step) ? 1 : -1);
+    setStep(s);
+  };
+  const day = shown ? (shown.kind === 'ask' ? shown.day : shown.request.day) : '';
+  const title = step === 'who' ? t('break.title') : step === 'how' ? (counter ? t('break.counterTitle') : t('break.howTitle')) : t('break.noteTitle');
+  const sub =
+    step === 'who'
+      ? dayWord(day, isoDay(new Date()), t, lang)
+      : counter && shown?.kind === 'counter' && step === 'how'
+        ? t('break.counterSub', { name: shown.request.from.display_name })
+        : undefined;
   return (
     <Sheet
       visible={!!target}
       onClose={onClose}
       closeLabel={t('common.close')}
-      title={counter ? t('break.counterTitle') : t('break.title')}
-      sub={shown?.kind === 'counter' ? t('break.counterSub', { name: shown.request.from.display_name }) : undefined}
+      title={title}
+      sub={sub}
+      left={step !== first ? <IconButton icon="back" label={t('common.back')} onPress={() => go(ORDER[ORDER.indexOf(step) - 1])} /> : undefined}
     >
       {/* A new target starts a fresh form */}
-      {shown ? <Form key={shown.kind === 'ask' ? `${shown.day}:${shown.people.map((p) => `${p.id}@${p.start}`).join()}` : `c${shown.request.id}`} target={shown} onDone={onClose} /> : null}
+      {shown ? (
+        <Form
+          key={shown.kind === 'ask' ? `${shown.day}:${shown.people.map((p) => `${p.id}@${p.start}`).join()}` : `c${shown.request.id}`}
+          target={shown}
+          step={step}
+          dir={dir}
+          go={go}
+          onDone={onClose}
+        />
+      ) : null}
     </Sheet>
   );
 }
 
-function Form({ target, onDone }: { target: NonNullable<BreakTarget>; onDone: () => void }) {
+function Form({ target, step, dir, go, onDone }: { target: NonNullable<BreakTarget>; step: Step; dir: 1 | -1; go: (s: Step) => void; onDone: () => void }) {
   const { t, lang } = useT();
   const ask = useAskBreak();
   const answer = useAnswerBreak();
   const people = target.kind === 'ask' ? target.people : [];
-  const [chosen, setChosen] = useState<number[]>(people.map((p) => p.id));
+  const [chosen, setChosen] = useState<number[]>(people.length === 1 ? [people[0].id] : []);
   const window = (ids: number[]): [number, number] => {
     const ps = people.filter((p) => ids.includes(p.id));
     return ps.length ? [Math.max(...ps.map((p) => p.start)), Math.min(...ps.map((p) => p.end))] : [0, 0];
@@ -65,9 +101,9 @@ function Form({ target, onDone }: { target: NonNullable<BreakTarget>; onDone: ()
   const r = target.kind === 'counter' ? target.request : null;
   // Bounds: the whole shared break (everyone's windows together); another time: the school day
   const bounds: [number, number] = r ? DAY_SPAN : [Math.min(...people.map((p) => p.start)), Math.max(...people.map((p) => p.end))];
-  const first = r ? [r.start, r.end] : window(chosen);
-  const [start, setStart] = useState(first[1] > first[0] ? first[0] : bounds[0]);
-  const [end, setEnd] = useState(first[1] > first[0] ? first[1] : bounds[1]);
+  const initial = r ? [r.start, r.end] : window(chosen);
+  const [start, setStart] = useState(initial[1] > initial[0] ? initial[0] : bounds[0]);
+  const [end, setEnd] = useState(initial[1] > initial[0] ? initial[1] : bounds[1]);
   const [mode, setMode] = useState<BreakMode>('meet');
   const [place, setPlace] = useState(r?.place ?? '');
   const [note, setNote] = useState('');
@@ -75,18 +111,20 @@ function Form({ target, onDone }: { target: NonNullable<BreakTarget>; onDone: ()
   const day = target.kind === 'ask' ? target.day : target.request.day;
   const busy = ask.isPending || answer.isPending;
   const names = new Map((r ? [r.from] : people).map((p) => [p.id, p.display_name]));
+  // Several friends free at the same time: asking them all at once is one row too
+  const together = people.length > 1 ? window(people.map((p) => p.id)) : null;
+  const all = together && together[1] - together[0] >= STEP ? together : null;
 
-  function toggle(id: number) {
-    const next = chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id];
-    if (!next.length) return;
-    setChosen(next);
+  function pick(ids: number[]) {
+    setChosen(ids);
     // The time everyone you picked is free
-    const [a, b] = window(next);
+    const [a, b] = window(ids);
     if (b - a >= STEP) {
       setStart(a);
       setEnd(b);
     }
     setError(null);
+    go('how');
   }
 
   async function send() {
@@ -100,68 +138,94 @@ function Form({ target, onDone }: { target: NonNullable<BreakTarget>; onDone: ()
     }
   }
 
-  const who = people.filter((p) => chosen.includes(p.id));
+  const who = r ? [r.from] : people.filter((p) => chosen.includes(p.id));
+  const meet = r ? r.mode === 'meet' : mode === 'meet';
+  // The page slides in from the side you're going to; the one you leave slides out the other way
+  const entering = (dir > 0 ? SlideInRight : SlideInLeft).duration(240);
+  const exiting = (dir > 0 ? SlideOutLeft : SlideOutRight).duration(200);
   return (
-    <>
-      <Card>
-        <Row
-          first
-          left={<AvatarStack people={(r ? [r.from] : who).map((p) => ({ name: p.display_name, color: p.avatar_color }))} size="md" ring="together" />}
-          title={r ? r.from.display_name : joinNames(who.map((p) => p.display_name), t('common.and'))}
-          sub={`${dayWord(day, isoDay(new Date()), t, lang)} · ${range(start, end)}`}
-        />
-      </Card>
-      {people.length > 1 ? (
-        <View className="gap-2">
-          <Text variant="sm" bold>
-            {t('break.with')}
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {people.map((p) => (
-              <Chip key={p.id} label={p.display_name} state={chosen.includes(p.id) ? 'on' : 'default'} icon={chosen.includes(p.id) ? 'check' : undefined} onPress={() => toggle(p.id)} />
-            ))}
-          </View>
-        </View>
+    <AView key={step} entering={entering} exiting={exiting} className="gap-4">
+      {step === 'who' ? (
+        <Card>
+          {all ? (
+            <Row
+              first
+              left={<AvatarStack people={people.map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="sm" ring="surface" />}
+              title={t('break.everyone', { n: people.length })}
+              sub={range(all[0], all[1])}
+              right={<Text variant="sm" bold tone="ink2">{duration(all[1] - all[0], t)}</Text>}
+              chevron
+              onPress={() => pick(people.map((p) => p.id))}
+            />
+          ) : null}
+          {people.map((p, i) => (
+            <Row
+              key={p.id}
+              first={!all && i === 0}
+              left={<Avatar name={p.display_name} color={p.avatar_color} uid={p.id} photo={p.photo} />}
+              title={p.display_name}
+              sub={range(p.start, p.end)}
+              right={<Text variant="sm" bold tone="ink2">{duration(p.end - p.start, t)}</Text>}
+              chevron
+              accessibilityLabel={`${p.display_name}, ${range(p.start, p.end)}, ${duration(p.end - p.start, t)}`}
+              onPress={() => pick([p.id])}
+            />
+          ))}
+        </Card>
       ) : null}
-      {!r ? (
-        <View className="gap-2">
-          <Text variant="sm" bold>
-            {t('break.how')}
-          </Text>
-          <Segmented<BreakMode>
-            value={mode}
-            onChange={setMode}
-            options={[
-              { value: 'i_come', label: t('break.iCome') },
-              { value: 'you_come', label: t('break.youCome') },
-              { value: 'meet', label: t('break.meet') },
-            ]}
-          />
-        </View>
+
+      {step === 'how' ? (
+        <>
+          <Summary who={who} day={day} start={start} end={end} t={t} lang={lang} />
+          {!r ? (
+            <Segmented<BreakMode>
+              value={mode}
+              onChange={setMode}
+              options={[
+                { value: 'i_come', label: t('break.iCome') },
+                { value: 'you_come', label: t('break.youCome') },
+                { value: 'meet', label: t('break.meet') },
+              ]}
+            />
+          ) : null}
+          {meet ? <Input label={t('break.place')} placeholder={t('break.placeHint')} value={place} onChangeText={setPlace} maxLength={120} /> : null}
+          <Card>
+            <TimeRow first label={t('break.from')} value={start} min={bounds[0]} max={end - STEP} onChange={setStart} />
+            <TimeRow label={t('break.until')} value={end} min={start + STEP} max={bounds[1]} onChange={setEnd} />
+          </Card>
+          <Button label={t('common.next')} icon="forward" onPress={() => go('note')} />
+        </>
       ) : null}
-      {(r ? r.mode === 'meet' : mode === 'meet') ? <Input label={t('break.place')} placeholder={t('break.placeHint')} value={place} onChangeText={setPlace} maxLength={120} /> : null}
-      <Card>
-        <TimeRow first label={t('break.from')} value={start} min={bounds[0]} max={end - STEP} onChange={setStart} />
-        <TimeRow label={t('break.until')} value={end} min={start + STEP} max={bounds[1]} onChange={setEnd} />
-      </Card>
-      <Input label={t('break.note')} value={note} onChangeText={setNote} maxLength={200} />
-      {error ? (
-        <Text variant="sm" bold tone="danger" accessibilityLiveRegion="polite">
-          {error}
-        </Text>
+
+      {step === 'note' ? (
+        <>
+          <Summary who={who} day={day} start={start} end={end} t={t} lang={lang} />
+          <Input label={t('break.note')} value={note} onChangeText={setNote} maxLength={200} multiline />
+          {error ? (
+            <Text variant="sm" bold tone="danger" accessibilityLiveRegion="polite">
+              {error}
+            </Text>
+          ) : null}
+          <Button variant="together" label={r ? t('break.sendCounter') : t('break.send')} icon="together" loading={busy} disabled={busy} onPress={send} />
+        </>
       ) : null}
-      <Button variant="together" label={r ? t('break.sendCounter') : t('break.send')} icon="together" loading={busy} disabled={busy} onPress={send} />
-      {!r ? (
-        <Button
-          variant="ghost"
-          label={t('break.compare')}
-          onPress={() => {
-            onDone();
-            router.push({ pathname: '/compare', params: { ids: chosen.join(',') } });
-          }}
-        />
-      ) : null}
-    </>
+    </AView>
+  );
+}
+
+type T = ReturnType<typeof useT>['t'];
+
+/** Who, which day, from–until: on top of the second and third page. */
+function Summary({ who, day, start, end, t, lang }: { who: { id: number; display_name: string; avatar_color: number; photo?: number | null }[]; day: string; start: number; end: number; t: T; lang: 'nl' | 'en' }) {
+  return (
+    <Card>
+      <Row
+        first
+        left={<AvatarStack people={who.map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring="together" />}
+        title={joinNames(who.map((p) => p.display_name), t('common.and'))}
+        sub={`${dayWord(day, isoDay(new Date()), t, lang)} · ${range(start, end)}`}
+      />
+    </Card>
   );
 }
 

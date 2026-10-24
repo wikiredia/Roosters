@@ -19,6 +19,7 @@ ERRORS = {
     "server": ("Er ging iets mis op de server.", "Something went wrong on the server."),
     "idempotency_busy": ("Dit verzoek wordt nog verwerkt.", "This request is still being processed."),
     "idempotency_mismatch": ("Deze sleutel hoort bij een ander verzoek.", "This key belongs to a different request."),
+    "photo_invalid": ("Die foto kunnen we niet gebruiken. Probeer een andere.", "We can't use that photo. Try another one."),
     "school_unknown": ("Die school bestaat niet (meer).", "That school doesn't exist (anymore)."),
     "campus_unknown": ("Die campus hoort niet bij je school.", "That campus doesn't belong to your school."),
     "class_unknown": ("Die klas bestaat niet bij je school.", "That class doesn't exist at your school."),

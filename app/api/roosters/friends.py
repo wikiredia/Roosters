@@ -18,7 +18,7 @@ def visible_friends(user_id: int) -> list[dict]:
 def friend_out(m: dict) -> dict:
     u = m["user"]
     return {"id": u["id"], "display_name": u["display_name"], "avatar_color": u["avatar_color"],
-            "school_id": u["school_id"], "campus_id": u["campus_id"], "visibility": m["visibility"],
+            "photo": u.get("photo_v"), "school_id": u["school_id"], "campus_id": u["campus_id"], "visibility": m["visibility"],
             "my_visibility": m["my_visibility"], "hidden": m["hidden"]}
 
 
@@ -73,3 +73,17 @@ def block(c, a: int, b: int):
 def blocked_by(user_id: int, c=None) -> set[int]:
     """Everyone `user_id` blocked."""
     return {r["blocked_id"] for r in db.rows("SELECT blocked_id FROM blocks WHERE user_id=%s", (user_id,), c)}
+
+
+def may_see_photo(me: int, other: int) -> bool:
+    """Your own photo, your friends', the people in a chat with you and whoever asked you (or you asked) to be
+    friends: everyone whose name you can see in the app. Never across a block."""
+    if me == other:
+        return True
+    if blocked_between(me, other):
+        return False
+    return bool(db.one(
+        "SELECT 1 AS x FROM friendships WHERE user_id=%s AND friend_id=%s "
+        "UNION SELECT 1 FROM chat_members a JOIN chat_members b ON b.chat_id=a.chat_id AND b.user_id=%s WHERE a.user_id=%s "
+        "UNION SELECT 1 FROM friend_requests WHERE (from_id=%s AND to_id=%s) OR (from_id=%s AND to_id=%s) LIMIT 1",
+        (me, other, other, me, me, other, other, me)))

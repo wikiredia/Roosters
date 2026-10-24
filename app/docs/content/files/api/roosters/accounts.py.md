@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:54:20Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 Operations on **whole accounts**, used by several routes so they behave the same everywhere:

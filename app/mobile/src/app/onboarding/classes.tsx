@@ -26,7 +26,7 @@ const parse = (p: Pick) => {
   return { id: Number(id), semester: Number(s) as Semester };
 };
 
-/** Step 3: your classes, per semester (S1 and S2 can differ). Also used from Ik → Roosterbronnen (from=settings). */
+/** Step 4: your classes, per semester (S1 and S2 can differ). Also used from Ik → Roosterbronnen (from=settings). */
 export default function ClassesStep() {
   const { t, lang } = useT();
   const { from } = useLocalSearchParams<{ from?: string }>();
@@ -179,7 +179,7 @@ export default function ClassesStep() {
     <Screen
       scrollRef={scroll}
       back
-      progress={settings ? undefined : [3, 6]}
+      progress={settings ? undefined : [4, 7]}
       navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       navTitle={settings ? t('classes.addTitle') : undefined}
       footer={<Button label={label} disabled={settings ? todo.length === 0 : chosen.size === 0} loading={saving} onPress={next} />}

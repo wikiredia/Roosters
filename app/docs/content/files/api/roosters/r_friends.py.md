@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **Friends**: the social side. Friend list and visibility, requests within your school, invite links,
@@ -82,3 +82,8 @@ An invite that exists, isn't revoked or expired and has uses left, or 404 `invit
 ## `send_request`
 
 `POST /api/v1/friends/requests`: ask someone **from your school** (404 for anyone else, guests included). If they already asked you, you become friends at once. Blocked or already friends: the same answer as success. 30 per hour.
+
+## `photo`
+
+`GET /api/v1/users/{id}/photo`: someone's profile photo for whoever may see it (`friends.may_see_photo`), else 404.
+Cached for good (`immutable`): the app asks with `?v=<photo_v>`, a new photo is a new URL.

@@ -1,5 +1,6 @@
 """Your own account: profile, timetable sources, your schedule, the Today screen, check-in,
 notifications, data export and deleting your account."""
+import base64
 import datetime as dt
 from typing import Literal
 
@@ -19,7 +20,7 @@ SOURCE_OUT = "id, kind, label, school_class_id, config, last_sync, last_ok, last
 def user_out(u: dict) -> dict:
     return {"id": u["id"], "display_name": u["display_name"], "email": u["email"], "locale": u["locale"],
             "school_id": u["school_id"], "campus_id": u["campus_id"], "avatar_color": u["avatar_color"],
-            "ghost_until": u["ghost_until"].isoformat() + "Z" if u["ghost_until"] else None,
+            "photo": u.get("photo_v"), "ghost_until": u["ghost_until"].isoformat() + "Z" if u["ghost_until"] else None,
             "onboarded": u["onboarded_at"] is not None, "guest": bool(u["is_guest"])}
 
 
@@ -98,6 +99,42 @@ def update_me(body: ProfileIn, ctx: Ctx = Depends(auth)):
         sets.append("onboarded_at=UTC_TIMESTAMP()")
     if sets:
         db.run(f"UPDATE users SET {', '.join(sets)} WHERE id=%s", (*args, ctx.uid))
+    return {"user": user_out(db.one("SELECT * FROM users WHERE id=%s", (ctx.uid,)))}
+
+
+# ---- Photo -----------------------------------------------------------------------
+
+# A 256x256 JPEG from the app is ~20-40 KB; this leaves room without letting anyone park files here
+MAX_PHOTO_BYTES = 300_000
+
+
+class PhotoIn(BaseModel):
+    jpeg: str = Field(min_length=100, max_length=MAX_PHOTO_BYTES * 4 // 3 + 8)
+
+
+@router.put("/photo")
+def put_photo(body: PhotoIn, ctx: Ctx = Depends(auth)):
+    """Your profile photo: a small square JPEG (the app crops and shrinks it), base64. A new photo_v each time,
+    so every phone that cached the old one loads the new one."""
+    try:
+        data = base64.b64decode(body.jpeg, validate=True)
+    except ValueError:
+        raise ApiError(400, "photo_invalid")
+    if len(data) > MAX_PHOTO_BYTES or not data.startswith(b"\xff\xd8\xff"):
+        raise ApiError(400, "photo_invalid")
+    with db.tx() as c:
+        db.run("INSERT INTO user_photos (user_id, jpeg, updated_at) VALUES (%s,%s,UTC_TIMESTAMP()) "
+               "ON DUPLICATE KEY UPDATE jpeg=VALUES(jpeg), updated_at=VALUES(updated_at)", (ctx.uid, data), c)
+        db.run("UPDATE users SET photo_v=COALESCE(photo_v,0)+1 WHERE id=%s", (ctx.uid,), c)
+    return {"user": user_out(db.one("SELECT * FROM users WHERE id=%s", (ctx.uid,)))}
+
+
+@router.delete("/photo")
+def delete_photo(ctx: Ctx = Depends(auth)):
+    """Back to the coloured initial."""
+    with db.tx() as c:
+        db.run("DELETE FROM user_photos WHERE user_id=%s", (ctx.uid,), c)
+        db.run("UPDATE users SET photo_v=NULL WHERE id=%s", (ctx.uid,), c)
     return {"user": user_out(db.one("SELECT * FROM users WHERE id=%s", (ctx.uid,)))}
 
 

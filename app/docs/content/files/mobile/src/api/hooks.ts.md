@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -89,3 +89,7 @@ True for a signed-in non-guest: enables the friend queries.
 ## `useUpdateMe`, `useCheckin`, `useGhost`
 
 Profile (also `onboarded`), today's check-in, ghost mode.
+
+## `useSetPhoto`
+
+Your profile photo: a square JPEG as base64 (`PUT /api/v1/me/photo`), or null to remove it; updates `me`.

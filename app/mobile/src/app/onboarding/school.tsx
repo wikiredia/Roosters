@@ -12,7 +12,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { useFinishOnboarding } from '@/lib/onboarding';
 
-/** Step 2: your school (Untis). Skippable: without one you can still add your own calendar link.
+/** Step 3: your school (Untis). Skippable: without one you can still add your own calendar link.
  * Also opened from Today's steps (from=settings). */
 export default function SchoolStep() {
   const { t } = useT();
@@ -55,7 +55,7 @@ export default function SchoolStep() {
   return (
     <Screen
       back
-      progress={settings ? undefined : [2, 6]}
+      progress={settings ? undefined : [3, 7]}
       navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       footer={<Button label={t('common.next')} disabled={picked == null} loading={update.isPending} onPress={next} />}>
       <Text variant="title" accessibilityRole="header">

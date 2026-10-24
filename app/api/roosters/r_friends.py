@@ -22,7 +22,20 @@ INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
 def _user_card(u: dict) -> dict:
     return {"id": u["id"], "display_name": u["display_name"], "avatar_color": u["avatar_color"],
-            "school_id": u["school_id"]}
+            "photo": u.get("photo_v"), "school_id": u["school_id"]}
+
+
+@router.get("/users/{user_id}/photo")
+def photo(user_id: int, ctx: Ctx = Depends(auth)):
+    """Someone's profile photo, for the people who may see it (friends.may_see_photo). The app asks with
+    ?v=<photo_v>, so the answer can be cached for good: a new photo has a new URL."""
+    if not friends.may_see_photo(ctx.uid, user_id):
+        raise ApiError(404, "not_found")
+    row = db.one("SELECT jpeg FROM user_photos WHERE user_id=%s", (user_id,))
+    if not row:
+        raise ApiError(404, "not_found")
+    return Response(bytes(row["jpeg"]), media_type="image/jpeg",
+                    headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
 # ---- Friends ---------------------------------------------------------------------

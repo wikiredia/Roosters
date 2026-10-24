@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 **Break requests** ("Pauze samen?"): you tap a break you share with friends and ask them to spend it together:

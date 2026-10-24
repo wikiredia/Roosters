@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T16:00:00Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 Step 4: **per semester, every course of your classes this school year** (not only the coming weeks: the choice

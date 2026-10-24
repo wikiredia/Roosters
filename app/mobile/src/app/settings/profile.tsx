@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 
 import { useMe, useUpdateMe } from '@/api/hooks';
 import { Avatar } from '@/components/ui/Bits';
+import { ProfilePhoto } from '@/components/ProfilePhoto';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Inputs';
 import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
@@ -12,7 +13,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/cn';
 
-/** Name, avatar colour, school and campus. */
+/** Photo, name, avatar colour (behind the initial when there's no photo), school and campus. */
 export default function ProfileScreen() {
   const { t } = useT();
   const me = useMe();
@@ -38,9 +39,7 @@ export default function ProfileScreen() {
       navTitle={t('me.editProfile')}
       footer={<Button label={t('common.save')} loading={update.isPending} disabled={name.trim().length < 1} onPress={save} />}
     >
-      <View className="items-center">
-        <Avatar name={name || '?'} color={color} size="xl" />
-      </View>
+      <ProfilePhoto me={me.data} name={name} color={color} />
       <Input label={t('profile.name')} hint={t('profile.nameHint')} value={name} onChangeText={setName} maxLength={40} autoComplete="name" />
       <Section>
         <SectionHead title={t('profile.color')} />

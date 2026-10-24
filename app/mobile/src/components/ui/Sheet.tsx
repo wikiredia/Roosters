@@ -1,7 +1,7 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useLayoutEffect, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, interpolate, type SharedValue, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -16,10 +16,16 @@ type Props = {
   left?: ReactNode;
   children: ReactNode;
   closeLabel: string;
+  /** The screen's own 0 → 1 while the sheet opens (and its height), to move things behind it along (a chat
+   * scrolls up so the message you picked stays above the sheet). Without them the sheet keeps its own. */
+  progress?: SharedValue<number>;
+  height?: SharedValue<number>;
+  /** Over the scrim, under the sheet: not dimmed (the message you picked, lifted out of the chat) */
+  above?: ReactNode;
 };
 
-const OPEN = { duration: 280, easing: Easing.out(Easing.cubic) };
-const CLOSE = { duration: 200, easing: Easing.in(Easing.cubic) };
+const OPEN = { duration: 230, easing: Easing.out(Easing.cubic) };
+const CLOSE = { duration: 180, easing: Easing.in(Easing.cubic) };
 /** Dragged down this far (or flicked down) closes the sheet. */
 const DISMISS_DISTANCE = 120;
 const DISMISS_VELOCITY = 900;
@@ -27,17 +33,20 @@ const DISMISS_VELOCITY = 900;
 /** Bottom sheet: scrim, grabber, title row with a close button. The one shadow in the app.
  * The scrim fades while the sheet slides (one animation, `progress`), both ways; the sheet can be
  * dragged down by its top to close. It stays mounted until the closing animation has finished. */
-export function Sheet({ visible, onClose, title, sub, left, children, closeLabel }: Props) {
+export function Sheet({ visible, onClose, title, sub, left, children, closeLabel, above, ...shared }: Props) {
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(visible);
-  const progress = useSharedValue(0);
+  const ownProgress = useSharedValue(0);
+  const ownHeight = useSharedValue(600);
+  const progress = shared.progress ?? ownProgress;
+  const height = shared.height ?? ownHeight;
   const drag = useSharedValue(0);
-  const height = useSharedValue(600);
 
   // Opening mounts right away (during render, not in an effect); closing unmounts after the slide
   if (visible && !mounted) setMounted(true);
 
-  useEffect(() => {
+  // Before the first paint: the slide starts in the frame the sheet appears (a tap feels answered at once)
+  useLayoutEffect(() => {
     if (visible) {
       drag.set(0);
       progress.set(withTiming(1, OPEN));
@@ -80,6 +89,7 @@ export function Sheet({ visible, onClose, title, sub, left, children, closeLabel
           <Animated.View style={[StyleSheet.absoluteFill, scrim]}>
             <Pressable accessibilityLabel={closeLabel} onPress={onClose} className="flex-1 bg-scrim" />
           </Animated.View>
+          {above}
           <Animated.View
             accessibilityViewIsModal
             onLayout={(e) => {
@@ -121,7 +131,8 @@ export function Sheet({ visible, onClose, title, sub, left, children, closeLabel
                   ) : null}
                 </View>
               </GestureDetector>
-              <ScrollView bounces={false} keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4">
+              {/* No scroll bar: a sheet is short, and when it does scroll the bar only gets in the way */}
+              <ScrollView bounces={false} overScrollMode="never" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4">
                 {children}
               </ScrollView>
             </View>

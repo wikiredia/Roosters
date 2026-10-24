@@ -59,7 +59,7 @@ def message_out(r: dict) -> dict:
 
 
 def _person(u: dict) -> dict:
-    return {"id": u["id"], "display_name": u["display_name"], "avatar_color": u["avatar_color"]}
+    return {"id": u["id"], "display_name": u["display_name"], "avatar_color": u["avatar_color"], "photo": u.get("photo_v")}
 
 
 def _friend_ids(uid: int, c=None) -> set[int]:
@@ -71,7 +71,7 @@ def _members(chat_ids: list[int], c=None) -> dict[int, list[dict]]:
     if not chat_ids:
         return out
     ph, args = db.in_list(chat_ids)
-    for r in db.rows(f"SELECT m.chat_id, m.last_read_id, m.joined_at, u.id, u.display_name, u.avatar_color "
+    for r in db.rows(f"SELECT m.chat_id, m.last_read_id, m.joined_at, u.id, u.display_name, u.avatar_color, u.photo_v "
                      f"FROM chat_members m JOIN users u ON u.id=m.user_id WHERE m.chat_id IN ({ph}) "
                      f"ORDER BY u.display_name", args, c):
         out[r["chat_id"]].append(r)
@@ -104,6 +104,7 @@ def _summary(uid: int, chat: dict, members: list[dict], mine: dict, last: dict |
         out["name"] = others[0]["display_name"] if others else None
         out["with_id"] = others[0]["id"] if others else None
         out["avatar_color"] = others[0]["avatar_color"] if others else 0
+        out["photo"] = others[0]["photo_v"] if others else None
     else:
         out["name"] = chat["name"]
     return out

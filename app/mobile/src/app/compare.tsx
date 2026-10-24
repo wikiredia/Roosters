@@ -1,37 +1,57 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { SlideInLeft, SlideInRight } from 'react-native-reanimated';
 
-import { useCompare, useFriends, useMe, useTodays } from '@/api/hooks';
-import type { Friend } from '@/api/types';
-import { type Column, dayBlocks, Legend, TimeGrid } from '@/components/timetable/Timetable';
+import { useFriends, useWeeks } from '@/api/hooks';
+import type { Friend, Lesson } from '@/api/types';
+import { Calendar, rangeLabel } from '@/components/timetable/Calendar';
+import { isOff } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Check } from '@/components/ui/Bits';
-import { IconButton } from '@/components/ui/Button';
-import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
-import { Empty, Screen, Skeleton } from '@/components/ui/Screen';
+import { Button } from '@/components/ui/Button';
+import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
+import { AView } from '@/components/ui/Motion';
+import { Empty, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
+import { dateAt, dayIndex, mondayOf } from '@/lib/days';
 import { joinNames } from '@/lib/status';
-import { addDays, isoDay, nowMin, parseDay, range, shortDate } from '@/lib/time';
+import { isoDay, nowMin, parseDay } from '@/lib/time';
 
 /** Free while comparing; more than this is Premium (later). Same limit as the server. */
 const MAX_FREE = 3;
 
-/** Vergelijken: tick friends, see when you're free together. */
+/** The lesson week to compare: this one, unless your lessons for it are over (Friday afternoon, the weekend):
+ * then next week. */
+function lessonWeek(lessons: Lesson[] | undefined, today: number) {
+  const mon = mondayOf(today);
+  const now = nowMin();
+  const left = (lessons ?? []).some((l) => {
+    if (isOff(l)) return false;
+    const d = dayIndex(parseDay(l.day));
+    return d > today || (d === today && l.end > now);
+  });
+  return left ? mon : mon + 7;
+}
+
+/**
+ * Vergelijken, in two steps: tick friends (up to 3 for free), then 'Vergelijk' shows the calendar of the Rooster tab
+ * (the same one: swipe, pinch, double tap, tap a shared break to ask) with only the breaks you share with them,
+ * on the current lesson week (or the next one when yours is over). With `ids` (a friend's page, a chat's +) it opens
+ * on the calendar straight away; back goes to the list.
+ */
 export default function CompareScreen() {
   const { t, lang } = useT();
-  const params = useLocalSearchParams<{ ids?: string; day?: string }>();
-  const [day, setDay] = useState(() => params.day ?? isoDay(new Date()));
+  const params = useLocalSearchParams<{ ids?: string }>();
   const [picked, setPicked] = useState<number[]>(() => (params.ids ? params.ids.split(',').map(Number).filter(Boolean) : []));
+  const [step, setStep] = useState<'who' | 'week'>(params.ids ? 'week' : 'who');
   const friends = useFriends();
-  const me = useMe();
-  const myId = me.data?.id ?? 0;
-  const ids = picked.slice(0, MAX_FREE);
-  const compare = useCompare(ids, day);
-  const [mine] = useTodays([day]);
-  const todayIso = isoDay(new Date());
+  const today = dayIndex(new Date());
+  const [thisWeek] = useWeeks([isoDay(dateAt(mondayOf(today)))]);
+  const start = lessonWeek(thisWeek?.data?.lessons, today);
 
   const byId = new Map((friends.data ?? []).map((f) => [f.id, f]));
+  const ids = picked.slice(0, MAX_FREE);
   const chosen = ids.map((id) => byId.get(id)).filter((f): f is Friend => !!f);
   const over = picked.length > MAX_FREE;
 
@@ -39,114 +59,88 @@ export default function CompareScreen() {
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }
 
-  const matches = (compare.data?.matches ?? []).filter((m) => m.ids.includes(myId));
-  const name = (id: number) => (id === myId ? t('compare.you') : (byId.get(id)?.display_name ?? '?'));
-
-  const columns: Column[] = [
-    {
-      key: 'me',
-      blocks: dayBlocks(mine.data?.me.lessons ?? [], [], day === todayIso ? nowMin() : null),
-    },
-    ...chosen.map((f) => {
-      const p = compare.data?.people.find((x) => x.id === f.id);
-      const shared = matches.filter((m) => m.ids.includes(f.id));
-      return {
-        key: String(f.id),
-        blocks: [
-          ...(p?.busy ?? []).map(([start, end]) => ({ type: 'friend' as const, span: { start, end } })),
-          ...shared.map((m) => ({ type: 'together' as const, span: { start: m.start, end: m.end }, label: '' })),
-        ],
-      };
-    }),
-  ];
+  if (step === 'week') {
+    return (
+      <Screen
+        back
+        onBack={() => setStep('who')}
+        navTitle={t('compare.title')}
+        navSub={rangeLabel(dateAt(start), dateAt(start + 4), lang)}
+        scroll={false}
+        contentClassName="flex-1 gap-2 pb-3"
+      >
+        <AView entering={SlideInRight.duration(240)} className="flex-1 gap-2">
+          <Row
+            first
+            className="px-0 py-1 min-h-12"
+            left={<AvatarStack people={chosen.map((f) => ({ name: f.display_name, color: f.avatar_color, uid: f.id, photo: f.photo }))} size="sm" />}
+            title={t('compare.withNames', { names: joinNames(chosen.map((f) => f.display_name), t('common.and')) })}
+            right={
+              <Text variant="sm" bold tone="you">
+                {t('compare.change')}
+              </Text>
+            }
+            onPress={() => setStep('who')}
+          />
+          {over ? (
+            <Text variant="sm" tone="premium">
+              {t('compare.overLimit', { n: MAX_FREE })}
+            </Text>
+          ) : null}
+          {/* Keyed on the week: the right week once your timetable is in */}
+          <Calendar key={`${start}:${ids.join()}`} only={ids} initialStart={start} />
+        </AView>
+      </Screen>
+    );
+  }
 
   return (
-    <Screen back navTitle={t('compare.title')}>
-      <View className="flex-row items-center justify-between">
-        <IconButton icon="back" label={t('compare.prevDay')} onPress={() => setDay(isoDay(addDays(parseDay(day), -1)))} />
-        <Text bold>{day === todayIso ? `${t('today.title')} · ${shortDate(parseDay(day), lang)}` : shortDate(parseDay(day), lang)}</Text>
-        <IconButton icon="forward" label={t('compare.nextDay')} onPress={() => setDay(isoDay(addDays(parseDay(day), 1)))} />
-      </View>
-
+    <Screen
+      back
+      navTitle={t('compare.title')}
+      footer={
+        friends.data?.length ? (
+          <Button icon="swap" label={chosen.length ? t('compare.go', { n: chosen.length }) : t('compare.pickFirst')} disabled={!chosen.length} onPress={() => setStep('week')} />
+        ) : undefined
+      }
+    >
       {friends.data && friends.data.length === 0 ? (
-        <Empty title={t('compare.noFriends')} body={t('today.noFriendsBody')} action={<Text bold tone="you" onPress={() => router.push('/friends/add')}>{t('me.addFriend')}</Text>} />
+        <Empty
+          title={t('compare.noFriends')}
+          body={t('today.noFriendsBody')}
+          action={
+            <Text bold tone="you" onPress={() => router.push('/friends/add')}>
+              {t('me.addFriend')}
+            </Text>
+          }
+        />
       ) : (
-        <Section>
-          <SectionHead title={t('compare.who')} aside={t('compare.picked', { n: picked.length })} />
-          <Card>
-            {(friends.data ?? []).map((f, i) => (
-              <Row
-                key={f.id}
-                first={i === 0}
-                left={<Avatar name={f.display_name} color={f.avatar_color} />}
-                title={f.display_name}
-                sub={f.hidden ? t('status.hidden') : undefined}
-                right={<Check on={picked.includes(f.id)} />}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: picked.includes(f.id) }}
-                onPress={() => toggle(f.id)}
-              />
-            ))}
-          </Card>
-          <Text variant="sm" tone={over ? 'premium' : 'ink2'}>
-            {over ? t('compare.overLimit', { n: MAX_FREE }) : t('compare.limit', { n: MAX_FREE })}
-          </Text>
-        </Section>
-      )}
-
-      {chosen.length > 0 ? (
-        <>
+        <AView entering={params.ids ? SlideInLeft.duration(240) : undefined}>
           <Section>
-            <SectionHead title={t('compare.together')} left={<TogetherIcon />} />
-            {!compare.data ? (
-              <Card className="p-4">
-                <Skeleton width={180} />
-              </Card>
-            ) : matches.length ? (
-              <TogetherCard>
-                {matches.map((m, i) => {
-                  const others = m.ids.filter((x) => x !== myId);
-                  return (
-                    <Row
-                      key={`${m.ids.join('-')}-${m.start}`}
-                      first={i === 0}
-                      divider="together"
-                      left={<AvatarStack people={others.map((x) => ({ name: name(x), color: byId.get(x)?.avatar_color ?? 1 }))} size="md" ring="together" />}
-                      title={range(m.start, m.end)}
-                      sub={t('rooster.with', { names: joinNames(others.map(name), t('common.and')) })}
-                    />
-                  );
-                })}
-              </TogetherCard>
-            ) : (
-              <Card className="p-4">
-                <Text tone="ink2">{t('compare.none')}</Text>
-              </Card>
-            )}
-          </Section>
-
-          <Card className="p-2.5 gap-2">
-            <View className="flex-row gap-1" style={{ paddingLeft: 44 }}>
-              <View className="flex-1 items-center gap-1">
-                <Avatar name={me.data?.display_name ?? '?'} color={0} size="sm" />
-                <Text variant="xs" bold numberOfLines={1}>
-                  {t('compare.you')}
-                </Text>
-              </View>
-              {chosen.map((f) => (
-                <View key={f.id} className="flex-1 items-center gap-1">
-                  <Avatar name={f.display_name} color={f.avatar_color} size="sm" />
-                  <Text variant="xs" bold numberOfLines={1}>
-                    {f.display_name}
-                  </Text>
-                </View>
+            <SectionHead title={t('compare.who')} aside={t('compare.picked', { n: picked.length })} />
+            <Card>
+              {(friends.data ?? []).map((f, i) => (
+                <Row
+                  key={f.id}
+                  first={i === 0}
+                  left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} />}
+                  title={f.display_name}
+                  sub={f.hidden ? t('status.hidden') : undefined}
+                  right={<Check on={picked.includes(f.id)} />}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: picked.includes(f.id) }}
+                  onPress={() => toggle(f.id)}
+                />
               ))}
+            </Card>
+            <View>
+              <Text variant="sm" tone={over ? 'premium' : 'ink2'}>
+                {over ? t('compare.overLimit', { n: MAX_FREE }) : t('compare.limit', { n: MAX_FREE })}
+              </Text>
             </View>
-            <TimeGrid columns={columns} compact={chosen.length > 1} nowMin={day === todayIso ? nowMin() : null} />
-          </Card>
-          <Legend items={['theory', 'lab', 'friend', 'together']} />
-        </>
-      ) : null}
+          </Section>
+        </AView>
+      )}
     </Screen>
   );
 }

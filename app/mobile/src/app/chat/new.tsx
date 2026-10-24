@@ -48,7 +48,7 @@ export default function NewGroupScreen() {
             <ListHead>{t('chat.whoIn', { n: chosen.length })}</ListHead>
             {list.map((f) => (
               <View key={f.id} className="flex-row items-center gap-3">
-                <Avatar name={f.display_name} color={f.avatar_color} size="sm" />
+                <Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} size="sm" />
                 <View className="flex-1">
                   <Option
                     multi

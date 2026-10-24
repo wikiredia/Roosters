@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:26:38Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 Words for **break requests** (`components/BreakSheet.tsx`, the 'Pauzeverzoeken' section on Today).
@@ -21,3 +21,7 @@ jou" for Kayra and "jij gaat naar Kayra" for Reda; a place reads "op cafetaria".
 
 What went wrong in words: who can't then and why (`break_busy` names them), that you can't yourself, that it was
 asked already (by you, by them, or that it's planned), offline, or the server's message.
+
+## `duration`
+
+"45 min", "1 u", "1 u 30": how long a free window lasts (the rows of `BreakSheet`).

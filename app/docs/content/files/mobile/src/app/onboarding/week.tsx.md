@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T00:30:00Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 Step 5, **the 'aha'**: your week appears (at the weekend, next week). **Skip** or Next; guests finish here (friends need a confirmed e-mail).

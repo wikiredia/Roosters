@@ -38,7 +38,7 @@ export default function FriendsScreen() {
               <Row
                 key={r.id}
                 first={i === 0}
-                left={<Avatar name={r.user.display_name} color={r.user.avatar_color} />}
+                left={<Avatar name={r.user.display_name} color={r.user.avatar_color} uid={r.user.id} photo={r.user.photo} />}
                 title={r.user.display_name}
                 sub={t('friends.wantsToBeFriends')}
               >
@@ -62,7 +62,7 @@ export default function FriendsScreen() {
               <Row
                 key={f.id}
                 first={i === 0}
-                left={<Avatar name={f.display_name} color={f.avatar_color} />}
+                left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} />}
                 title={f.display_name}
                 sub={t(f.my_visibility === 'full' ? 'friends.seesFull' : f.my_visibility === 'norooms' ? 'friends.seesNoRooms' : 'friends.seesFreeBusy')}
                 chevron
@@ -81,7 +81,7 @@ export default function FriendsScreen() {
               <Row
                 key={r.id}
                 first={i === 0}
-                left={<Avatar name={r.user.display_name} color={r.user.avatar_color} />}
+                left={<Avatar name={r.user.display_name} color={r.user.avatar_color} uid={r.user.id} photo={r.user.photo} />}
                 title={r.user.display_name}
                 sub={t('friends.waiting')}
                 right={<Button size="sm" variant="ghost" label={t('friends.cancel')} onPress={() => answer.mutate({ id: r.id, action: 'cancel' })} />}

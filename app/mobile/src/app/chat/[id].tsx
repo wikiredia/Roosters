@@ -1,23 +1,26 @@
 import * as Crypto from 'expo-crypto';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, useWindowDimensions, View } from 'react-native';
+import { FadeInDown, FadeOut, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
-import { useChat, useMe, useMessages, useOlderMessages, useReadChat, useSendMessage, useToday } from '@/api/hooks';
+import { useBlock, useChat, useMe, useMessages, useOlderMessages, useReadChat, useSendMessage, useToday } from '@/api/hooks';
 import type { ChatDetail, ChatMessage } from '@/api/types';
 import { ChatInfoSheet } from '@/components/chat/ChatInfoSheet';
-import { MessageSheet } from '@/components/chat/MessageSheet';
-import { Avatar } from '@/components/ui/Bits';
+import { liftBy, MessageSheet, type Rect } from '@/components/chat/MessageSheet';
+import { Avatar, AvatarStack, Tag } from '@/components/ui/Bits';
 import { IconButton } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import { AView } from '@/components/ui/Motion';
 import { Empty, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { ApiError } from '@/lib/api';
 import { clock, dayLabel, eventText, type Outgoing } from '@/lib/chat';
 import { cn } from '@/lib/cn';
+import { confirm } from '@/lib/confirm';
 import { statusLine } from '@/lib/status';
 import { isoDay } from '@/lib/time';
 
@@ -30,7 +33,9 @@ type Item =
  * One conversation. Newest at the bottom, scroll up for older ones. Your messages blue on the right, theirs on the
  * left (with a name in groups), events in the middle ("Lotte en Amir pakken samen pauze om 12:30", yellow for
  * breaks). On bad wifi a message shows "Versturen…" and, if it didn't go, "Tik om opnieuw te proberen" (sent once,
- * however often you tap: same Idempotency-Key). Long press: copy, report, block, take back.
+ * however often you tap: same Idempotency-Key). On top: their photo and name (tap: their page; a group: its info).
+ * Long press a message: copy, report, block, take back; the chat slides up with the sheet and the message stays
+ * bright above it. The + left of the box: camera and files (soon), compare timetables, report, block.
  */
 export default function ChatScreen() {
   const { t, lang } = useT();
@@ -46,9 +51,21 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const [outbox, setOutbox] = useState<(Outgoing & { after: number })[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [picked, setPicked] = useState<ChatMessage | null>(null);
+  const [picked, setPicked] = useState<{ m: ChatMessage; rect: Rect | null } | null>(null);
+  const [reporting, setReporting] = useState<ChatMessage | null>(null);
   const [info, setInfo] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [barH, setBarH] = useState(60);
+  const block = useBlock();
   const insets = useSafeAreaInsets();
+  const screenH = useWindowDimensions().height;
+  // The message sheet's slide, shared: the chat moves up with it so the message you picked stays above the sheet
+  const sheetProgress = useSharedValue(0);
+  const sheetH = useSharedValue(400);
+  const rect = useSharedValue<Rect | null>(null);
+  const minTop = insets.top + 60;
+  const liftY = useDerivedValue(() => liftBy(rect.get(), sheetH.get(), screenH, minTop) * sheetProgress.get());
+  const liftStyle = useAnimatedStyle(() => ({ transform: [{ translateY: liftY.get() }] }));
   const ink = useCSSVariable('--color-ink');
   const placeholder = useCSSVariable('--color-ink-3');
   const myId = me.data?.id;
@@ -66,6 +83,11 @@ export default function ChatScreen() {
   }, [lastId, c?.id]);
 
   const items = useMemo(() => build(messages, outbox, c, myId, t, lang), [messages, outbox, c, myId, lang]);
+  // What was there when the chat opened stays still; what comes in after (yours as you send it, theirs as it
+  // arrives) slides up into place
+  const opened = useRef<number | null>(null);
+  if (opened.current === null && page.data) opened.current = lastId;
+  const fresh = (i: Item) => i.type === 'out' || (i.type === 'msg' && opened.current !== null && i.m.id > opened.current && i.m.user_id !== myId);
 
   const gone = (chat.error instanceof ApiError && chat.error.status === 404) || (page.error instanceof ApiError && page.error.status === 404);
   if (gone) {
@@ -82,6 +104,40 @@ export default function ChatScreen() {
     return s ? statusLine(s, t).free : false;
   }).length;
   const sub = c?.kind === 'group' ? [t('chat.members', { n: c.count }), free ? t('chat.freeNow', { n: free }) : null].filter(Boolean).join(' · ') : free ? t('chat.isFree') : undefined;
+
+  const other = c?.kind === 'direct' ? people[0] : undefined;
+  // Their newest message: what "Melden" from the + reports (a group: long press the message itself)
+  const theirLast = other ? [...messages].reverse().find((m) => m.user_id === other.id && m.kind === 'text' && !m.deleted && !m.removed) : undefined;
+
+  function longPress(m: ChatMessage, r: Rect | null) {
+    rect.set(r);
+    setPicked({ m, rect: r });
+  }
+
+  async function onBlock() {
+    if (!other) return;
+    const name = other.display_name;
+    if (!(await confirm(t('friend.blockConfirm', { name }), t('chat.blockSub', { name }), t('friend.block', { name }), t('common.cancel')))) return;
+    await block.mutateAsync(other.id);
+    router.back();
+  }
+
+  const menuItems: { icon: IconName; label: string; soon?: boolean; danger?: boolean; onPress?: () => void }[] = [
+    { icon: 'camera', label: t('chat.camera'), soon: true },
+    { icon: 'file', label: t('chat.files'), soon: true },
+    {
+      icon: 'swap',
+      label: t('chat.compare'),
+      // Everyone in it who's your friend (more than 3 is Premium: Vergelijken says so)
+      onPress: () => router.push({ pathname: '/compare', params: { ids: people.filter((p) => p.friend).map((p) => p.id).join(',') } }),
+    },
+    ...(other
+      ? [
+          ...(theirLast ? [{ icon: 'flag' as const, label: t('chat.reportPerson', { name: other.display_name }), onPress: () => setReporting(theirLast) }] : []),
+          { icon: 'block' as const, label: t('friend.block', { name: other.display_name }), danger: true, onPress: onBlock },
+        ]
+      : []),
+  ];
 
   async function deliver(o: Outgoing) {
     setOutbox((all) => all.map((x) => (x.key === o.key ? { ...x, state: 'sending' } : x)));
@@ -109,64 +165,159 @@ export default function ChatScreen() {
     <Screen
       back
       navTitle={c?.name ?? ''}
-      navSub={sub}
+      navCenter={
+        c ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={c.name ?? ''}
+            accessibilityHint={other ? t('chat.openProfile') : t('chat.info')}
+            onPress={() => (other ? router.push(`/friends/${other.id}`) : setInfo(true))}
+            className="items-center gap-0.5 active:opacity-70"
+          >
+            {other ? (
+              <Avatar name={other.display_name} color={other.avatar_color} uid={other.id} photo={other.photo} size="sm" />
+            ) : (
+              <AvatarStack people={people.slice(0, 3).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="xs" />
+            )}
+            <Text variant="sm" bold numberOfLines={1}>
+              {c.name ?? ''}
+            </Text>
+            {sub ? (
+              <Text variant="xs" tone="ink2" numberOfLines={1}>
+                {sub}
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : undefined
+      }
       navRight={<IconButton icon="more" label={t('chat.info')} onPress={() => setInfo(true)} disabled={!c} />}
       scroll={false}
       contentClassName="flex-1 px-0 pb-0 gap-0"
     >
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top + 52}>
-        <FlatList
-          className="flex-1 border-t border-line"
-          inverted
-          data={items}
-          keyExtractor={(i) => i.key}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 10 }}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          onEndReachedThreshold={0.3}
-          onEndReached={() => page.data?.more && !older.isPending && messages[0] && older.mutate(messages[0].id)}
-          ListEmptyComponent={
-            page.isSuccess ? (
-              <Text tone="ink2" className="text-center py-10">
-                {t('chat.empty')}
-              </Text>
-            ) : null
-          }
-          renderItem={({ item }) => <Bubble item={item} c={c} myId={myId} onLong={setPicked} onRetry={deliver} t={t} />}
-        />
-        {error ? (
-          <Text variant="sm" bold tone="danger" className="px-4 pb-1" accessibilityLiveRegion="polite">
-            {error}
-          </Text>
-        ) : null}
-        <View className="flex-row items-end gap-2 px-3 pt-2 border-t border-line bg-surface" style={{ paddingBottom: Math.max(insets.bottom, 10) }}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder={t('chat.placeholder')}
-            accessibilityLabel={t('chat.placeholder')}
-            placeholderTextColor={String(placeholder ?? '#6E6A62')}
-            multiline
-            // Web: one line to start with (a textarea is two), growing as you type
-            numberOfLines={Platform.OS === 'web' ? 1 : undefined}
-            maxLength={1000}
-            className="flex-1 min-h-11 max-h-32 rounded-[22px] border-[1.5px] border-control-off bg-surface px-4 py-2.5 text-base font-ui"
-            style={{ color: String(ink ?? '#161F2A') }}
-            onSubmitEditing={Platform.OS === 'web' ? submit : undefined}
-            submitBehavior={Platform.OS === 'web' ? 'submit' : undefined}
+        <AView className="flex-1" style={liftStyle}>
+          <FlatList
+            className="flex-1 border-t border-line"
+            inverted
+            data={items}
+            keyExtractor={(i) => i.key}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 10 }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onEndReachedThreshold={0.3}
+            onEndReached={() => page.data?.more && !older.isPending && messages[0] && older.mutate(messages[0].id)}
+            ListEmptyComponent={
+              page.isSuccess ? (
+                <Text tone="ink2" className="text-center py-10">
+                  {t('chat.empty')}
+                </Text>
+              ) : null
+            }
+            renderItem={({ item }) =>
+              fresh(item) ? (
+                // The list is upside down: "down" here comes up from the box
+                <AView entering={FadeInDown.duration(200)}>
+                  <Bubble item={item} c={c} myId={myId} onLong={longPress} onRetry={deliver} t={t} />
+                </AView>
+              ) : (
+                <Bubble item={item} c={c} myId={myId} onLong={longPress} onRetry={deliver} t={t} />
+              )
+            }
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('chat.send')}
-            disabled={!text.trim() || !c}
-            onPress={submit}
-            className={cn('w-11 h-11 rounded-full items-center justify-center bg-you', (!text.trim() || !c) && 'opacity-40')}
+          {error ? (
+            <Text variant="sm" bold tone="danger" className="px-4 pb-1" accessibilityLiveRegion="polite">
+              {error}
+            </Text>
+          ) : null}
+          <View
+            className="flex-row items-end gap-2 px-3 pt-2 border-t border-line bg-surface"
+            style={{ paddingBottom: Math.max(insets.bottom, 10) }}
+            onLayout={(e) => setBarH(e.nativeEvent.layout.height)}
           >
-            <Icon name="send" size={22} color="#FFFFFF" />
-          </Pressable>
-        </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('chat.more')}
+              accessibilityState={{ expanded: menu }}
+              disabled={!c}
+              onPress={() => setMenu((x) => !x)}
+              className={cn('w-11 h-11 rounded-full items-center justify-center bg-surface-sunken', menu && 'bg-ink')}
+            >
+              <Icon name={menu ? 'close' : 'plus'} size={22} color={menu ? 'ink-inverse' : 'ink'} strokeWidth={2} />
+            </Pressable>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder={t('chat.placeholder')}
+              accessibilityLabel={t('chat.placeholder')}
+              placeholderTextColor={String(placeholder ?? '#6E6A62')}
+              multiline
+              // Web: one line to start with (a textarea is two), growing as you type
+              numberOfLines={Platform.OS === 'web' ? 1 : undefined}
+              maxLength={1000}
+              className="flex-1 min-h-11 max-h-32 rounded-[22px] border-[1.5px] border-control-off bg-surface px-4 py-2.5 text-base font-ui"
+              style={{ color: String(ink ?? '#161F2A') }}
+              onSubmitEditing={Platform.OS === 'web' ? submit : undefined}
+              submitBehavior={Platform.OS === 'web' ? 'submit' : undefined}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('chat.send')}
+              disabled={!text.trim() || !c}
+              onPress={submit}
+              className={cn('w-11 h-11 rounded-full items-center justify-center bg-you', (!text.trim() || !c) && 'opacity-40')}
+            >
+              <Icon name="send" size={22} color="#FFFFFF" />
+            </Pressable>
+          </View>
+          {menu ? (
+            <>
+              {/* A tap anywhere else closes it */}
+              <Pressable accessibilityLabel={t('common.close')} onPress={() => setMenu(false)} className="absolute inset-0" />
+              <AView entering={FadeInDown.duration(160)} exiting={FadeOut.duration(120)} className="absolute left-3 w-64" style={{ bottom: barH + 8 }}>
+                <View
+                  className="bg-surface-raised rounded-card border border-line overflow-hidden"
+                  style={{ shadowColor: '#161F2A', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 10 }}
+                >
+                  {menuItems.map((it, i) => (
+                    <Pressable
+                      key={it.label}
+                      accessibilityRole="button"
+                      accessibilityLabel={it.label}
+                      accessibilityState={{ disabled: it.soon }}
+                      disabled={it.soon}
+                      onPress={() => {
+                        setMenu(false);
+                        it.onPress?.();
+                      }}
+                      className={cn('flex-row items-center gap-3 px-4 min-h-12 active:bg-surface-sunken', i > 0 && 'border-t border-line')}
+                    >
+                      <Icon name={it.icon} size={20} color={it.danger ? 'danger-ink' : it.soon ? 'ink-3' : 'ink'} />
+                      <Text bold tone={it.danger ? 'danger' : it.soon ? 'ink3' : 'ink'} className="flex-1" numberOfLines={1}>
+                        {it.label}
+                      </Text>
+                      {it.soon ? <Tag>{t('common.soon')}</Tag> : null}
+                    </Pressable>
+                  ))}
+                </View>
+              </AView>
+            </>
+          ) : null}
+        </AView>
       </KeyboardAvoidingView>
-      {c ? <MessageSheet message={picked} chat={c} myId={myId} onClose={() => setPicked(null)} /> : null}
+      {c ? (
+        <MessageSheet
+          message={picked?.m ?? null}
+          chat={c}
+          myId={myId}
+          onClose={() => setPicked(null)}
+          lift={
+            picked?.rect
+              ? { progress: sheetProgress, height: sheetH, y: liftY, rect: picked.rect, copy: <Bubble item={msgItem(picked.m)} c={c} myId={myId} lifted onLong={() => {}} onRetry={() => {}} t={t} /> }
+              : null
+          }
+        />
+      ) : null}
+      {c ? <MessageSheet message={reporting} chat={c} myId={myId} startAt="report" onClose={() => setReporting(null)} /> : null}
       {c ? <ChatInfoSheet visible={info} chat={c} onClose={() => setInfo(false)} /> : null}
     </Screen>
   );
@@ -207,7 +358,11 @@ function build(messages: ChatMessage[], outbox: (Outgoing & { after: number })[]
   return out.reverse();
 }
 
-function Bubble({ item, c, myId, onLong, onRetry, t }: { item: Item; c: ChatDetail | undefined; myId: number | undefined; onLong: (m: ChatMessage) => void; onRetry: (o: Outgoing) => void; t: T }) {
+const msgItem = (m: ChatMessage): Item => ({ type: 'msg', key: `m${m.id}`, m, who: false, meta: null });
+
+/** One row of the chat. `lifted`: just the bubble, for the copy over the message sheet's scrim. */
+function Bubble({ item, c, myId, onLong, onRetry, t, lifted }: { item: Item; c: ChatDetail | undefined; myId: number | undefined; onLong: (m: ChatMessage, r: Rect | null) => void; onRetry: (o: Outgoing) => void; t: T; lifted?: boolean }) {
+  const box = useRef<View>(null);
   if (item.type === 'day') {
     return (
       <Text variant="sm" bold tone="ink2" className="self-center py-1">
@@ -256,21 +411,27 @@ function Bubble({ item, c, myId, onLong, onRetry, t }: { item: Item; c: ChatDeta
   const mine = m.user_id === myId;
   const author = c?.people.find((p) => p.id === m.user_id);
   const gone = m.deleted || m.removed;
+  // Where the bubble is, so the sheet can lift it (no position: the sheet shows a copy instead)
+  const long = () => {
+    if (!box.current) return onLong(m, null);
+    box.current.measureInWindow((x, y, w, h) => onLong(m, w ? { x, y, w, h } : null));
+  };
   return (
-    <View className={cn('max-w-[78%] gap-0.5', mine ? 'self-end items-end' : 'self-start')}>
+    <View className={cn('gap-0.5', !lifted && 'max-w-[78%]', mine ? 'self-end items-end' : 'self-start')}>
       {item.who && author ? (
         <View className="flex-row items-center gap-1.5 pl-0.5">
-          <Avatar name={author.display_name} color={author.avatar_color} size="xs" />
+          <Avatar name={author.display_name} color={author.avatar_color} uid={author.id} photo={author.photo} size="xs" />
           <Text variant="sm" bold tone="ink2">
             {author.display_name}
           </Text>
         </View>
       ) : null}
       <Pressable
+        ref={box}
         accessibilityHint={gone ? undefined : t('chat.longHint')}
         delayLongPress={350}
-        disabled={gone}
-        onLongPress={() => onLong(m)}
+        disabled={gone || lifted}
+        onLongPress={long}
         className={cn(
           'px-3 py-2',
           mine ? 'rounded-[16px] rounded-tr-[4px] bg-you' : 'rounded-[16px] rounded-tl-[4px] bg-surface border border-line',

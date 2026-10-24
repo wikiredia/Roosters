@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:27:10Z
+updated: 2026-10-24T10:30:00Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -34,3 +34,6 @@ One day's column (placed from the shared values; re-renders only with its data).
 ## `LABEL_H`, `SWIPE`, `RESIZE`
 
 The date row above the columns; the spring of a swipe; the spring the number of days settles with.
+
+Memoised: give it stable callbacks (`Calendar` does), so opening a sheet doesn't re-render every column. A single tap
+waits 200 ms for a possible double tap. A tap on a hatched (`muted`) shared break does nothing.

@@ -38,6 +38,22 @@
       "expo-localization",
       "expo-apple-authentication",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Roosters+ gebruikt je camera om de QR-code van een vriend te scannen.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Roosters+ gebruikt je foto's als je een profielfoto kiest.",
+          "cameraPermission": "Roosters+ gebruikt je camera om een profielfoto te maken.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",

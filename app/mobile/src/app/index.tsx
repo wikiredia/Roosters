@@ -22,7 +22,8 @@ export default function Gate() {
   if (me.data) {
     // Done or skipped: always straight in. What's missing shows on Today ("Complete the following steps").
     if (me.data.onboarded) return <Redirect href="/today" />;
-    if (!me.data.school_id) return <Redirect href="/onboarding/school" />;
+    // Name and photo first (skippable), then the school
+    if (!me.data.school_id) return <Redirect href="/onboarding/profile" />;
     if (sources.data && sources.data.length === 0) return <Redirect href="/onboarding/classes" />;
     if (sources.data) return <Redirect href="/onboarding/courses" />;
   }
