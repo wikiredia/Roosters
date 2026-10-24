@@ -396,6 +396,8 @@ export const nl = {
   'friends.cancel': 'Trek in',
   'friends.emptyTitle': 'Nog geen vrienden',
   'friends.privacyNote': 'Vrienden zien enkel wat jij kiest. Je kan dat per vriend aanpassen.',
+  'friends.pinned': 'Vastgezet · bovenaan in Vandaag',
+  'friends.others': 'Andere vrienden · {n}',
 
   'friend.gone': 'Jullie zijn geen vrienden meer',
   'friend.compare': 'Vergelijk jullie roosters',
@@ -415,6 +417,11 @@ export const nl = {
   'friend.block': 'Blokkeer {name}',
   'friend.blockSub': '{name} krijgt hiervan geen melding',
   'friend.blockConfirm': '{name} blokkeren?',
+  'friend.pin': 'Vastzetten',
+  'friend.pinSub': '{name} staat altijd bovenaan, alleen voor jou',
+  'friend.pinName': '{name} vastzetten',
+  'friend.unpinName': '{name} losmaken',
+  'friend.pinned': 'Vastgezet',
 
   'add.haveCode': 'Kreeg je een code?',
   'add.codeLabel': 'Code of link van je vriend',

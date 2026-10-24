@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-24T13:30:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -66,6 +66,7 @@ notifies the people affected.
 | Change sign-in, sessions, guests | `api/roosters/r_auth.py`, `tokens.py`, `providers.py`, `accounts.py`; guide **Auth, sessions and guests** |
 | Change when two people 'share a break' | `api/roosters/logic.py` (pure functions, tested in `tests/test_logic.py`) |
 | Change what friends can see | `api/roosters/friends.py`, `r_friends.py`, `schedule.py`; guide **Friends and privacy** |
+| Change pinned friends (where they come first) | `api/roosters/friends.py` (`visible_friends`, `set_pinned`), `r_friends.edit_friend`, `r_me.today`, `mobile/src/lib/friends.ts`, `mobile/src/app/friends/` |
 | Change how timetables are fetched | `api/roosters/sync.py`, `untis.py`, `ics.py`, `netfetch.py`; guide **Timetables** |
 | Add a table or column | a new `api/roosters/migrations/NNNN_*.sql`; guide **Database** |
 | Add a background job | `@jobs.handler` in the owning module, import it in `worker.py` |

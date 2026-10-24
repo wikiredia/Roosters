@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
@@ -12,7 +12,9 @@ steps** (`SetupSteps`, for what onboarding skipped), **your breaks**, shared bre
 
 ## `Board`
 
-'Who's around': free first, people not on campus folded into one row.
+'Who's around': friends you pinned on top with a thumbtack (`PinMark`), always as their own row, also when they're
+not on campus ('bovenaan in Vandaag'); then free first; the others not on campus folded into one row. The server
+sorts it the same way; `lib/friends.pinnedOnTop` here keeps a pin you just set in place before Today comes back.
 
 ## `Changes`
 
@@ -62,7 +64,7 @@ or hatched cards, no button per row taking a whole line.
 
 ## `Together`
 
-'Take your break with': shared breaks grouped per time slot; tap one to ask "Pauze samen?" (`BreakSheet`, from now on
+'Take your break with': shared breaks grouped per time slot, pinned friends named first in each; tap one to ask "Pauze samen?" (`BreakSheet`, from now on
 when it's already going). A slot with one friend has a chat button (their one-to-one chat, `useOpenDirect`).
 
 In 'Pak je pauze met' a row says (with the same small tag) when you already asked, planned or got a no.

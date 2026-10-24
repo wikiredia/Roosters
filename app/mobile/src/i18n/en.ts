@@ -395,6 +395,8 @@ export const en: Record<Key, string> = {
   'friends.cancel': 'Withdraw',
   'friends.emptyTitle': 'No friends yet',
   'friends.privacyNote': 'Friends only see what you choose. You can change it per friend.',
+  'friends.pinned': 'Pinned · on top in Today',
+  'friends.others': 'Other friends · {n}',
 
   'friend.gone': "You're no longer friends",
   'friend.compare': 'Compare your timetables',
@@ -414,6 +416,11 @@ export const en: Record<Key, string> = {
   'friend.block': 'Block {name}',
   'friend.blockSub': "{name} won't be notified",
   'friend.blockConfirm': 'Block {name}?',
+  'friend.pin': 'Pin',
+  'friend.pinSub': '{name} is always on top, only for you',
+  'friend.pinName': 'Pin {name}',
+  'friend.unpinName': 'Unpin {name}',
+  'friend.pinned': 'Pinned',
 
   'add.haveCode': 'Got a code?',
   'add.codeLabel': "Your friend's code or link",

@@ -1,6 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
+import { pinnedFirst } from '@/lib/friends';
 import { clearSession } from '@/lib/session';
 import { type SkipTarget, withSkip } from '@/lib/skips';
 import { addDays, isoDay, parseDay } from '@/lib/time';
@@ -592,6 +593,30 @@ export function useSetVisibility() {
     mutationFn: ({ id, visibility }: { id: number; visibility: Visibility }) =>
       api.patch(`/api/v1/friends/${id}`, { visibility }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.friends }),
+  });
+}
+
+/** Pin a friend (or not), only for you. Shown at once, the lists re-sorted (pinned first); put back if the server
+ * says no. Today's board and the Rooster tab's shared breaks sort on it too, so they're asked again after. */
+export function usePinFriend() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, pinned }: { id: number; pinned: boolean }) =>
+      api.patch<{ friend: Friend }>(`/api/v1/friends/${id}`, { pinned }).then((r) => r.friend),
+    onMutate: async ({ id, pinned }) => {
+      await qc.cancelQueries({ queryKey: keys.friends });
+      const before = qc.getQueryData<Friend[]>(keys.friends);
+      const flip = (f: Friend) => (f.id === id ? { ...f, pinned } : f);
+      if (before) qc.setQueryData<Friend[]>(keys.friends, pinnedFirst(before.map(flip)));
+      qc.setQueriesData<Today>({ queryKey: ['today'] }, (d) => d && { ...d, friends: pinnedFirst(d.friends.map(flip)) });
+      return { before };
+    },
+    onError: (_e, _v, ctx) => ctx?.before && qc.setQueryData(keys.friends, ctx.before),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.friends });
+      qc.invalidateQueries({ queryKey: ['today'] });
+      qc.invalidateQueries({ queryKey: ['schedule'] });
+    },
   });
 }
 

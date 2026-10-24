@@ -177,3 +177,56 @@ def test_a_week_of_the_timetable_comes_with_the_shared_breaks_per_day(client, ma
     # Without asking: not computed
     assert "together" not in client.get("/api/v1/me/schedule", headers=reda["headers"],
                                         params={"start": DAY.isoformat()}).json()
+
+
+def _friend_ids(client, user):
+    return [(f["id"], f["pinned"]) for f in client.get("/api/v1/friends", headers=user["headers"]).json()["friends"]]
+
+
+def test_pinned_friends_come_first_and_stay_private(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    lotte = login(client, "lotte@example.com", mails)
+    befriend(client, reda, lotte)
+    for u, name in ((reda, "Reda"), (kayra, "Kayra"), (lotte, "Lotte")):
+        db.run("UPDATE users SET display_name=%s WHERE id=%s", (name, u["user_id"]))
+    k, lo = kayra["user_id"], lotte["user_id"]
+    assert _friend_ids(client, reda) == [(k, False), (lo, False)]
+    # Pinning only changes the pin; what Reda shows Lotte stays
+    r = client.patch(f"/api/v1/friends/{lo}", headers=reda["headers"], json={"pinned": True})
+    assert r.status_code == 200 and r.json()["friend"]["pinned"] is True and r.json()["friend"]["my_visibility"] == "full"
+    assert _friend_ids(client, reda) == [(lo, True), (k, False)]
+    # Only for Reda: Lotte doesn't see it anywhere
+    assert _friend_ids(client, lotte) == [(reda["user_id"], False)]
+    # Today: pinned on top of the board even without classes (Kayra has one later), and in the friends list
+    t = client.get("/api/v1/me/today", headers=reda["headers"], params={"day": DAY.isoformat()}).json()
+    assert [b["id"] for b in t["board"]] == [lo, k] and t["friends"][0]["id"] == lo
+    # Both at once; then unpinned again
+    r = client.patch(f"/api/v1/friends/{lo}", headers=reda["headers"], json={"pinned": False, "visibility": "freebusy"})
+    assert r.json()["friend"]["pinned"] is False and r.json()["friend"]["my_visibility"] == "freebusy"
+    assert _friend_ids(client, reda) == [(k, False), (lo, False)]
+    # Not a friend: nothing to pin
+    amir = login(client, "amir@example.com", mails)
+    r = client.patch(f"/api/v1/friends/{amir['user_id']}", headers=reda["headers"], json={"pinned": True})
+    assert r.status_code == 404 and r.json()["code"] == "not_friends"
+
+
+def test_a_pin_goes_with_the_friendship(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    k = kayra["user_id"]
+    client.patch(f"/api/v1/friends/{k}", headers=reda["headers"], json={"pinned": True})
+    assert client.get("/api/v1/me/export", headers=reda["headers"]).json()["friends"][0]["pinned"] == 1
+    # Unfriended and friends again: starts unpinned
+    assert client.delete(f"/api/v1/friends/{k}", headers=reda["headers"]).status_code == 204
+    befriend(client, reda, kayra)
+    assert _friend_ids(client, reda) == [(k, False)]
+    # Blocking ends it too (the row is gone), and so does deleting the account
+    client.patch(f"/api/v1/friends/{k}", headers=reda["headers"], json={"pinned": True})
+    client.post("/api/v1/blocks", headers=kayra["headers"], json={"user_id": reda["user_id"]})
+    assert db.one("SELECT COUNT(*) AS n FROM friendships WHERE user_id=%s", (reda["user_id"],))["n"] == 0
+    client.delete(f"/api/v1/blocks/{reda['user_id']}", headers=kayra["headers"])
+    befriend(client, reda, kayra)
+    assert _friend_ids(client, reda) == [(k, False)]
+    client.patch(f"/api/v1/friends/{k}", headers=reda["headers"], json={"pinned": True})
+    assert client.delete("/api/v1/me", headers=reda["headers"]).status_code == 204
+    assert db.one("SELECT COUNT(*) AS n FROM friendships WHERE user_id=%s OR friend_id=%s",
+                  (reda["user_id"], reda["user_id"]))["n"] == 0

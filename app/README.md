@@ -144,6 +144,7 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 - **Only what's needed:** no teachers, no free text from Untis; calendar links encrypted.
 - **Friends:** invite link (`/i/<code>`) or a request within your school. Each friend sees your full
   timetable or only free/busy (your choice per friend); ghost mode hides you for a while; blocking is silent.
+  Pin a few friends and they come first everywhere friends are listed (only for you: they never see it).
 - **Built for bad wifi:** `GET /api/v1/me/today` gives the whole Today screen in one request, with an
   ETag (nothing changed → empty 304). Writes accept an `Idempotency-Key` header: a retry after a lost
   answer gets the same answer instead of running twice. Rate limits per account, not per IP (a whole
@@ -166,7 +167,7 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 | Debug (ENV=dev only) | `GET /api/v1/debug`, `POST /debug/mail`; signed in, for your own account and test people: `GET /debug/users`, `POST /debug/login`, `POST/DELETE /debug/test-users`, `DELETE /debug/users/{id}`, `POST /debug/users/{id}/timetable`, `POST /debug/test-chats`, `PUT /debug/friends/{id}` |
 | Breaks | `GET/POST /api/v1/breaks`, `POST /breaks/{id}/respond\|counter\|cancel` |
 | Chat | `GET/POST /api/v1/chats`, `POST /chats/direct`, `GET/PATCH /chats/{id}`, `POST /chats/{id}/members`, `DELETE /chats/{id}/members/me`, `GET/POST /chats/{id}/messages`, `DELETE /chats/{id}/messages/{id}`, `POST /chats/{id}/read`, `POST /chats/messages/{id}/report`; admin: `GET /admin/v1/reports`, `POST /admin/v1/reports/{id}` |
-| Friends | `GET /api/v1/friends`, `PATCH/DELETE /friends/{id}`, `GET/POST /friends/requests`, `POST /friends/requests/{id}/accept\|decline\|cancel`, `POST /invites`, `GET /invites/{code}`, `POST /invites/{code}/accept`, `GET/POST /blocks`, `DELETE /blocks/{id}`, `GET /friends/{id}/schedule`, `GET /compare` |
+| Friends | `GET /api/v1/friends` (pinned first), `PATCH /friends/{id}` (visibility, pinned), `DELETE /friends/{id}`, `GET/POST /friends/requests`, `POST /friends/requests/{id}/accept\|decline\|cancel`, `POST /invites`, `GET /invites/{code}`, `POST /invites/{code}/accept`, `GET/POST /blocks`, `DELETE /blocks/{id}`, `GET /friends/{id}/schedule`, `GET /compare` |
 
 The OpenAPI schema (`/api/openapi.json`) is always on. The app's types live in `mobile/src/api/types.ts`.
 Every route with its file and a description: the docs (console → Roosters+ → Documentation → API routes & jobs).
@@ -187,6 +188,8 @@ listen on this laptop only: the admin API (`api/roosters/admin.py`, `ADMIN_TOKEN
    settings (push per chat too)~~ (done: `api/roosters/push.py`, `mobile/src/lib/push.ts`, Ik → Meldingen; needs an
    EAS project id and a development build; "a friend is free" and "travelling together" pushes still to come),
    ~~skipping one lesson ("Vak overslaan")~~ (done: `r_me.skip`, `mobile/src/components/timetable/SkipDrag.tsx`)
-2. In the app after that: Google Sign-In (needs client IDs), QR codes, pinned friends, the notifications step in onboarding
+2. In the app after that: Google Sign-In (needs client IDs), QR codes, ~~pinned friends~~ (done: `friendships.pinned`,
+   `PATCH /friends/{id}` `{pinned}`, Vrienden and a friend's page; first in the lists, on Today's board and in Vergelijken),
+   the notifications step in onboarding
 3. Premium (RevenueCat), widgets
 4. Server: Caddy (HTTPS, HTTP/3) + backups + monitoring on Hetzner
