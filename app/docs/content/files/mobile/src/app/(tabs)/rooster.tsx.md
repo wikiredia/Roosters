@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:04Z
+updated: 2026-10-24T07:47:21Z
 ---
 
 **Rooster**: your days side by side (1–7), one continuous strip you scroll through day by day, as far back or
@@ -7,7 +7,8 @@ ahead as you like (no pages). The week strip on top (`DayStrip`), the grid's col
 share the same animated values (`offset`: the left edge in days, `count`: how many days, `k`: where that first day
 sits in the strip), so everything moves together in the same frame, on the UI thread.
 
-- **Swiping** the grid or the week strip (both move together): day by day with a little momentum (`lib/days.snap`); an empty weekend is calm (short swipe shows it,
+- **Swiping** the grid (the week strip follows), or **picking up the white day** on the strip and moving it (push it
+  against the edge to go further in time, see `DayStrip`): day by day with a little momentum (`lib/days.snap`); an empty weekend is calm (short swipe shows it,
   a bit further lands on Monday). Where a swipe lands is known as the finger lets go: dates and data switch then,
   not after the animation. Only the columns wait for data; new lessons slide in from the side you came from.
 - **Dots** under the strip's dates: one per kind of lesson that day (theory blue, lab green, …).
@@ -30,7 +31,8 @@ Busy weekends go to the grid's swipe (a shared value, set in an effect) and to `
 computed with the data: render never reads a shared value.
 
 Data: whole weeks with shared breaks (`useWeeks`, `GET /me/schedule?together=1`), three or four weeks around what
-you see. Tapping a lesson opens `LessonSheet` with that day's shared breaks; tapping where lessons overlap first asks which
+you see. Tapping a shared break asks "Pauze samen?" (`BreakSheet`, with everyone in it and their own free window;
+a day that's over goes to Compare). Tapping a lesson opens `LessonSheet` with that day's shared breaks; tapping where lessons overlap first asks which
 one (`OverlapSheet`), then opens that one's sheet.
 
 ## `RoosterScreen`

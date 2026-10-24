@@ -1,19 +1,24 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { type SharedValue, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { type SharedValue, useAnimatedStyle, useFrameCallback, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { AView } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
-import { dateAt, MAX_DAYS, snap } from '@/lib/days';
+import { dateAt, MAX_DAYS } from '@/lib/days';
 import { shortDate, weekdayShort } from '@/lib/time';
 
 import { RESIZE, SWIPE } from './DayGrid';
 import { KIND_DOT, type LessonKind } from './Timetable';
 
 const H = 56;
+/** How far (cells) the group has to be pushed past the strip's edge before the dates start scrolling */
+const EDGE = 0.3;
+/** Scrolling speed at the edge, days per second: starts calm, faster the further you push */
+const SCROLL_MIN = 2.5;
+const SCROLL_MAX = 9;
 
 type Props = {
   /** Shared with the grid: the left edge of what you see (days), how many days, and where in the strip that
@@ -23,8 +28,6 @@ type Props = {
   /** The number of days as React knows it (for the screen reader label: render never reads `count`) */
   n: number;
   k: SharedValue<number>;
-  /** Saturdays of weekends with something on them (as in the grid: a swipe doesn't skip those). */
-  busyWeekends: SharedValue<number[]>;
   width: number;
   from: number;
   to: number;
@@ -33,8 +36,10 @@ type Props = {
   /** The kinds of lessons on a day: a small dot each under the date. */
   kinds: (day: number) => LessonKind[];
   onPick: (day: number) => void;
-  /** Where a swipe of the strip will land (as the grid's `onTarget`). */
+  /** The group was let go: the first day you see from now on (as the grid's `onTarget`). */
   onTarget: (start: number) => void;
+  /** While the group scrolls the dates at the edge: the first day passed by, so the screen loads the days around it. */
+  onMove: (start: number) => void;
   /** Every time the handle covers another number of days, and when it's let go (with the first day: dragged
    * left past it, the first day goes back with the finger). */
   onResize: (n: number) => void;
@@ -47,10 +52,15 @@ type Props = {
  * The week above the timetable, seven equal cells. What you see in the grid is a white cell (the first day) with
  * a grey band stretching out of it; the dash on the band's edge sets how many days you see (1–7), live: the
  * grid's columns get thinner or wider with your finger and settle with a bounce. Drag the dash left past the white
- * cell and that first day follows your finger: the grid goes back a few days. The strip and the grid move as one:
- * swipe either and the other follows. Under each date a small dot per kind of lesson that day. Tap a day to start there.
+ * cell and that first day follows your finger: the grid goes back a few days.
+ *
+ * The white cell, the band and the dash are one group you can pick up: it lifts a little and follows your finger
+ * over the dates, which stay put; the grid shows the days under it, live. Push it against the strip's edge and the
+ * dates scroll further in time (faster the further you push). Let go and it settles on a whole day. Swiping the
+ * dates themselves does nothing; swipe the grid instead (the strip follows). Under each date a small dot per kind of
+ * lesson that day. Tap a day to start there.
  */
-export function DayStrip({ offset, count, n, k, busyWeekends, width, from, to, today, lang, kinds, onPick, onTarget, onResize, onResizeEnd, nudge }: Props) {
+export function DayStrip({ offset, count, n, k, width, from, to, today, lang, kinds, onPick, onTarget, onMove, onResize, onResizeEnd, nudge }: Props) {
   const { t } = useT();
   const cell = width / 7;
   const startCount = useSharedValue(1);
@@ -58,10 +68,18 @@ export function DayStrip({ offset, count, n, k, busyWeekends, width, from, to, t
   const startOffset = useSharedValue(0);
   const pulled = useSharedValue(false);
   const last = useSharedValue(0);
+  // The group being dragged: lifted (0–1), the strip's first date (offset - k) while it scrolls at the edge,
+  // how far it's pushed past the edge (cells, - left / + right) and the last start told to the screen
+  const lifted = useSharedValue(0);
+  const dragging = useSharedValue(false);
+  const win = useSharedValue(0);
+  const push = useSharedValue(0);
+  const told = useSharedValue(0);
 
   const dates = useAnimatedStyle(() => ({ transform: [{ translateX: (from - (offset.get() - k.get())) * cell }] }));
-  const white = useAnimatedStyle(() => ({ left: k.get() * cell, width: cell }));
-  const band = useAnimatedStyle(() => ({ left: k.get() * cell, width: count.get() * cell }));
+  const white = useAnimatedStyle(() => ({ left: k.get() * cell, width: cell, transform: [{ scale: 1 + lifted.get() * 0.06 }] }));
+  const band = useAnimatedStyle(() => ({ left: k.get() * cell, width: count.get() * cell, transform: [{ scaleY: 1 + lifted.get() * 0.06 }] }));
+  const body = useAnimatedStyle(() => ({ left: k.get() * cell, width: Math.max(0, count.get() * cell - 22) }));
   const handle = useAnimatedStyle(() => ({ left: (k.get() + count.get()) * cell - 22 }));
   const wiggle = useSharedValue(0);
   const dash = useAnimatedStyle(() => ({ transform: [{ translateX: wiggle.get() }] }));
@@ -118,37 +136,66 @@ export function DayStrip({ offset, count, n, k, busyWeekends, width, from, to, t
       } else scheduleOnRN(onResizeEnd, days, undefined);
     });
 
-  // Swiping the strip itself scrolls the days (the grid follows): the dates move with your finger under the band
-  const swipe = Gesture.Pan()
-    .activeOffsetX([-8, 8])
-    .failOffsetY([-12, 12])
+  // Picking up the group: it follows the finger over the dates (they stay put, so offset moves with k)
+  const move = Gesture.Pan()
+    .activeOffsetX([-6, 6])
+    .failOffsetY([-14, 14])
     .onBegin(() => {
-      startOffset.set(offset.get());
+      startK.set(k.get());
+      win.set(offset.get() - k.get());
+      told.set(Math.round(offset.get()));
+    })
+    .onStart(() => {
+      dragging.set(true);
+      lifted.set(withSpring(1, RESIZE));
     })
     .onUpdate((e) => {
-      offset.set(startOffset.get() - e.translationX / cell);
+      const wanted = startK.get() + e.translationX / cell;
+      const kk = Math.max(0, Math.min(7 - count.get(), wanted));
+      push.set(wanted - kk);
+      k.set(kk);
+      offset.set(win.get() + kk);
     })
-    .onEnd((e) => {
-      const start = Math.round(startOffset.get());
-      const busy = busyWeekends.get();
-      const target = snap(start, Math.round(count.get()), -e.translationX / cell, -e.velocityX / cell, (sat) => !busy.includes(sat));
-      scheduleOnRN(onTarget, target);
-      offset.set(withSpring(target, { ...SWIPE, velocity: -e.velocityX / cell }));
+    .onFinalize(() => {
+      if (!dragging.get()) return;
+      dragging.set(false);
+      push.set(0);
+      lifted.set(withSpring(0, RESIZE));
+      const start = Math.round(offset.get());
+      offset.set(withSpring(start, SWIPE));
+      k.set(withSpring(Math.round(k.get()), SWIPE));
+      scheduleOnRN(onTarget, start);
     });
+
+  // Pushed against an edge: the dates scroll under the group, every frame (the group stays at the edge)
+  useFrameCallback((frame) => {
+    const p = push.get();
+    if (!dragging.get() || Math.abs(p) < EDGE) return;
+    const dt = (frame.timeSincePreviousFrame ?? 16) / 1000;
+    const speed = Math.min(SCROLL_MAX, SCROLL_MIN + (Math.abs(p) - EDGE) * 12);
+    win.set(win.get() + Math.sign(p) * speed * dt);
+    offset.set(win.get() + k.get());
+    const now = Math.round(offset.get());
+    if (now !== told.get()) {
+      told.set(now);
+      scheduleOnRN(onMove, now);
+    }
+  });
+
   // Taps through the gesture system too: a swipe never ends as a tap on the day under your finger
   const tap = Gesture.Tap()
     .maxDistance(8)
     .onEnd((e, ok) => {
       if (ok) scheduleOnRN(onPick, Math.floor(offset.get() - k.get() + e.x / cell));
     });
-  // The dash wins over the strip's own swipe
-  pan.blocksExternalGesture(swipe, tap);
+  // The dash wins over moving the group and over a tap
+  pan.blocksExternalGesture(move, tap);
 
   const days: number[] = [];
   for (let i = from; i <= to; i++) days.push(i);
 
   return (
-    <GestureDetector gesture={Gesture.Exclusive(swipe, tap)}>
+    <GestureDetector gesture={tap}>
       <View className="overflow-hidden" style={{ height: H }} accessibilityLabel={t('rooster.stripLabel', { n })}>
         {width ? (
           <>
@@ -187,6 +234,10 @@ export function DayStrip({ offset, count, n, k, busyWeekends, width, from, to, t
                 );
               })}
             </AView>
+            {/* The group's body (over the dates): pick it up to move what you see */}
+            <GestureDetector gesture={move}>
+              <AView className="absolute top-0 bottom-0" style={body} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
+            </GestureDetector>
             <GestureDetector gesture={pan}>
               <AView
                 className="absolute top-0 bottom-0 w-[22px] items-center justify-center"

@@ -1,7 +1,7 @@
 ---
-title: Friends, breaks and privacy
+title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 ## Becoming friends
@@ -13,7 +13,7 @@ updated: 2026-10-23T17:30:00Z
 
 ## What a friend sees
 
-Each side chooses per friend: the **full** timetable or **free/busy** only (`set_visibility`;
+Each side chooses per friend: the **full** timetable, everything **without rooms**, or **free/busy** only (`set_visibility`;
 `schedule.busy_only` merges busy blocks and drops what and where). **Ghost mode** hides you completely for a
 while. **Blocking** ends the friendship and is silent (the other side can't tell). Guests are invisible.
 
@@ -28,4 +28,24 @@ Every feature that shows one person's data to another must go through `friends.v
 - Today shows your partners (`logic.partners`) and the now-board (`logic.board_status`). Compare shows
   every group of 2+ people that shares a break (`logic.compare_matches`), with up to 3 friends for free.
 
-Tests: `api/tests/test_friends.py`, `api/tests/test_logic.py`, `api/tests/test_compare.py`.
+## Break requests (breaks.py)
+
+Tap a shared break and ask "Pauze samen?": I come, you come or meet somewhere, from–until, a note. Only friends
+who can see you; everyone must be free then; no asking the same people twice for the same time (from either side).
+They answer yes, no or another time; the asker can take it back. Unfriending or blocking makes requests disappear.
+Every step leaves an in-app notification (push is the next step); a yes also shows up in the chats the two share.
+App: `components/BreakSheet.tsx`, Today's 'Voor jou' (questions to you) and 'Jouw pauzes'.
+
+## Chat (chat.py)
+
+One-to-one chats between friends (only while you're friends; one per pair) and groups of friends (anyone in it adds
+their own friends, anyone can leave). Text messages and events (a group made, someone added or gone, a renamed group,
+a planned break); the app writes the event sentences. Unread counts and "gelezen" come from how far each person read.
+Moderation, required by the stores for chat: long press → **report** ("Meld dit bericht": why, a note, block too)
+or **block**; nobody is told. Someone you blocked is gone from your chats (also in groups). Reports go to the admin
+API (`/admin/v1/reports`: dismiss, remove the message, turn the writer off). Sending carries an Idempotency-Key,
+so a message retried on bad wifi is stored once. App: `(tabs)/chat.tsx`, `chat/[id].tsx`, `chat/new.tsx`,
+`components/chat/`. No push yet.
+
+Tests: `api/tests/test_friends.py`, `api/tests/test_logic.py`, `api/tests/test_compare.py`, `api/tests/test_breaks.py`,
+`api/tests/test_chat.py`.

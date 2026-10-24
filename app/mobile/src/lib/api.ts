@@ -48,6 +48,9 @@ type Options = {
   /** Ask with If-None-Match and reuse the last answer on 304 */
   etag?: boolean;
   lang?: string;
+  /** The Idempotency-Key for this write. Normally a new one per call; a chat message tapped to try again passes the
+   * key of its first try, so the server stores it once even if the first try did arrive */
+  idemKey?: string;
 };
 
 const etags = new Map<string, { tag: string; data: unknown }>();
@@ -169,7 +172,7 @@ async function refreshTokens(): Promise<Refresh> {
 
 export async function request<T>(method: string, path: string, opts: Options = {}): Promise<T> {
   // One key for every retry of the same write: the server runs it at most once
-  const idemKey = method !== 'GET' && opts.auth !== false ? Crypto.randomUUID() : null;
+  const idemKey = method !== 'GET' && opts.auth !== false ? (opts.idemKey ?? Crypto.randomUUID()) : null;
   const signed = opts.auth !== false;
   const maxAttempts = 3;
   let refreshes = 0;

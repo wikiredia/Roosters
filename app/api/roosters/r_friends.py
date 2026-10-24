@@ -33,12 +33,12 @@ def list_friends(ctx: Ctx = Depends(verified)):
 
 
 class VisibilityIn(BaseModel):
-    visibility: Literal["full", "freebusy"]
+    visibility: Literal["full", "norooms", "freebusy"]
 
 
 @router.patch("/friends/{friend_id}")
 def set_visibility(friend_id: int, body: VisibilityIn, ctx: Ctx = Depends(verified)):
-    """What I show this friend: my full timetable, or only when I'm free/busy."""
+    """What I show this friend: my full timetable, everything but the rooms, or only when I'm free/busy."""
     if friends.friendship(ctx.uid, friend_id) is None:
         raise ApiError(404, "not_friends")
     db.run("UPDATE friendships SET visibility=%s WHERE user_id=%s AND friend_id=%s", (body.visibility, ctx.uid, friend_id))
@@ -222,11 +222,7 @@ def block(body: RequestIn, ctx: Ctx = Depends(verified)):
     if body.user_id == ctx.uid or not db.one("SELECT id FROM users WHERE id=%s", (body.user_id,)):
         raise ApiError(404, "not_found")
     with db.tx() as c:
-        db.run("INSERT IGNORE INTO blocks (user_id, blocked_id) VALUES (%s,%s)", (ctx.uid, body.user_id), c)
-        friends.disconnect(c, ctx.uid, body.user_id)
-        db.run("UPDATE friend_requests SET status='cancelled', decided_at=UTC_TIMESTAMP() WHERE status='pending' "
-               "AND ((from_id=%s AND to_id=%s) OR (from_id=%s AND to_id=%s))",
-               (ctx.uid, body.user_id, body.user_id, ctx.uid), c)
+        friends.block(c, ctx.uid, body.user_id)
     return blocks(ctx)
 
 
@@ -252,7 +248,14 @@ def friend_schedule(friend_id: int, request: Request, start: str | None = None, 
     last = first + dt.timedelta(days=days - 1)
     loading = schedule.ensure_weeks([friend_id], first, last, today)
     ls = schedule.lessons([friend_id], first, last)[friend_id]
-    lessons = [schedule.lesson_out(l) for l in ls] if m["visibility"] == "full" else schedule.busy_only(ls)
+    if m["visibility"] == "freebusy":
+        lessons = schedule.busy_only(ls)
+    else:
+        lessons = [schedule.lesson_out(l) for l in ls]
+        if m["visibility"] == "norooms":
+            # What and when, never where
+            for item in lessons:
+                item["location"] = None
     return etag_json(request, {"start": first.isoformat(), "days": days, "hidden": False, "loading": loading,
                                "visibility": m["visibility"], "lessons": lessons})
 

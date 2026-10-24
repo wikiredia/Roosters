@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T18:00:00Z
+updated: 2026-10-24T18:01:00Z
 ---
 
 **Talking to the Roosters+ API on bad school wifi.** Every request goes through `api.get/post/put/patch/del`.
@@ -25,7 +25,9 @@ No answer from our server: offline, timeout, or captive (a wifi login page or an
 
 ## `Options`
 
-Per request: body, `auth` (false = don't send the token), timeout, `etag`, language.
+Per request: body, `auth` (false = don't send the token), timeout, `etag`, language, and `idemKey`: the
+Idempotency-Key to use instead of a new one (a chat message tapped to try again keeps the key of its first try, so the
+server stores it once even when the first try did arrive).
 
 ## `api`
 

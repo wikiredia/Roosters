@@ -48,7 +48,8 @@ type Props = {
   onPressLesson: (l: Lesson, day: number) => void;
   /** A tap on (or close to) lessons that overlap: the screen asks which one you mean */
   onPressOverlap: (ls: Lesson[], day: number) => void;
-  onPressTogether: () => void;
+  /** A tap on a shared break: that day and the break (the screen asks "Pauze samen?") */
+  onPressTogether: (day: number, span: Span) => void;
   /** Where a swipe will land: called as the finger lets go, so dates and data update before it gets there. */
   onTarget: (start: number) => void;
   /** Pinch: how many days you see (live while pinching is the shared `count`). */
@@ -120,7 +121,10 @@ export function DayGrid(p: Props) {
     const hits = lessonsAt(d?.lessons ?? [], min);
     if (hits.length > 1) p.onPressOverlap(hits, day);
     else if (hits.length === 1) p.onPressLesson(hits[0], day);
-    else if (d?.together.some((s) => s.start <= min && min < s.end)) p.onPressTogether();
+    else {
+      const s = d?.together.find((x) => x.start <= min && min < x.end);
+      if (s) p.onPressTogether(day, { start: s.start, end: s.end });
+    }
   };
   const tap = Gesture.Tap()
     .maxDistance(8)
@@ -216,7 +220,7 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
             accessible
             accessibilityRole="button"
             accessibilityLabel={b.type === 'lesson' ? lessonLabel(b.lesson, t) : t('tt.together')}
-            onAccessibilityTap={() => (b.type === 'lesson' ? onPressLesson(b.lesson, day) : onPressTogether())}
+            onAccessibilityTap={() => (b.type === 'lesson' ? onPressLesson(b.lesson, day) : onPressTogether(day, s))}
           >
             <View pointerEvents="none" style={{ flex: 1 }}>
               <BlockView block={b} style={{ flex: 1 }} compact={compact} t={t} />

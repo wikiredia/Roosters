@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 Small parts: avatars, tags, chips, banners, selection controls.
@@ -27,3 +27,7 @@ Selection controls.
 ## `Tag`
 
 A small label (ok, premium, ink, …).
+
+## `Badge`
+
+The rose pill with an unread count (chat list, Chat tab); 99+ above 99.

@@ -1,7 +1,7 @@
 ---
 title: Management console and docs
 position: 90
-updated: 2026-10-23T18:55:00Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 The Smart-Room console (https://<laptop>:8443) has a **Roosters+** tab. It talks only to its own backend,
@@ -19,6 +19,7 @@ browser ──> console :8443 ──> /api/roosters/admin/* ──> 127.0.0.1:80
 | Schools & classes | Add (with Untis search), edit, turn off, delete schools; campuses; classes with sync state, fetch now |
 | Users | Search, details (sign-in methods, devices, timetables, friends), edit, turn off, sign out everywhere, delete |
 | Background jobs | Queue per kind, errors, run now, delete |
+| Reported messages | Not in the console tab yet: the admin API has them (`GET /admin/v1/reports`, `POST /admin/v1/reports/{id}` to dismiss, remove the message or turn the writer off); the overview counts `open_reports` |
 | Database | Every table, read-only, secrets masked, filter by column |
 | Activity | Every change made through the admin API, with the device |
 | Connection | Where `.env` is, tokens, both services up |

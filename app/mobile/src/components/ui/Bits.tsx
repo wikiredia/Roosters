@@ -257,3 +257,14 @@ export function IconTile({ name, tone = 'ink' }: { name: IconName; tone?: string
     </View>
   );
 }
+
+/** Rose pill with a number of unread messages (chat list, the Chat tab). */
+export function Badge({ n, className }: { n: number; className?: string }) {
+  return (
+    <View className={cn('min-w-[18px] h-[18px] px-[5px] rounded-full bg-friend items-center justify-center', className)}>
+      <Text bold className="text-on-friend" style={{ fontSize: 11, lineHeight: 18 }}>
+        {n > 99 ? '99+' : String(n)}
+      </Text>
+    </View>
+  );
+}

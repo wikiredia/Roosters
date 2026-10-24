@@ -114,6 +114,21 @@ const paths = {
   ),
   edit: <Path d="M14.5 5.5 18.5 9.5M4.5 19.5l1-4L15 6a2 2 0 0 1 3 3l-9.5 9.5z" />,
   crown: <Path d="M3 8.5l4.5 3.5L12 5l4.5 7L21 8.5 19 18H5z" />,
+  send: <Path d="M4.5 12 19.5 4.5 15 19.5l-3.5-6zM11.5 13.5l8-9" />,
+  more: (
+    <>
+      <Circle cx={6} cy={12} r={1.2} />
+      <Circle cx={12} cy={12} r={1.2} />
+      <Circle cx={18} cy={12} r={1.2} />
+    </>
+  ),
+  flag: <Path d="M5.5 20.5v-16M5.5 4.5h11l-2 4 2 4h-11" />,
+  block: (
+    <>
+      <Circle cx={12} cy={12} r={8} />
+      <Path d="M6.5 6.5l11 11" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof paths;

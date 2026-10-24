@@ -21,6 +21,8 @@ type ScreenProps = {
   right?: ReactNode;
   /** Small centered title with a back button (pushed screens) */
   navTitle?: string;
+  /** A small line under navTitle ("5 leden · 2 nu vrij") */
+  navSub?: string;
   back?: boolean;
   /** Onboarding progress: [step, of] */
   progress?: [number, number];
@@ -38,7 +40,7 @@ type ScreenProps = {
 };
 
 /** Every screen: safe area, header, network banner, scrollable content and an optional sticky footer. */
-export function Screen({ children, title, eyebrow, heading, right, navTitle, back, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
+export function Screen({ children, title, eyebrow, heading, right, navTitle, navSub, back, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner, scrollRef }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const hasNav = back || progress || navTitle !== undefined;
@@ -77,6 +79,15 @@ export function Screen({ children, title, eyebrow, heading, right, navTitle, bac
                 {progress[0]}/{progress[1]}
               </Text>
             </>
+          ) : navSub ? (
+            <View className="flex-1 items-center" accessible accessibilityRole="header">
+              <Text bold numberOfLines={1}>
+                {navTitle}
+              </Text>
+              <Text variant="xs" tone="ink2" numberOfLines={1}>
+                {navSub}
+              </Text>
+            </View>
           ) : (
             <Text bold className="flex-1 text-center" accessibilityRole="header">
               {navTitle}

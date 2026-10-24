@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T16:00:00Z
+updated: 2026-10-24T16:01:00Z
 ---
 
 The **admin API** for the management console (Smart-Room console → Roosters+ tab). It is a separate
@@ -12,7 +12,7 @@ can't be reached from the network.
 - **Audit:** the console sends `X-Admin-Actor: <device name>`; every change is written to the
   `admin_log` table through `record` (Activity in the console).
 - **What it manages:** overview counts and health, schools / campuses / classes (with Untis search),
-  users (search, edit, turn off, sign out, delete), background jobs, a read-only browser for every
+  users (search, edit, turn off, sign out, delete), reported chat messages, background jobs, a read-only browser for every
   table, a test mail, and the activity log.
 - **Safety:** the table browser is read-only and masks secret columns (`SECRET_COLUMNS`). Writes go
   through curated endpoints that keep data consistent (e.g. deleting a school removes its classes and
@@ -155,3 +155,15 @@ Writes one line to `admin_log` (actor, action, target, JSON detail), inside the 
 ## `users`
 
 `GET /admin/v1/users?q=&kind=&school_id=`: search by name, e-mail or id (digits only means an id). `kind` filters guests, signed-in users or turned-off users. Paged with `limit`/`offset`; `total` is the full count.
+
+## `report_list`
+
+`GET /admin/v1/reports?status=open|handled|all`: "Meld dit bericht" from the app, newest first, with the text, the
+reason and note, who reported whom (and how often the writer was reported), the message's state now and the three
+messages before it (`chat.reports`). The overview counts the open ones (`open_reports`).
+
+## `ResolveIn`, `resolve_report`
+
+`POST /admin/v1/reports/{id}` `{outcome}`: `dismissed` (nothing wrong), `removed` (the message is gone for
+everyone), `disabled` (removed, and the writer's account turned off and signed out everywhere). Closes every open
+report about the same message (`chat.resolve`) and lands in `admin_log` as `report_<outcome>`.

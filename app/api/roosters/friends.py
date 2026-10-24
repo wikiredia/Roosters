@@ -59,3 +59,17 @@ def connect(c, a: int, b: int):
 def disconnect(c, a: int, b: int):
     db.run("DELETE FROM friendships WHERE (user_id=%s AND friend_id=%s) OR (user_id=%s AND friend_id=%s)",
            (a, b, b, a), c)
+
+
+def block(c, a: int, b: int):
+    """a blocks b (inside a transaction): the friendship and open requests end, b can't send new ones.
+    b isn't told."""
+    db.run("INSERT IGNORE INTO blocks (user_id, blocked_id) VALUES (%s,%s)", (a, b), c)
+    disconnect(c, a, b)
+    db.run("UPDATE friend_requests SET status='cancelled', decided_at=UTC_TIMESTAMP() WHERE status='pending' "
+           "AND ((from_id=%s AND to_id=%s) OR (from_id=%s AND to_id=%s))", (a, b, b, a), c)
+
+
+def blocked_by(user_id: int, c=None) -> set[int]:
+    """Everyone `user_id` blocked."""
+    return {r["blocked_id"] for r in db.rows("SELECT blocked_id FROM blocks WHERE user_id=%s", (user_id,), c)}

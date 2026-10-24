@@ -6,6 +6,7 @@ import { FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight, useSharedValue, wit
 import { useFriends, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
 import { type DayData, DayGrid, LABEL_H, RESIZE, SWIPE } from '@/components/timetable/DayGrid';
+import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { DayStrip } from '@/components/timetable/DayStrip';
 import { LessonSheet, OverlapSheet } from '@/components/timetable/LessonSheet';
 import { kindsOf, Legend, type LegendItem, lessonKind, TimeAxis } from '@/components/timetable/Timetable';
@@ -57,6 +58,7 @@ export default function RoosterScreen() {
   // Overlapping lessons tapped: which one? Then that one's sheet
   const [choose, setChoose] = useState<{ lessons: Lesson[]; day: number } | null>(null);
   const chosen = useRef(false);
+  const [ask, setAsk] = useState<BreakTarget>(null);
 
   // Shared with the strip and the grid (UI thread)
   const offset = useSharedValue(start);
@@ -182,6 +184,19 @@ export default function RoosterScreen() {
     setDays(n, false);
   }
 
+  /** A shared break tapped: "Pauze samen?" with everyone in it, each with their own free window (today from now
+   * on). A day that's over only shows the comparison. */
+  function askBreak(day: number, span: { start: number; end: number }) {
+    const byId = new Map((friends.data ?? []).map((f) => [f.id, f]));
+    const now = day === today ? nowMin() : 0;
+    const people = (byDay.get(day)?.raw ?? [])
+      .filter((s) => s.start < span.end && span.start < s.end && s.end > now && byId.has(s.id))
+      .filter((s, i, all) => all.findIndex((x) => x.id === s.id) === i)
+      .map((s) => ({ ...byId.get(s.id)!, start: Math.max(s.start, now), end: s.end }));
+    if (day < today || !people.length) router.push('/compare');
+    else setAsk({ kind: 'ask', day: isoDay(dateAt(day)), people });
+  }
+
   /** Back to the standard view: this week, Monday to Friday, zoomed out (also remembered: 5 days). */
   function reset() {
     setZoomed(false);
@@ -241,9 +256,12 @@ export default function RoosterScreen() {
           to={to}
           today={today}
           lang={lang}
-          busyWeekends={busyWeekends}
           kinds={(day) => kinds.get(day) ?? []}
           onTarget={onTarget}
+          onMove={(s) => {
+            setEnterFrom(s >= start ? 1 : -1);
+            setStart(s);
+          }}
           onPick={(day) => moveTo(want >= 5 ? Math.max(mondayOf(day), Math.min(day, mondayOf(day) + 7 - want)) : day)}
           onResize={(n) => setWant(n)}
           onResizeEnd={(n, s) => {
@@ -290,7 +308,7 @@ export default function RoosterScreen() {
             lang={lang}
             onPressLesson={(lesson, day) => setOpen({ lesson, together: byDay.get(day)?.raw ?? [] })}
             onPressOverlap={(lessons, day) => setChoose({ lessons, day })}
-            onPressTogether={() => router.push('/compare')}
+            onPressTogether={askBreak}
             onTarget={onTarget}
             onCount={(n, s) => {
               setStart(s);
@@ -326,6 +344,7 @@ export default function RoosterScreen() {
           setTimeout(() => setOpen({ lesson, together: byDay.get(day)?.raw ?? [] }), 220);
         }}
       />
+      <BreakSheet target={ask} onClose={() => setAsk(null)} />
       <LessonSheet lesson={open?.lesson ?? null} onClose={() => setOpen(null)} friends={friends.data} together={open?.together} />
     </Screen>
   );

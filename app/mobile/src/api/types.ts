@@ -53,14 +53,17 @@ export type Status = {
   left_at?: number;
 };
 
+/** What a friend sees of your timetable: everything, everything but the rooms, or only when you're free/busy */
+export type Visibility = 'full' | 'norooms' | 'freebusy';
+
 export type Friend = {
   id: number;
   display_name: string;
   avatar_color: number;
   school_id: number | null;
   campus_id: number | null;
-  visibility: 'full' | 'freebusy';
-  my_visibility: 'full' | 'freebusy';
+  visibility: Visibility;
+  my_visibility: Visibility;
   hidden: boolean;
 };
 
@@ -87,6 +90,31 @@ export type Notification = {
   read: boolean;
 };
 
+export type BreakMode = 'i_come' | 'you_come' | 'meet';
+export type BreakResponse = 'pending' | 'accepted' | 'declined';
+export type BreakPerson = { id: number; display_name: string; avatar_color: number };
+
+/** A break request ("Pauze samen?", api/roosters/breaks.py). `mode` is as the one who asked put it (i_come: they
+ * come to the others). state: planned (someone said yes), declined (everyone said no), pending. */
+export type BreakRequest = {
+  id: number;
+  day: string;
+  start: number;
+  end: number;
+  mode: BreakMode;
+  place: string | null;
+  note: string | null;
+  /** An answer with another time: the request it answers */
+  counter_of: number | null;
+  from: BreakPerson;
+  mine: boolean;
+  members: (BreakPerson & { response: BreakResponse })[];
+  /** Yours when you were asked; null when you asked */
+  my_response: BreakResponse | null;
+  state: 'pending' | 'planned' | 'declined';
+  now: boolean;
+};
+
 export type SourcesState = { count: number; updated_at: string | null; syncing: boolean; errors: number[] };
 
 export type Today = {
@@ -98,6 +126,8 @@ export type Today = {
   board: { id: number; status: Status }[];
   together: Together[];
   changes: Notification[];
+  /** Break requests from and to you, today and the coming days */
+  breaks: BreakRequest[];
   sources: SourcesState;
 };
 
@@ -109,7 +139,7 @@ export type FriendSchedule = {
   days: number;
   loading?: boolean;
   hidden: boolean;
-  visibility?: 'full' | 'freebusy';
+  visibility?: Visibility;
   lessons: Lesson[];
 };
 
@@ -161,3 +191,50 @@ export type Requests = {
 };
 
 export type Classmate = PersonCard & { classes: string[]; requested: boolean };
+
+export type ChatPerson = { id: number; display_name: string; avatar_color: number };
+
+/** An event in a chat; the app writes the sentence. `names`: everyone it mentions, by id, as they were then. */
+export type ChatEvent =
+  | { type: 'created'; by: number; name: string; names: Record<string, string> }
+  | { type: 'added'; by: number; people: number[]; names: Record<string, string> }
+  | { type: 'left'; by: number; names: Record<string, string> }
+  | { type: 'renamed'; by: number; name: string; names: Record<string, string> }
+  | { type: 'break_planned'; people: number[]; day: string; start: number; end: number; place: string | null; names: Record<string, string> };
+
+export type ChatMessage = {
+  id: number;
+  chat_id: number;
+  kind: 'text' | 'event';
+  user_id: number | null;
+  /** null when it was taken back (`deleted`) or removed by a moderator (`removed`) */
+  body: string | null;
+  payload: ChatEvent | null;
+  created_at: string;
+  deleted: boolean;
+  removed: boolean;
+};
+
+/** A chat in the list. direct: `name`/`with_id`/`avatar_color` are the friend's; `members`: everyone but you. */
+export type Chat = {
+  id: number;
+  kind: 'direct' | 'group';
+  name: string | null;
+  with_id?: number | null;
+  avatar_color?: number;
+  pinned: boolean;
+  unread: number;
+  last_read_id: number;
+  last: ChatMessage | null;
+  members: ChatPerson[];
+  /** People in it, you included */
+  count: number;
+};
+
+/** One chat with everyone in it (you too) and how far each of them read. */
+export type ChatDetail = Omit<Chat, 'last'> & {
+  people: (ChatPerson & { last_read_id: number; me: boolean; friend: boolean })[];
+  created_by: number;
+};
+
+export type ReportReason = 'spam' | 'mean' | 'unsafe' | 'other';
