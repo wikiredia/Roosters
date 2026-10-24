@@ -7,7 +7,7 @@ Every request needs `Authorization: Bearer <ADMIN_TOKEN>`; without ADMIN_TOKEN i
 503. The console sends `X-Admin-Actor: <device name>`; every change lands in admin_log with it.
 
 What it manages: schools, campuses and classes (with Untis search), users (look up, edit, turn off, sign
-out, delete), background jobs, a read-only view of every table, mail test, and an overview with counts
+out, delete), reported chat messages (dismiss, remove, turn the writer off), background jobs, a read-only view of every table, mail test, and an overview with counts
 and health."""
 import datetime as dt
 import logging
@@ -20,7 +20,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import accounts, config, crypto, db, debug, i18n, jobs, sync, tokens, untis
+from . import accounts, chat, config, crypto, db, debug, i18n, jobs, sync, tokens, untis
 from .errors import ApiError
 
 log = logging.getLogger("roosters.admin")
@@ -108,6 +108,7 @@ def overview(_: str = Depends(admin)):
         "friendships": one("SELECT COUNT(*) AS n FROM friendships") // 2,
         "jobs_queued": one("SELECT COUNT(*) AS n FROM jobs WHERE status='queued'"),
         "jobs_failed": one("SELECT COUNT(*) AS n FROM jobs WHERE status='failed'"),
+        "open_reports": one("SELECT COUNT(*) AS n FROM chat_reports WHERE handled_at IS NULL"),
         "sync_errors": one("SELECT COUNT(*) AS n FROM school_classes WHERE last_error IS NOT NULL AND active=1"),
     }
     diag = debug.diagnose()
@@ -465,6 +466,28 @@ def delete_user(user_id: int, actor: str = Depends(admin)):
         accounts.delete_user(c, user_id)
         record(actor, "user_delete", str(user_id), {"display_name": u["display_name"]}, c)
     return Response(status_code=204)
+
+
+# ---- Reported chat messages ---------------------------------------------------------
+
+@router.get("/reports")
+def report_list(status: Literal["open", "handled", "all"] = "open", limit: int = 100, _: str = Depends(admin)):
+    """"Meld dit bericht" from the app: newest first, with what was written and the three messages before it."""
+    return {"reports": chat.reports(status, max(1, min(limit, 500)))}
+
+
+class ResolveIn(BaseModel):
+    outcome: Literal["dismissed", "removed", "disabled"]
+
+
+@router.post("/reports/{report_id}")
+def resolve_report(report_id: int, body: ResolveIn, actor: str = Depends(admin)):
+    """dismissed: nothing wrong. removed: the message is gone for everyone. disabled: removed, and the writer's
+    account is turned off (like PATCH /users/{id} disabled)."""
+    with db.tx() as c:
+        r = chat.resolve(c, report_id, body.outcome, actor)
+        record(actor, "report_" + body.outcome, str(report_id), {"message_id": r["message_id"], "author_id": r["author_id"]}, c)
+    return {"report": next((x for x in chat.reports("all", 500) if x["id"] == report_id), None)}
 
 
 # ---- Jobs ------------------------------------------------------------------------

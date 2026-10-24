@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:27:10Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -65,7 +65,7 @@ Soft-deletes the source, forgets its encrypted link and deletes its personal les
 ## `export`
 
 `GET /api/v1/me/export`: everything stored about you (GDPR art. 15/20) as JSON, without secrets (no encrypted links),
-including the break requests you made and your answers.
+including the break requests you made and your answers, your chats, the messages you wrote and the reports you made.
 
 ## `my_notifications`, `ReadIn`, `read`
 

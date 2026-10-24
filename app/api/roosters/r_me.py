@@ -409,6 +409,10 @@ def export(ctx: Ctx = Depends(auth)):
                                   "FROM break_requests WHERE from_id=%s", (uid,)),
         "break_answers": db.rows("SELECT request_id, response, responded_at FROM break_request_members WHERE user_id=%s",
                                  (uid,)),
+        "chats": db.rows("SELECT c.id, c.kind, c.name, m.joined_at, m.pinned FROM chat_members m JOIN chats c ON c.id=m.chat_id "
+                         "WHERE m.user_id=%s", (uid,)),
+        "chat_messages": db.rows("SELECT chat_id, body, created_at, deleted_at FROM chat_messages WHERE user_id=%s", (uid,)),
+        "chat_reports": db.rows("SELECT message_id, reason, note, created_at FROM chat_reports WHERE reporter_id=%s", (uid,)),
         "notifications": db.rows("SELECT kind, payload, day, created_at, read_at FROM notifications WHERE user_id=%s",
                                  (uid,)),
         "personal_calendar_lessons": db.rows("SELECT day, start_min, end_min, course, location, state FROM source_lessons "

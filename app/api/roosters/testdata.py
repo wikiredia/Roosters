@@ -3,12 +3,14 @@ switch to them (r_debug.login_as) and see what a friend sees. Only reachable thr
 
 Test people are recognised by their e-mail domain (TEST_DOMAIN); removing them removes everything they have.
 Their timetable is a personal calendar source without a link (sync never fetches it: `last_sync` far in the
-future), filled with lessons from this week back to last week and three weeks ahead, different per person."""
+future), filled with lessons from this week back to last week and three weeks ahead, different per person.
+Test chats (give_chats): a group with your test friends and a one-to-one chat, with a few of their messages."""
 import datetime as dt
 import hashlib
 import random
 
-from . import accounts, db, friends, schedule, sync
+from . import accounts, chat, db, friends, schedule, sync
+from .errors import ApiError
 
 TEST_DOMAIN = "roosters.test"
 NAMES = ["Kayra", "Yeno", "Amir", "Lotte", "Noor", "Sem", "Lina", "Milan", "Ines", "Wout", "Elif", "Jonas"]
@@ -17,6 +19,9 @@ COURSES = [("Databases", "theory"), ("Databases Labo", "lab"), ("Python Advanced
 ROOMS = ["B204", "C102", "A.1.05", "D0.12", "E3.04", "B110"]
 # Lessons start on these times (minutes); each lasts 1–2 hours
 SLOTS = [8 * 60 + 30, 10 * 60 + 30, 12 * 60 + 30, 13 * 60 + 30, 15 * 60 + 30]
+# What test friends write in a test chat (the first one says the first line, and so on)
+LINES = ["Databases valt weg, iemand koffie?", "Ik zit op Meistraat, volgende keer!", "ja, cafetaria om half één",
+         "Heeft iemand de slides van DevOps?", "Neem jij een tafel?", "Trein van 17:12 iemand?"]
 # Never fetched: sync only picks sources whose last_sync is in the past
 NEVER = dt.datetime(2099, 1, 1)
 
@@ -86,6 +91,22 @@ def create(me: dict, count: int, befriend: bool) -> list[int]:
                 friends.connect(c, me["id"], uid)
             made.append(uid)
     return made
+
+
+def give_chats(me: dict) -> list[int]:
+    """A group "De bende" with you and (up to 5 of) your test friends, and a one-to-one chat with the first, each
+    with a few messages from them, so the chat screens have something to show. -> chat ids"""
+    mates = [m["user"] for m in friends.visible_friends(me["id"]) if is_test(m["user"])][:5]
+    if not mates:
+        raise ApiError(400, "chat_people")
+    with db.tx() as c:
+        group = chat.create_group(c, me["id"], "De bende", [u["id"] for u in mates])
+        for i, u in enumerate(mates[:3]):
+            chat.send(c, u["id"], group, LINES[i % len(LINES)])
+        direct = chat.open_direct(c, me["id"], mates[0]["id"])
+        chat.send(c, mates[0]["id"], direct, LINES[3])
+        chat.send(c, mates[0]["id"], direct, LINES[4])
+    return [group, direct]
 
 
 def remove_all() -> int:

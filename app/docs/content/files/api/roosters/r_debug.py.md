@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T07:47:21Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 Troubleshooting and test endpoints for the laptop and the test server. They answer **404 unless ENV=dev**
@@ -47,3 +47,9 @@ what you show them and what they show you.
 ## `diagnose`
 
 `GET /api/v1/debug`: `debug.diagnose()`.
+
+## `add_test_chats`
+
+`POST /api/v1/debug/test-chats` → 201 `{chats: [group, direct]}`: a group 'De bende' with you and your test friends
+and a one-to-one chat with one of them, with a few of their messages (`testdata.give_chats`). 400 `chat_people`
+without test friends.

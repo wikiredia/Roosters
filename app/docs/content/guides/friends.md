@@ -1,7 +1,7 @@
 ---
-title: Friends, breaks and privacy
+title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-24T07:47:21Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 ## Becoming friends
@@ -33,7 +33,19 @@ Every feature that shows one person's data to another must go through `friends.v
 Tap a shared break and ask "Pauze samen?": I come, you come or meet somewhere, from–until, a note. Only friends
 who can see you; everyone must be free then; no asking the same people twice for the same time (from either side).
 They answer yes, no or another time; the asker can take it back. Unfriending or blocking makes requests disappear.
-Every step leaves an in-app notification (push is the next step). App: `components/BreakSheet.tsx`, Today's
-'Pauzeverzoeken'.
+Every step leaves an in-app notification (push is the next step); a yes also shows up in the chats the two share.
+App: `components/BreakSheet.tsx`, Today's 'Voor jou' (questions to you) and 'Jouw pauzes'.
 
-Tests: `api/tests/test_friends.py`, `api/tests/test_logic.py`, `api/tests/test_compare.py`, `api/tests/test_breaks.py`.
+## Chat (chat.py)
+
+One-to-one chats between friends (only while you're friends; one per pair) and groups of friends (anyone in it adds
+their own friends, anyone can leave). Text messages and events (a group made, someone added or gone, a renamed group,
+a planned break); the app writes the event sentences. Unread counts and "gelezen" come from how far each person read.
+Moderation, required by the stores for chat: long press → **report** ("Meld dit bericht": why, a note, block too)
+or **block**; nobody is told. Someone you blocked is gone from your chats (also in groups). Reports go to the admin
+API (`/admin/v1/reports`: dismiss, remove the message, turn the writer off). Sending carries an Idempotency-Key,
+so a message retried on bad wifi is stored once. App: `(tabs)/chat.tsx`, `chat/[id].tsx`, `chat/new.tsx`,
+`components/chat/`. No push yet.
+
+Tests: `api/tests/test_friends.py`, `api/tests/test_logic.py`, `api/tests/test_compare.py`, `api/tests/test_breaks.py`,
+`api/tests/test_chat.py`.

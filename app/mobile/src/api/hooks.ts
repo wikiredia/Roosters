@@ -7,6 +7,9 @@ import type {
   BreakMode,
   BreakRequest,
   Campus,
+  Chat,
+  ChatDetail,
+  ChatMessage,
   Checkin,
   Classmate,
   ClassLessons,
@@ -15,6 +18,7 @@ import type {
   Friend,
   FriendSchedule,
   Invite,
+  ReportReason,
   Requests,
   Schedule,
   School,
@@ -43,6 +47,9 @@ export const keys = {
   courses: (school: number, cls: number) => ['courses', school, cls] as const,
   classmates: ['classmates'] as const,
   breaks: ['breaks'] as const,
+  chats: ['chats'] as const,
+  chat: (id: number) => ['chat', id] as const,
+  messages: (id: number) => ['chat-messages', id] as const,
 };
 
 // ---- Reading ------------------------------------------------------------------------
@@ -150,6 +157,157 @@ export function useBreaks() {
     queryKey: keys.breaks,
     queryFn: () => api.get<{ breaks: BreakRequest[] }>('/api/v1/breaks').then((r) => r.breaks),
     enabled: useSocial(),
+  });
+}
+
+// ---- Chat -------------------------------------------------------------------------
+
+export type Chats = { chats: Chat[]; unread: number };
+export type MessagePage = { messages: ChatMessage[]; more: boolean };
+
+/** Your chats and the unread total (tab badge). Asked again every 15 s: mostly an empty "not modified". */
+export function useChats() {
+  return useQuery({ queryKey: keys.chats, queryFn: () => api.get<Chats>('/api/v1/chats'), enabled: useSocial(), refetchInterval: 15_000 });
+}
+
+export function useChat(id: number) {
+  return useQuery({
+    queryKey: keys.chat(id),
+    queryFn: () => api.get<{ chat: ChatDetail }>(`/api/v1/chats/${id}`).then((r) => r.chat),
+    enabled: id > 0,
+    refetchInterval: 10_000,
+  });
+}
+
+/** Older pages you scrolled up to, kept in front of the newest page. */
+function merge(have: MessagePage | undefined, page: MessagePage): MessagePage {
+  const first = page.messages[0]?.id;
+  if (!have || first === undefined) return page;
+  const older = have.messages.filter((m) => m.id < first);
+  return { messages: [...older, ...page.messages], more: older.length ? have.more : page.more };
+}
+
+/**
+ * A conversation, oldest first. While it's open the newest page is asked again every 3 s: with the ETag that's an
+ * empty "not modified" until someone writes, and a message taken back disappears here too.
+ */
+export function useMessages(id: number) {
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: keys.messages(id),
+    queryFn: async () => merge(qc.getQueryData<MessagePage>(keys.messages(id)), await api.get<MessagePage>(`/api/v1/chats/${id}/messages`)),
+    enabled: id > 0,
+    refetchInterval: 3000,
+  });
+}
+
+/** The page above the oldest message you have (scrolling up). */
+export function useOlderMessages(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (before: number) => api.get<MessagePage>(`/api/v1/chats/${id}/messages?before=${before}`, { etag: false }),
+    onSuccess: (r) =>
+      qc.setQueryData<MessagePage>(keys.messages(id), (have) => {
+        const known = new Set(have?.messages.map((m) => m.id));
+        return { messages: [...r.messages.filter((m) => !known.has(m.id)), ...(have?.messages ?? [])], more: r.more };
+      }),
+  });
+}
+
+/** Sending: `key` is the Idempotency-Key, the same on every try of this message (it's stored once). */
+export function useSendMessage(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ body, key }: { body: string; key: string }) =>
+      api.post<{ message: ChatMessage }>(`/api/v1/chats/${id}/messages`, { body }, { idemKey: key }).then((r) => r.message),
+    onSuccess: (m) => {
+      qc.setQueryData<MessagePage>(keys.messages(id), (have) =>
+        have?.messages.some((x) => x.id === m.id) ? have : { messages: [...(have?.messages ?? []), m], more: have?.more ?? false },
+      );
+      qc.invalidateQueries({ queryKey: keys.chats });
+    },
+  });
+}
+
+/** Read up to this message: the badge goes down right away. */
+export function useReadChat(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (upTo: number) => api.post(`/api/v1/chats/${id}/read`, { up_to_id: upTo }),
+    onMutate: (upTo) =>
+      qc.setQueryData<Chats>(keys.chats, (have) => {
+        if (!have) return have;
+        const chats = have.chats.map((c) => (c.id === id ? { ...c, unread: 0, last_read_id: Math.max(c.last_read_id, upTo) } : c));
+        return { chats, unread: chats.reduce((n, c) => n + c.unread, 0) };
+      }),
+  });
+}
+
+function useChatWrite<V>(fn: (v: V) => Promise<ChatDetail>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (c) => {
+      qc.setQueryData(keys.chat(c.id), c);
+      qc.invalidateQueries({ queryKey: keys.chats });
+      qc.invalidateQueries({ queryKey: keys.messages(c.id) });
+    },
+  });
+}
+
+/** The one-to-one chat with a friend (the server makes it the first time). */
+export function useOpenDirect() {
+  return useChatWrite((userId: number) => api.post<{ chat: ChatDetail }>('/api/v1/chats/direct', { user_id: userId }).then((r) => r.chat));
+}
+
+export function useNewGroup() {
+  return useChatWrite((v: { name: string; user_ids: number[] }) => api.post<{ chat: ChatDetail }>('/api/v1/chats', v).then((r) => r.chat));
+}
+
+/** Rename a group, or pin a chat (only for you). */
+export function useEditChat(id: number) {
+  return useChatWrite((v: { name?: string; pinned?: boolean }) => api.patch<{ chat: ChatDetail }>(`/api/v1/chats/${id}`, v).then((r) => r.chat));
+}
+
+export function useAddToChat(id: number) {
+  return useChatWrite((ids: number[]) => api.post<{ chat: ChatDetail }>(`/api/v1/chats/${id}/members`, { user_ids: ids }).then((r) => r.chat));
+}
+
+export function useLeaveChat(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.del(`/api/v1/chats/${id}/members/me`),
+    onSuccess: () => {
+      qc.removeQueries({ queryKey: keys.chat(id) });
+      qc.removeQueries({ queryKey: keys.messages(id) });
+      qc.invalidateQueries({ queryKey: keys.chats });
+    },
+  });
+}
+
+/** Your own message, gone for everyone. */
+export function useTakeBack(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: number) => api.del(`/api/v1/chats/${id}/messages/${messageId}`),
+    onSuccess: (_r, messageId) => {
+      qc.setQueryData<MessagePage>(keys.messages(id), (have) =>
+        have ? { ...have, messages: have.messages.map((m) => (m.id === messageId ? { ...m, body: null, deleted: true } : m)) } : have,
+      );
+      qc.invalidateQueries({ queryKey: keys.chats });
+    },
+  });
+}
+
+/** "Meld dit bericht", and blocking the writer if you want (then everything changes: friends, Today, chats). */
+export function useReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ messageId, ...body }: { messageId: number; reason: ReportReason; note?: string | null; block?: boolean }) =>
+      api.post<{ reported: boolean; blocked: boolean }>(`/api/v1/chats/messages/${messageId}/report`, body),
+    onSuccess: (r) => {
+      if (r.blocked) qc.invalidateQueries();
+    },
   });
 }
 

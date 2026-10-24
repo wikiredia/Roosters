@@ -222,11 +222,7 @@ def block(body: RequestIn, ctx: Ctx = Depends(verified)):
     if body.user_id == ctx.uid or not db.one("SELECT id FROM users WHERE id=%s", (body.user_id,)):
         raise ApiError(404, "not_found")
     with db.tx() as c:
-        db.run("INSERT IGNORE INTO blocks (user_id, blocked_id) VALUES (%s,%s)", (ctx.uid, body.user_id), c)
-        friends.disconnect(c, ctx.uid, body.user_id)
-        db.run("UPDATE friend_requests SET status='cancelled', decided_at=UTC_TIMESTAMP() WHERE status='pending' "
-               "AND ((from_id=%s AND to_id=%s) OR (from_id=%s AND to_id=%s))",
-               (ctx.uid, body.user_id, body.user_id, ctx.uid), c)
+        friends.block(c, ctx.uid, body.user_id)
     return blocks(ctx)
 
 

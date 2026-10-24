@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T07:47:21Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -38,6 +38,12 @@ Now-board status codes and times.
 
 A break request (`api/roosters/breaks.py`). `mode` is as the one who asked put it: `lib/breaks.howText` turns it
 into words from your side. Today carries them in `breaks`.
+
+## `Chat`, `ChatDetail`, `ChatMessage`, `ChatEvent`, `ChatPerson`, `ReportReason`
+
+Chat (`api/roosters/chat.py`): a chat in the list (one-to-one: the friend's name and colour, `with_id`), one chat
+with everyone in it and how far they read, a message (`body` null when taken back or removed), an event (the app
+writes the sentence, `lib/chat.ts`), and the report reasons.
 
 ## `Today`, `Schedule`, `FriendSchedule`, `Compare`
 

@@ -1,13 +1,13 @@
 ---
-updated: 2026-10-24T05:27:10Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
 refetched every minute, ETag). Sections fade in (the skeleton cross-fades into them) and slide when one above
 appears or goes (`Motion.Reveal`).
 
-Sections from top to bottom: sync note, **Now card**, **Complete the following steps** (`SetupSteps`, for
-what onboarding skipped), **break requests**, shared breaks ('together'), the now-board, your plan for the afternoon
+Sections from top to bottom: sync note, **Now card**, **Voor jou** (questions to you), **Complete the following
+steps** (`SetupSteps`, for what onboarding skipped), **your breaks**, shared breaks ('together'), the now-board, your plan for the afternoon
 (check-in), timetable changes, 'updated … ago'. The 'At school / At home' button sets the check-in.
 
 ## `Board`
@@ -46,13 +46,18 @@ The type of `t()` passed to the parts below.
 
 Puts the sections together; pull to refresh (the spinner only for your own pull).
 
+## `ForYou`
+
+'Voor jou' with '1 vraag' (design: Today.dc.html): breaks friends asked you for and you haven't answered, right
+under the Now card. "Lotte: pauze om 12:30?" (another day: "pauze morgen om …"), until when and where, their note,
+Ja / Nee / Ander uur (opens `BreakSheet` for another time). Hidden when nobody asked.
+
 ## `Requests`
 
-'Pauzeverzoeken': asked to you (Ja / Nee / Ander uur, which opens `BreakSheet` for another time), asked by you
-(waiting, planned, or nobody can: take it back or remove it), and the ones you said yes to (Toch niet). A no you gave
-is gone. Hidden when there are none.
+'Jouw pauzes': asked by you (waiting, planned, or nobody can: take it back or remove it) and the ones you said yes
+to (Toch niet). A no you gave is gone; open questions are in `ForYou`. Hidden when there are none.
 
 ## `Together`
 
 'Take your break with': shared breaks grouped per time slot; tap one to ask "Pauze samen?" (`BreakSheet`, from now on
-when it's already going).
+when it's already going). A slot with one friend has a chat button (their one-to-one chat, `useOpenDirect`).

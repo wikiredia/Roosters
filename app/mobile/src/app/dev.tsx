@@ -145,6 +145,21 @@ export default function DevScreen() {
             <Button size="sm" variant="secondary" icon="plus" label="1 stranger" loading={busy === 'add-1-false'} disabled={!me || !!busy} onPress={() => addFriends(1, false)} />
           </View>
           <Button
+            size="sm"
+            variant="secondary"
+            icon="chat"
+            label="Test chats with my test friends"
+            className="self-start"
+            loading={busy === 'chats'}
+            disabled={!me || !!busy}
+            onPress={() =>
+              run('chats', async () => {
+                await api.post('/api/v1/debug/test-chats');
+                return "A group 'De bende' with your test friends and a one-to-one chat, with a few of their messages (Chat tab).";
+              })
+            }
+          />
+          <Button
             variant="danger"
             size="sm"
             icon="trash"

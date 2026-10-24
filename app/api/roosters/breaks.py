@@ -4,10 +4,11 @@ answers yes or no, or proposes another time ("Ander uur": a new request the othe
 r_breaks.py; the pure parts (no database) are at the top and tested on their own.
 
 Tables: break_requests, break_request_members (migrations/0007_break_requests.sql). Every step leaves an in-app
-notification (kind break_request, break_answer, break_counter, break_cancelled; push comes later)."""
+notification (kind break_request, break_answer, break_counter, break_cancelled; push comes later); a yes
+also shows up in the chats the two share (chat.post_event)."""
 import datetime as dt
 
-from . import db, friends, logic, notifications, schedule
+from . import chat, db, friends, logic, notifications, schedule
 from .errors import ApiError
 
 # How far ahead you can ask (today = 0): this week and the next
@@ -172,6 +173,11 @@ def respond(c, user: dict, rid: int, response: str) -> dict:
         notifications.enqueue(r["from_id"], "break_answer", f"break:{rid}:{user['id']}:{response}:{stamp}",
                               {"request": rid, "from": user["id"], "response": response, "was": mine["response"],
                                "start": r["start_min"], "end": r["end_min"]}, r["day"], c=c)
+        if response == "accepted":
+            # In the chats they share: "Lotte en Amir pakken samen pauze om 12:30"
+            chat.post_event(c, [r["from_id"], user["id"]], {"type": "break_planned", "day": r["day"].isoformat(),
+                                                           "start": r["start_min"], "end": r["end_min"],
+                                                           "place": r["place"] if r["mode"] == "meet" else None})
     return r
 
 

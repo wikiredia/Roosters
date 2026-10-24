@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 
-import { useBlock, useFriends, useFriendSchedule, useRemoveFriend, useSetVisibility } from '@/api/hooks';
+import { useBlock, useFriends, useFriendSchedule, useOpenDirect, useRemoveFriend, useSetVisibility } from '@/api/hooks';
 import { WeekView } from '@/components/timetable/WeekView';
 import { Avatar, Option } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
@@ -12,7 +12,7 @@ import { useT } from '@/i18n';
 import { confirm } from '@/lib/confirm';
 import { addDays, isoDay, monday, nowMin } from '@/lib/time';
 
-/** One friend: their week, what they see of you, remove or block. */
+/** One friend: chat with them, their week, what they see of you, remove or block. */
 export default function FriendScreen() {
   const { t } = useT();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,6 +25,7 @@ export default function FriendScreen() {
   const vis = useSetVisibility();
   const remove = useRemoveFriend();
   const block = useBlock();
+  const open = useOpenDirect();
 
   if (friends.data && !f) {
     return (
@@ -55,7 +56,16 @@ export default function FriendScreen() {
         <Avatar name={name || '?'} color={f?.avatar_color ?? 1} size="xl" />
         <Text variant="title">{name}</Text>
       </View>
-      <Button icon="swap" label={t('friend.compare')} onPress={() => router.push({ pathname: '/compare', params: { ids: String(fid) } })} />
+      <View className="gap-2">
+        <Button icon="swap" label={t('friend.compare')} onPress={() => router.push({ pathname: '/compare', params: { ids: String(fid) } })} />
+        <Button
+          variant="secondary"
+          icon="chat"
+          label={t('friend.chat', { name })}
+          loading={open.isPending}
+          onPress={async () => router.push(`/chat/${(await open.mutateAsync(fid)).id}`)}
+        />
+      </View>
 
       <Section>
         <SectionHead title={t('friend.theirWeek')} />

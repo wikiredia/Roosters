@@ -129,6 +129,12 @@ def give_timetable(user_id: int):
     return {"lessons": n}
 
 
+@router.post("/test-chats", status_code=201, dependencies=[Depends(local_only)])
+def add_test_chats(ctx: Ctx = Depends(auth)):
+    """A group with your test friends and a one-to-one chat with one of them, with a few messages from them."""
+    return {"chats": testdata.give_chats(ctx.user)}
+
+
 class FriendIn(BaseModel):
     friends: bool
 

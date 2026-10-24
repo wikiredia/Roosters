@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAcceptInvite } from '@/api/hooks';
+import { useAcceptInvite, useChats } from '@/api/hooks';
+import { Badge } from '@/components/ui/Bits';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
@@ -22,6 +23,7 @@ const TABS: Record<string, { icon: IconName; label: Key }> = {
 function TabBar({ state, navigation }: BottomTabBarProps) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
+  const unread = useChats().data?.unread ?? 0;
   return (
     <View
       accessibilityRole="tablist"
@@ -32,12 +34,13 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
         const tab = TABS[route.name];
         if (!tab) return null;
         const on = state.index === i;
+        const badge = route.name === 'chat' ? unread : 0;
         return (
           <Pressable
             key={route.key}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
-            accessibilityLabel={t(tab.label)}
+            accessibilityLabel={badge ? `${t(tab.label)}, ${t('chat.unreadLabel', { n: badge })}` : t(tab.label)}
             onPress={() => {
               const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
               if (!on && !e.defaultPrevented) navigation.navigate(route.name, route.params);
@@ -46,6 +49,7 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
           >
             <View className={cn('w-14 h-[30px] rounded-full items-center justify-center', on && 'bg-you-soft')}>
               <Icon name={tab.icon} size={24} color={on ? 'you-ink' : 'ink-3'} />
+              {badge ? <Badge n={badge} className="absolute -top-0.5 right-2" /> : null}
             </View>
             <Text variant="xs" bold tone={on ? 'ink' : 'ink3'} style={{ lineHeight: 16 }}>
               {t(tab.label)}

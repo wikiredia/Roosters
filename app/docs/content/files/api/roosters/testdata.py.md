@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T07:47:21Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 **Test people** for trying the app on a laptop or test server: made-up friends with a made-up timetable, so you can
@@ -13,6 +13,9 @@ network). The app side is `mobile/src/app/dev.tsx` (Me → Test data & users).
   to fetch it (it would fail: there's no link).
 - Lessons are seeded per person and day: the same every time, different between people, so shared breaks appear
   and disappear like with real timetables.
+
+- Test chats (`give_chats`): a group with your test friends and a one-to-one chat, with a few of their messages, so
+  the chat screens have something to show. Switch to a test person to answer.
 
 Tests: `tests/test_testdata.py`.
 
@@ -38,3 +41,8 @@ Remove every test person; is this account a test person?
 
 The e-mail domain of test people, their names, the courses (with kind), rooms and start times, and the `last_sync`
 that keeps sync away.
+
+## `give_chats`, `LINES`
+
+A group 'De bende' with you and up to 5 test friends (3 of them say something) and a one-to-one chat with the first
+(2 messages), all unread for you. What they say comes from `LINES`.

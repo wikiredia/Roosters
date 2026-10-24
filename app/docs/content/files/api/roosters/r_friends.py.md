@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T07:47:21Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 **Friends**: the social side. Friend list and visibility, requests within your school, invite links,
@@ -52,7 +52,8 @@ An invite that exists, isn't revoked or expired and has uses left, or 404 `invit
 
 ## `blocks`, `block`, `unblock`
 
-`GET/POST /api/v1/blocks`, `DELETE /api/v1/blocks/{id}`: blocking ends the friendship and cancels requests both ways.
+`GET/POST /api/v1/blocks`, `DELETE /api/v1/blocks/{id}`: blocking ends the friendship and cancels requests both ways
+(`friends.block`, also used by "Meld dit bericht" in chat).
 
 ## `classmates`
 

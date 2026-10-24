@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:26:38Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 **Break requests** ("Pauze samen?"): you tap a break you share with friends and ask them to spend it together:
@@ -19,6 +19,8 @@ Rules (keep them when you change anything here):
 - Today and the next two weeks (`MAX_DAYS_AHEAD`); at least 5 minutes, not already over (school's timezone).
 - Every step leaves an in-app notification (`break_request`, `break_answer`, `break_counter`, `break_cancelled`);
   sending them as push is the next step on the list (`app/README.md`).
+- A **yes** also shows up in every chat the two share (`chat.post_event`, type `break_planned`): "Lotte en Amir
+  pakken samen pauze om 12:30".
 
 Tests: `tests/test_breaks.py`.
 
@@ -39,7 +41,8 @@ Checks everything above and stores the request inside the caller's transaction; 
 
 ## `respond`, `counter`, `cancel`
 
-Yes/no from someone asked (a yes can still become a no, until the break is over: `break_over`); another time (a no
+Yes/no from someone asked (a yes can still become a no, until the break is over: `break_over`; a yes posts the
+event in their shared chats); another time (a no
 to this one and `create` back to the asker, who-walks flipped, same place unless a new one is given); taking your own
 request back (only the asker; `break_gone` for anyone else, the same as a request that doesn't exist).
 

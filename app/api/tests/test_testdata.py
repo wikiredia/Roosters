@@ -99,3 +99,16 @@ def test_lessons_are_the_same_every_time_and_weekdays_only():
         assert 1 <= len(ls) <= 4
         assert all(x["end_min"] <= y["start_min"] for x, y in zip(ls, ls[1:]))
 
+
+
+def test_test_chats_with_test_friends(local, mails, school):
+    me = _me(local, mails, school)
+    assert local.post("/api/v1/debug/test-chats", headers=me["headers"]).status_code == 400
+    local.post("/api/v1/debug/test-users", headers=me["headers"], json={"count": 3})
+    group, direct = local.post("/api/v1/debug/test-chats", headers=me["headers"]).json()["chats"]
+    chats = local.get("/api/v1/chats", headers=me["headers"]).json()
+    assert {c["id"] for c in chats["chats"]} == {group, direct} and chats["unread"] == 5
+    assert next(c for c in chats["chats"] if c["id"] == group)["name"] == "De bende"
+    # Removing the test people takes their chats and messages
+    local.delete("/api/v1/debug/test-users")
+    assert local.get("/api/v1/chats", headers=me["headers"]).json()["chats"][0]["count"] == 1

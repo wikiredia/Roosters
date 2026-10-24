@@ -191,3 +191,50 @@ export type Requests = {
 };
 
 export type Classmate = PersonCard & { classes: string[]; requested: boolean };
+
+export type ChatPerson = { id: number; display_name: string; avatar_color: number };
+
+/** An event in a chat; the app writes the sentence. `names`: everyone it mentions, by id, as they were then. */
+export type ChatEvent =
+  | { type: 'created'; by: number; name: string; names: Record<string, string> }
+  | { type: 'added'; by: number; people: number[]; names: Record<string, string> }
+  | { type: 'left'; by: number; names: Record<string, string> }
+  | { type: 'renamed'; by: number; name: string; names: Record<string, string> }
+  | { type: 'break_planned'; people: number[]; day: string; start: number; end: number; place: string | null; names: Record<string, string> };
+
+export type ChatMessage = {
+  id: number;
+  chat_id: number;
+  kind: 'text' | 'event';
+  user_id: number | null;
+  /** null when it was taken back (`deleted`) or removed by a moderator (`removed`) */
+  body: string | null;
+  payload: ChatEvent | null;
+  created_at: string;
+  deleted: boolean;
+  removed: boolean;
+};
+
+/** A chat in the list. direct: `name`/`with_id`/`avatar_color` are the friend's; `members`: everyone but you. */
+export type Chat = {
+  id: number;
+  kind: 'direct' | 'group';
+  name: string | null;
+  with_id?: number | null;
+  avatar_color?: number;
+  pinned: boolean;
+  unread: number;
+  last_read_id: number;
+  last: ChatMessage | null;
+  members: ChatPerson[];
+  /** People in it, you included */
+  count: number;
+};
+
+/** One chat with everyone in it (you too) and how far each of them read. */
+export type ChatDetail = Omit<Chat, 'last'> & {
+  people: (ChatPerson & { last_read_id: number; me: boolean; friend: boolean })[];
+  created_by: number;
+};
+
+export type ReportReason = 'spam' | 'mean' | 'unsafe' | 'other';

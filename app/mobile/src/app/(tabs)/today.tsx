@@ -2,13 +2,13 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { useAnswerBreak, useCheckin, useToday } from '@/api/hooks';
+import { useAnswerBreak, useCheckin, useOpenDirect, useToday } from '@/api/hooks';
 import type { BreakRequest, Checkin, Friend, Notification, Today } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { SetupSteps } from '@/components/SetupSteps';
 import { isOff } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, StatusOption, Tag } from '@/components/ui/Bits';
-import { Button } from '@/components/ui/Button';
+import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
 import { Reveal } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
@@ -60,9 +60,10 @@ export default function TodayScreen() {
           <Reveal>
             <NowCard d={d} t={t} />
           </Reveal>
+          <ForYou d={d} t={t} onOtherTime={(request) => setSheet({ kind: 'counter', request })} />
           {/* Skipped in onboarding (e-mail, school, timetable, friends): finish it here */}
           <SetupSteps d={d} />
-          <Requests d={d} t={t} onOtherTime={(request) => setSheet({ kind: 'counter', request })} />
+          <Requests d={d} t={t} />
           {d.friends.length > 0 ? (
             <Reveal className="gap-6">
               <Together d={d} t={t} onAsk={(people) => setSheet({ kind: 'ask', day: d.day, people })} />
@@ -213,6 +214,7 @@ function TomorrowLine({ day, t, lang }: { day: string; t: T; lang: 'nl' | 'en' }
 
 /** "Pak je pauze met:" — shared breaks, grouped per time slot. Tap one to ask "Pauze samen?". */
 function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & { start: number; end: number })[]) => void }) {
+  const open = useOpenDirect();
   const byId = new Map(d.friends.map((f) => [f.id, f]));
   const groups = new Map<string, { start: number; end: number; people: Friend[] }>();
   for (const s of d.together) {
@@ -248,7 +250,18 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
               title={joinNames(g.people.map((p) => p.display_name), t('common.and'))}
               sub={live ? t('today.nowUntil', { t: hhmm(g.end) }) : range(g.start, g.end)}
               left={<AvatarStack people={g.people.map((p) => ({ name: p.display_name, color: p.avatar_color }))} size="md" ring="together" />}
-              chevron
+              chevron={g.people.length > 1}
+              right={
+                // One friend: a chat with them is one tap away (the row itself asks for the break)
+                g.people.length === 1 ? (
+                  <IconButton
+                    icon="chat"
+                    filled
+                    label={t('friend.chat', { name: g.people[0].display_name })}
+                    onPress={async () => router.push(`/chat/${(await open.mutateAsync(g.people[0].id)).id}`)}
+                  />
+                ) : undefined
+              }
               accessibilityHint={t('break.title')}
               onPress={() => onAsk(g.people.map((p) => ({ ...p, start: Math.max(g.start, d.now), end: g.end })))}
             />
@@ -260,16 +273,55 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
 }
 
 /**
- * "Pauzeverzoeken": asked to you (Ja / Nee / Ander uur), asked by you (waiting, planned, or nobody can: take it back
- * or remove it). Today and the coming days, in time order; nothing when there's nothing.
+ * "Voor jou": breaks friends asked you for and you haven't answered yet (Ja / Nee / Ander uur), right under the
+ * Now card, today and the coming days in time order. Nothing when nobody asked.
  */
-function Requests({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: BreakRequest) => void }) {
+function ForYou({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: BreakRequest) => void }) {
   const { lang } = useT();
   const answer = useAnswerBreak();
-  // A no you gave is done
-  const list = d.breaks.filter((b) => b.mine || b.my_response !== 'declined');
+  const list = d.breaks.filter((b) => !b.mine && b.my_response === 'pending');
   if (list.length === 0) return null;
-  const act = (b: BreakRequest, action: 'accepted' | 'declined' | 'cancel') => answer.mutate({ id: b.id, action });
+  const act = (b: BreakRequest, action: 'accepted' | 'declined') => answer.mutate({ id: b.id, action });
+  return (
+    <Reveal className="gap-3">
+      <SectionHead title={t('break.forYou')} aside={t('break.questions', { n: list.length })} />
+      <Card>
+        {list.map((b, i) => (
+          <Row
+            key={b.id}
+            first={i === 0}
+            title={b.day === d.day ? t('break.asksAt', { name: b.from.display_name, t: hhmm(b.start) }) : t('break.asksOn', { name: b.from.display_name, day: dayWord(b.day, d.day, t, lang), t: hhmm(b.start) })}
+            sub={[t('break.untilT', { t: hhmm(b.end) }), howText(b, t)].join(' · ')}
+            left={<Avatar name={b.from.display_name} color={b.from.avatar_color} />}
+          >
+            {b.note ? (
+              <Text variant="sm" tone="ink2" numberOfLines={2}>
+                “{b.note}”
+              </Text>
+            ) : null}
+            <View className="flex-row flex-wrap gap-2 pt-1.5">
+              <Button variant="together" size="sm" label={t('break.yes')} accessibilityHint={t('break.canYou')} onPress={() => act(b, 'accepted')} />
+              <Button variant="secondary" size="sm" label={t('break.no')} onPress={() => act(b, 'declined')} />
+              <Button variant="ghost" size="sm" label={t('break.otherTime')} onPress={() => onOtherTime(b)} />
+            </View>
+          </Row>
+        ))}
+      </Card>
+    </Reveal>
+  );
+}
+
+/**
+ * "Jouw pauzes": what you asked (waiting, planned, or nobody can: take it back or remove it) and the ones you said
+ * yes to (still able to say no). The questions you haven't answered are in "Voor jou".
+ */
+function Requests({ d, t }: { d: Today; t: T }) {
+  const { lang } = useT();
+  const answer = useAnswerBreak();
+  // A no you gave is done; an open question is in "Voor jou"
+  const list = d.breaks.filter((b) => b.mine || b.my_response === 'accepted');
+  if (list.length === 0) return null;
+  const act = (b: BreakRequest, action: 'declined' | 'cancel') => answer.mutate({ id: b.id, action });
   return (
     <Reveal className="gap-3">
       <SectionHead title={t('break.requests')} left={<TogetherIcon />} />
@@ -280,15 +332,8 @@ function Requests({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: Brea
             t('common.and'),
           );
           const when = `${dayWord(b.day, d.day, t, lang)} ${range(b.start, b.end)}`;
-          const incoming = !b.mine && b.my_response === 'pending';
           const planned = b.state === 'planned' || b.my_response === 'accepted';
-          const title = incoming
-            ? t('break.asksYou', { name: b.from.display_name })
-            : planned
-              ? t('break.planned', { names })
-              : b.state === 'declined'
-                ? t('break.declined', { names })
-                : t('break.askedTo', { names });
+          const title = planned ? t('break.planned', { names }) : b.state === 'declined' ? t('break.declined', { names }) : t('break.askedTo', { names });
           const sub = [when, b.state === 'pending' && b.mine ? t('break.waiting') : howText(b, t)].join(' · ');
           return (
             <Row
@@ -304,13 +349,7 @@ function Requests({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: Brea
                 </Text>
               ) : null}
               <View className="flex-row flex-wrap gap-2 pt-1.5">
-                {incoming ? (
-                  <>
-                    <Button variant="together" size="sm" label={t('break.yes')} accessibilityHint={t('break.canYou')} onPress={() => act(b, 'accepted')} />
-                    <Button variant="secondary" size="sm" label={t('break.no')} onPress={() => act(b, 'declined')} />
-                    <Button variant="ghost" size="sm" label={t('break.otherTime')} onPress={() => onOtherTime(b)} />
-                  </>
-                ) : !b.mine ? (
+                {!b.mine ? (
                   <Button variant="secondary" size="sm" label={t('break.notAnymore')} onPress={() => act(b, 'declined')} />
                 ) : (
                   <Button variant="secondary" size="sm" label={b.state === 'declined' ? t('break.remove') : t('break.cancel')} onPress={() => act(b, 'cancel')} />

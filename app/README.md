@@ -158,8 +158,9 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 | Timetable | `GET /me/sources`, `POST /me/sources/untis`, `POST /me/sources/ics`, `PATCH/DELETE /me/sources/{id}`, `POST /me/refresh`, `PUT /me/hidden-courses`, `GET /me/schedule` |
 | Today | `GET /me/today`, `PUT /me/checkin`, `GET /me/notifications`, `POST /me/notifications/read` |
 | Schools | `GET /api/v1/schools`, `/schools/{id}/campuses`, `/schools/{id}/classes`, `/schools/{id}/classes/{id}/courses` |
-| Debug (ENV=dev only) | `GET /api/v1/debug`, `POST /debug/mail`; from a private network: `GET /debug/users`, `POST /debug/login`, `POST/DELETE /debug/test-users`, `DELETE /debug/users/{id}`, `POST /debug/users/{id}/timetable`, `PUT /debug/friends/{id}` |
+| Debug (ENV=dev only) | `GET /api/v1/debug`, `POST /debug/mail`; from a private network: `GET /debug/users`, `POST /debug/login`, `POST/DELETE /debug/test-users`, `DELETE /debug/users/{id}`, `POST /debug/users/{id}/timetable`, `POST /debug/test-chats`, `PUT /debug/friends/{id}` |
 | Breaks | `GET/POST /api/v1/breaks`, `POST /breaks/{id}/respond\|counter\|cancel` |
+| Chat | `GET/POST /api/v1/chats`, `POST /chats/direct`, `GET/PATCH /chats/{id}`, `POST /chats/{id}/members`, `DELETE /chats/{id}/members/me`, `GET/POST /chats/{id}/messages`, `DELETE /chats/{id}/messages/{id}`, `POST /chats/{id}/read`, `POST /chats/messages/{id}/report`; admin: `GET /admin/v1/reports`, `POST /admin/v1/reports/{id}` |
 | Friends | `GET /api/v1/friends`, `PATCH/DELETE /friends/{id}`, `GET/POST /friends/requests`, `POST /friends/requests/{id}/accept\|decline\|cancel`, `POST /invites`, `GET /invites/{code}`, `POST /invites/{code}/accept`, `GET/POST /blocks`, `DELETE /blocks/{id}`, `GET /friends/{id}/schedule`, `GET /compare` |
 
 The OpenAPI schema (`/api/openapi.json`) is always on. The app's types live in `mobile/src/api/types.ts`.
@@ -176,8 +177,9 @@ listen on this laptop only: the admin API (`api/roosters/admin.py`, `ADMIN_TOKEN
 ## Next
 
 1. ~~Break requests ("Pauze samen?")~~ (done: `api/roosters/breaks.py`, `mobile/src/components/BreakSheet.tsx`),
-   "Voor jou", chat with moderation (report/block, required by the stores), push notifications (Expo Push) and
-   their settings, skipping one lesson ("Vak overslaan")
+   ~~"Voor jou"~~ (done: Today), ~~chat with moderation~~ (done: `api/roosters/chat.py`, `mobile/src/app/chat/`;
+   reported messages are in the admin API, not yet in the console tab), push notifications (Expo Push) and their
+   settings (push per chat too), skipping one lesson ("Vak overslaan")
 2. In the app after that: Google Sign-In (needs client IDs), QR codes, pinned friends, the notifications step in onboarding
 3. Premium (RevenueCat), widgets
 4. Server: Caddy (HTTPS, HTTP/3) + backups + monitoring on Hetzner

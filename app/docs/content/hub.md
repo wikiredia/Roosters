@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-24T05:27:10Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -61,7 +61,7 @@ notifies the people affected.
 
 | I want to … | Look at |
 | --- | --- |
-| Add or change an API route | the `r_*.py` file for the area (`r_me`, `r_friends`, `r_breaks`, `r_schools`, `r_auth`); errors in `i18n.py` |
+| Add or change an API route | the `r_*.py` file for the area (`r_me`, `r_friends`, `r_breaks`, `r_chat`, `r_schools`, `r_auth`); errors in `i18n.py` |
 | Change sign-in, sessions, guests | `api/roosters/r_auth.py`, `tokens.py`, `providers.py`, `accounts.py`; guide **Auth, sessions and guests** |
 | Change when two people 'share a break' | `api/roosters/logic.py` (pure functions, tested in `tests/test_logic.py`) |
 | Change what friends can see | `api/roosters/friends.py`, `r_friends.py`, `schedule.py`; guide **Friends and privacy** |

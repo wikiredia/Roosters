@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T07:47:21Z
+updated: 2026-10-24T09:10:02Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -16,6 +16,36 @@ Query keys per resource.
 ## `signOut`, `useDeleteAccount`, `exportData`
 
 Sign out here or everywhere (offline still forgets the tokens here), delete the account, download your data.
+
+## `useChats`, `useChat`, `Chats`
+
+Your chats with the unread total (tab badge; asked every 15 s, off for guests), and one chat with everyone in it
+and how far they read (every 10 s while it's open: "gelezen").
+
+## `useMessages`, `useOlderMessages`, `merge`, `MessagePage`
+
+A conversation, oldest first. While it's open the **newest page** is asked every 3 s: with the ETag that's an empty
+"not modified" until someone writes, and a message taken back disappears here too. Older pages you scrolled up to
+(`useOlderMessages`, `before=`) stay in front of it (`merge`).
+
+## `useSendMessage`
+
+Sends with the Idempotency-Key the screen gives (the same on every try of one message) and adds the answer to the
+conversation right away.
+
+## `useReadChat`
+
+Read up to a message; the badge goes down before the server answers.
+
+## `useOpenDirect`, `useNewGroup`, `useEditChat`, `useAddToChat`, `useLeaveChat`, `useChatWrite`
+
+Opening the one-to-one chat with a friend, a new group, rename / pin, adding friends, leaving. Writes that answer
+with the chat put it in `keys.chat` and refresh the list and the conversation.
+
+## `useTakeBack`, `useReport`
+
+Taking your own message back (shown as deleted right away), and "Meld dit bericht" (blocking too refreshes
+everything: friends, Today, chats).
 
 ## `useBreaks`, `useAskBreak`, `useAnswerBreak`, `useBreakWrite`, `BreakAnswer`
 
