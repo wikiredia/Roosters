@@ -75,6 +75,7 @@ export const nl = {
   'classes.chosenIn': 'Gekozen klassen in semester {n}',
   'classes.inSemester': '{name} in semester {n}',
   'classes.rowHint': 'Kiest de klas voor elk semester waarin ze bestaat',
+  'classes.onlyIn': 'Vakken enkel gevonden in semester {n}',
 
   'courses.editTitle': 'Vakken',
   'courses.next': 'Klaar',

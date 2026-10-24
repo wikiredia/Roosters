@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T14:00:00Z
 ---
 
 The **week strip** above the timetable: seven equal cells. What you see in the grid is a white cell (the first day)
@@ -12,7 +12,8 @@ slide left under it. Tap a day to start there. For screen readers the dash is an
 ## `DayStrip`, `Props`
 
 As above. `onResize` fires every time the dash covers another number of days, `onResizeEnd` when it's let go;
-`nudge` makes the dash wiggle (first-time tip).
+`nudge` makes the dash wiggle (first-time tip). `n` is the number of days as React knows it, for the
+screen reader label and the adjustable action: render never reads the shared `count` (Reanimated warns about that).
 
 ## `H`
 
