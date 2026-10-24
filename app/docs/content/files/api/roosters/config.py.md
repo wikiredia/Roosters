@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T02:00:00Z
 ---
 
 All settings, read **once at import** from environment variables (compose passes `app/.env`).
@@ -58,6 +58,15 @@ At least 32 characters. The root of all keys (`crypto.py`); see the warning abov
 ## `SYNC_EVERY_DAY`, `SYNC_EVERY_NIGHT`, `REFRESH_COOLDOWN`, `UNTIS_MIN_INTERVAL`, `WEEKS_AHEAD`
 
 Timetable sync (`sync.queue_due`): every 120 minutes from 06:00 to 22:00, every 480 at night. A user can refresh manually once per 90 seconds. Requests to one Untis server are spaced 1 second apart across all workers. Three weeks are fetched ahead.
+
+## `KEEP_PAST_DAYS`, `WEEK_STALE_HOURS`, `WEEKS_MAX_DISTANCE`
+
+Scrolling through the timetable: class lessons are kept 400 days; a future week fetched on demand is
+fetched again after 24 h; you can look up to 104 weeks back or ahead (`schedule.ensure_weeks`).
+
+## `SCAN_MAX_WEEKS`, `COURSES_RESCAN_DAYS`
+
+The course scan of a whole school year (`sync.scan_courses`): at most 53 weeks, made again when it's older than 7 days (asked for by onboarding via `r_schools.courses`).
 
 ## `TZ`
 

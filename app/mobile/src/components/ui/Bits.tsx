@@ -4,6 +4,7 @@ import { Pressable, View } from 'react-native';
 import { cn } from '@/lib/cn';
 
 import { Icon, type IconName } from './Icon';
+import { APressable, usePressScale } from './Motion';
 import { Text, type Tone } from './Text';
 
 // ---- Avatars ---------------------------------------------------------------------------
@@ -105,14 +106,17 @@ type ChipProps = {
 /** on = chosen (ink fill), sel = picked option (soft blue), off = switched off (dashed) */
 export function Chip({ label, state = 'default', icon, onPress, accessibilityLabel, left }: ChipProps) {
   const tone: Tone = state === 'on' ? 'inverse' : state === 'off' ? 'ink2' : 'ink';
+  const press = usePressScale(0.94);
   return (
-    <Pressable
+    <APressable
       onPress={onPress}
+      {...press.handlers}
+      style={press.style}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ selected: state === 'on' || state === 'sel' }}
       className={cn(
-        'min-h-11 px-4 rounded-chip border-[1.5px] flex-row items-center gap-2 active:opacity-80',
+        'min-h-11 px-4 rounded-chip border-[1.5px] flex-row items-center gap-2 active:opacity-90',
         state === 'default' && 'bg-surface border-line-strong',
         state === 'on' && 'bg-ink border-ink',
         state === 'sel' && 'bg-you-soft border-you',
@@ -126,7 +130,7 @@ export function Chip({ label, state = 'default', icon, onPress, accessibilityLab
       <Text variant="sm" bold tone={tone}>
         {label}
       </Text>
-    </Pressable>
+    </APressable>
   );
 }
 

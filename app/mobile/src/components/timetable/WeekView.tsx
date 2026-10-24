@@ -6,17 +6,18 @@ import { useT } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { addDays, isoDay, weekdayShort } from '@/lib/time';
 
-import { type Column, TimeGrid } from './Timetable';
+import { type Column, mergeLessons, TimeGrid } from './Timetable';
 
-/** Five day columns (Mon–Fri) with compact blocks. */
-export function WeekView({ monday, lessons, todayIso, nowMin, onPressLesson, pxPerHour = 40 }: { monday: Date; lessons: Lesson[]; todayIso: string; nowMin: number | null; onPressLesson?: (l: Lesson) => void; pxPerHour?: number }) {
+/** Five day columns (Mon–Fri) with compact blocks. `dim` fades lessons (default: the ones that are over). */
+export function WeekView({ monday, lessons, todayIso, nowMin, onPressLesson, pxPerHour = 40, dim }: { monday: Date; lessons: Lesson[]; todayIso: string; nowMin: number | null; onPressLesson?: (l: Lesson) => void; pxPerHour?: number; dim?: (l: Lesson) => boolean }) {
   const { lang } = useT();
   const days = Array.from({ length: 5 }, (_, i) => addDays(monday, i));
+  const merged = mergeLessons(lessons);
   const columns: Column[] = days.map((d) => {
     const iso = isoDay(d);
     return {
       key: iso,
-      blocks: lessons.filter((l) => l.day === iso).map((l) => ({ type: 'lesson' as const, lesson: l, past: iso < todayIso || (iso === todayIso && nowMin != null && l.end <= nowMin) })),
+      blocks: merged.filter((l) => l.day === iso).map((l) => ({ type: 'lesson' as const, lesson: l, past: dim ? dim(l) : iso < todayIso || (iso === todayIso && nowMin != null && l.end <= nowMin) })),
     };
   });
   return (

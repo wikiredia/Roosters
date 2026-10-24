@@ -1,15 +1,15 @@
 ---
 title: Database and migrations
 position: 50
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T02:00:00Z
 ---
 
 MySQL 8.4 (`db` service, internal network only, data in the `db` volume). All tables with comments:
-`api/roosters/migrations/0001_init.sql`, then `0002_guests_admin.sql`.
+`api/roosters/migrations/0001_init.sql`, then `0002_guests_admin.sql`, `0003_semesters.sql` and `0004_class_weeks.sql`.
 
 | Area | Tables |
 | --- | --- |
-| Schools | `schools`, `campuses`, `school_classes`, `class_lessons` |
+| Schools | `schools`, `campuses`, `school_classes`, `class_lessons`, `class_courses`, `class_weeks` |
 | Accounts | `users`, `auth_identities`, `login_codes`, `sessions` |
 | Social | `friendships`, `friend_requests`, `blocks`, `invites` |
 | Timetables | `sources`, `source_lessons`, `hidden_courses`, `checkins` |

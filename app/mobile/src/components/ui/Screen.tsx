@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,18 +25,28 @@ type ScreenProps = {
   navRight?: ReactNode;
   footer?: ReactNode;
   scroll?: boolean;
-  refreshing?: boolean;
-  onRefresh?: () => void;
+  /** Pull to refresh. The spinner shows only while a pull you made is running: a background refetch
+   * (after saving something, on focus, polling) never moves the page or shows the spinner. */
+  onRefresh?: () => Promise<unknown> | void;
   contentClassName?: string;
   /** No offline banner (onboarding before sign-in) */
   noBanner?: boolean;
 };
 
 /** Every screen: safe area, header, network banner, scrollable content and an optional sticky footer. */
-export function Screen({ children, title, eyebrow, right, navTitle, back, progress, navRight, footer, scroll = true, refreshing, onRefresh, contentClassName, noBanner }: ScreenProps) {
+export function Screen({ children, title, eyebrow, right, navTitle, back, progress, navRight, footer, scroll = true, onRefresh, contentClassName, noBanner }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const { t } = useT();
   const hasNav = back || progress || navTitle !== undefined;
+  const [pulling, setPulling] = useState(false);
+  async function pull() {
+    setPulling(true);
+    try {
+      await onRefresh?.();
+    } finally {
+      setPulling(false);
+    }
+  }
   const body = (
     <View className={cn('px-5 gap-6 pb-6', contentClassName)}>
       {!noBanner ? <NetBanner /> : null}
@@ -87,7 +97,7 @@ export function Screen({ children, title, eyebrow, right, navTitle, back, progre
           className="flex-1"
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingTop: hasNav ? 16 : 4 }}
-          refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} /> : undefined}
+          refreshControl={onRefresh ? <RefreshControl refreshing={pulling} onRefresh={pull} /> : undefined}
         >
           {body}
         </ScrollView>

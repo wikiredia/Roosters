@@ -36,6 +36,7 @@ export default function IkScreen() {
   const sources = useSources();
   const pref = langPref.use();
   const [ghostOpen, setGhostOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
   const school = schools.data?.find((s) => s.id === user?.school_id);
@@ -148,8 +149,8 @@ export default function IkScreen() {
           ) : null}
           <Row first={!user?.guest} left={<IconTile name="shield" />} title={t('me.privacy')} sub={t('me.privacySub')} chevron onPress={() => Linking.openURL(LEGAL_URL)} />
           <Row left={<IconTile name="download" />} title={t('me.download')} right={busy === 'export' ? <Text tone="ink2">…</Text> : undefined} onPress={download} />
-          <Row left={<IconTile name="logout" />} title={t('me.logout')} onPress={() => logout(false)} disabled={!!busy} />
-          {!user?.guest ? <Row left={<IconTile name="logout" />} title={t('me.logoutAll')} sub={t('me.logoutAllSub')} onPress={() => logout(true)} disabled={!!busy} /> : null}
+          {/* One row; the sheet asks: this phone, or every device */}
+          <Row left={<IconTile name="logout" />} title={t('me.logout')} chevron onPress={() => (user?.guest ? logout(false) : setLogoutOpen(true))} disabled={!!busy} />
           <Row left={<IconTile name="trash" tone="danger-ink" />} title={t('me.delete')} tone="danger" chevron onPress={() => router.push('/settings/delete')} />
         </Card>
       </View>
@@ -168,6 +169,13 @@ export default function IkScreen() {
       </Text>
 
       <GhostSheet visible={ghostOpen} onClose={() => setGhostOpen(false)} on={!!ghost} />
+      <Sheet visible={logoutOpen} onClose={() => setLogoutOpen(false)} closeLabel={t('common.close')} title={t('me.logout')} sub={t('me.logoutSheetSub')}>
+        <Button variant="danger" icon="logout" label={t('me.logoutHere')} loading={busy === 'one'} disabled={!!busy} onPress={() => logout(false)} />
+        <Button variant="danger" icon="logout" label={t('me.logoutAll')} loading={busy === 'all'} disabled={!!busy} onPress={() => logout(true)} />
+        <Text variant="sm" tone="ink2" className="text-center">
+          {t('me.logoutAllSub')}
+        </Text>
+      </Sheet>
     </Screen>
   );
 }

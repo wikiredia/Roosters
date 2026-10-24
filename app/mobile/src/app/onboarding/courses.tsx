@@ -2,44 +2,79 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { useCourses, useDeleteSource, useMe, useSources, useUpdateSource } from '@/api/hooks';
-import type { Source } from '@/api/types';
-import { Chip } from '@/components/ui/Bits';
+import { useClasses, useCourses, useDeleteSource, useMe, useSources, useUpdateSource } from '@/api/hooks';
+import type { Semester, Source, Terms } from '@/api/types';
+import { ClassWeekSheet, PreviewSheet } from '@/components/onboarding/CoursePreview';
+import { Chip, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Section, SectionHead } from '@/components/ui/Layout';
+import { AView, enter, layout } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { useT } from '@/i18n';
+import { type Lang, useT } from '@/i18n';
+import { type Choice, type Choices, countOn, initialChoice, isOn, setAll, setOn, toConfig } from '@/lib/choices';
+import { confirm } from '@/lib/confirm';
 import { useFinishOnboarding } from '@/lib/onboarding';
+import { monthSpan, parseDay } from '@/lib/time';
 
-/** Step 4: all courses on; tap the ones you don't take. From settings (source=<id>) for one class. */
+const SEMESTERS: Semester[] = [1, 2];
+
+/** Step 4: per semester, every course of your classes this school year (not only the coming weeks).
+ * Nothing is chosen until you choose it: tap courses, 'Alles kiezen' per class, or tap lessons in the
+ * class's own timetable. 'Bekijk gevonden rooster' shows the timetable your choices give before you save.
+ * From settings (source=<id>) for one class, starting from what's saved. */
 export default function CoursesStep() {
-  const { t } = useT();
+  const { t, lang } = useT();
   const { source: onlySource, from } = useLocalSearchParams<{ source?: string; from?: string }>();
   const settings = from === 'settings';
   const me = useMe();
+  const schoolId = me.data?.school_id ?? null;
+  const terms = useClasses(schoolId).data?.terms;
   const sources = useSources();
   const update = useUpdateSource();
   const del = useDeleteSource();
   const classes = (sources.data ?? []).filter((s) => s.kind === 'untis' && (!onlySource || String(s.id) === onlySource));
-  const [excluded, setExcluded] = useState<Record<number, string[]>>({});
+  const [choices, setChoices] = useState<Choices>({});
+  const [removed, setRemoved] = useState<number[]>([]);
+  const [classWeek, setClassWeek] = useState<Source | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const { finish } = useFinishOnboarding();
+  const shown = classes.filter((s) => !removed.includes(s.id));
 
   useEffect(() => {
-    // Start from what is saved (coming back to this step keeps your choices)
-    setExcluded((prev) => {
+    // Start from what is saved (coming back to this step keeps your choices); a class you just added starts empty
+    setChoices((prev) => {
       const next = { ...prev };
-      for (const s of classes) if (!(s.id in next)) next[s.id] = s.config.exclude ?? [];
+      for (const s of classes) if (!(s.id in next)) next[s.id] = initialChoice(s, !settings);
       return next;
     });
   }, [sources.data]);
 
   async function save() {
-    for (const s of classes) {
-      const exclude = excluded[s.id] ?? [];
-      if (JSON.stringify(exclude) !== JSON.stringify(s.config.exclude ?? []) || (s.config.include ?? []).length) {
-        await update.mutateAsync({ id: s.id, exclude, include: [] });
+    // Following a class without any of its courses means nothing: offer to remove it
+    const empty = shown.filter((s) => {
+      const c = choices[s.id];
+      return !!c && 'include' in c && c.include.length === 0;
+    });
+    for (const s of empty) {
+      if (!(await confirm(t('courses.noneFrom', { name: s.label }), t('courses.noneFromSub'), t('courses.removeIt'), t('common.cancel')))) return;
+    }
+    setSaving(true);
+    try {
+      for (const id of [...removed, ...empty.map((s) => s.id)]) await del.mutateAsync(id);
+      for (const s of shown) {
+        if (empty.some((e) => e.id === s.id)) continue;
+        const c = choices[s.id];
+        if (!c) continue;
+        const cfg = toConfig(c);
+        const was = s.config;
+        if (JSON.stringify([cfg.include, cfg.exclude, cfg.picked]) !== JSON.stringify([was.include ?? [], was.exclude ?? [], !!was.picked])) {
+          await update.mutateAsync({ id: s.id, ...cfg });
+        }
       }
+    } finally {
+      setSaving(false);
     }
     if (settings) router.back();
     else router.push('/onboarding/week');
@@ -50,13 +85,21 @@ export default function CoursesStep() {
     router.back();
   }
 
+  const set = (id: number, c: Choice) => setChoices((p) => ({ ...p, [id]: c }));
+  // A class for the whole year (from before semesters) shows in both; its choices count for both
+  const semesters = SEMESTERS.filter((sem) => !onlySource || shown.some((s) => !s.semester || s.semester === sem));
   return (
     <Screen
       back
       progress={settings ? undefined : [4, 6]}
       navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       navTitle={settings ? t('courses.editTitle') : undefined}
-      footer={<Button label={settings ? t('common.save') : t('courses.next')} loading={update.isPending} onPress={save} disabled={classes.length === 0} />}
+      footer={
+        <>
+          <Button variant="secondary" icon="calendar" label={t('courses.preview')} disabled={shown.length === 0} onPress={() => setPreviewing(true)} />
+          <Button label={settings ? t('common.save') : t('courses.next')} loading={saving} onPress={save} disabled={shown.length === 0} />
+        </>
+      }
     >
       <View className="gap-2">
         <Text variant="title" accessibilityRole="header">
@@ -64,33 +107,84 @@ export default function CoursesStep() {
         </Text>
         <Text tone="ink2">{t('courses.body')}</Text>
       </View>
-      {classes.map((s) => (
-        <ClassCourses
-          key={s.id}
-          source={s}
-          schoolId={me.data?.school_id ?? null}
-          excluded={excluded[s.id] ?? []}
-          onChange={(list) => setExcluded((p) => ({ ...p, [s.id]: list }))}
-        />
-      ))}
+      {semesters.map((sem) => {
+        const inSem = shown.filter((s) => !s.semester || s.semester === sem);
+        return (
+          <View key={sem} className="gap-4">
+            <SemesterHead semester={sem} terms={terms} lang={lang} />
+            {inSem.length === 0 ? (
+              <Text variant="sm" tone="ink2">
+                {t('courses.noClass')}
+              </Text>
+            ) : (
+              inSem.map((s) => (
+                <ClassCourses key={`${sem}:${s.id}`} source={s} semester={sem} schoolId={schoolId} choice={choices[s.id]} onChange={(c) => set(s.id, c)} onWeek={() => setClassWeek(s)} />
+              ))
+            )}
+          </View>
+        );
+      })}
       <Text variant="sm" tone="ink2">
         {t('courses.hiddenNote')}
       </Text>
-      {settings && classes.length === 1 ? (
-        <Button variant="secondary" icon="trash" label={t('courses.removeClass')} loading={del.isPending} onPress={() => removeClass(classes[0].id)} />
+      {settings && shown.length === 1 ? (
+        <Button variant="secondary" icon="trash" label={t('courses.removeClass')} loading={del.isPending} onPress={() => removeClass(shown[0].id)} />
       ) : null}
+      <ClassWeekSheet source={classWeek} onClose={() => setClassWeek(null)} schoolId={schoolId} choices={choices} setChoices={setChoices} terms={terms} />
+      <PreviewSheet
+        visible={previewing}
+        onClose={() => setPreviewing(false)}
+        schoolId={schoolId}
+        sources={shown}
+        choices={choices}
+        setChoices={setChoices}
+        terms={terms}
+        onRemoveClass={(id) => setRemoved((r) => [...r, id])}
+      />
     </Screen>
   );
 }
 
-function ClassCourses({ source, schoolId, excluded, onChange }: { source: Source; schoolId: number | null; excluded: string[]; onChange: (l: string[]) => void }) {
+function SemesterHead({ semester, terms, lang }: { semester: Semester; terms?: Terms; lang: Lang }) {
   const { t } = useT();
-  const courses = useCourses(schoolId, source.class_id ?? 0);
+  const range = terms ? terms[semester === 1 ? 's1' : 's2'] : null;
+  return (
+    <View className="flex-row items-center gap-2 border-b border-line pb-2">
+      <Text variant="eyebrow" accessibilityRole="header">
+        {t('classes.semester', { n: semester })}
+      </Text>
+      {range ? (
+        <Text variant="xs" tone="ink3">
+          {monthSpan(parseDay(range.start), parseDay(range.end), lang)}
+        </Text>
+      ) : null}
+      {terms?.current === semester ? <Tag kind="you">{t('classes.now')}</Tag> : null}
+    </View>
+  );
+}
+
+function ClassCourses({ source, semester, schoolId, choice, onChange, onWeek }: { source: Source; semester: Semester; schoolId: number | null; choice?: Choice; onChange: (c: Choice) => void; onWeek: () => void }) {
+  const { t } = useT();
+  const courses = useCourses(schoolId, source.class_id ?? 0, semester);
   const list = courses.data?.courses ?? [];
-  const on = list.filter((c) => !excluded.includes(c.name)).length;
+  const names = list.map((c) => c.name);
+  const on = countOn(choice, names);
+  const all = list.length > 0 && on === list.length;
   return (
     <Section>
-      <SectionHead title={source.label} aside={list.length ? t('courses.count', { on, of: list.length }) : undefined} />
+      <SectionHead
+        title={source.label}
+        aside={
+          list.length ? (
+            <View className="flex-row items-center gap-2">
+              <Text variant="sm" tone="ink2">
+                {t('courses.count', { on, of: list.length })}
+              </Text>
+              <Button variant="ghost" size="sm" label={all ? t('courses.none') : t('courses.all')} onPress={() => onChange(setAll(names, !all))} />
+            </View>
+          ) : undefined
+        }
+      />
       {courses.data?.syncing || courses.isPending ? (
         <View className="gap-3">
           <Text variant="sm" tone="ink2">
@@ -102,25 +196,41 @@ function ClassCourses({ source, schoolId, excluded, onChange }: { source: Source
             ))}
           </View>
         </View>
-      ) : list.length === 0 ? (
+      ) : list.length === 0 && !courses.data?.scanning ? (
         <Text variant="sm" tone="ink2">
           {t('courses.empty')}
         </Text>
       ) : (
-        <View className="flex-row flex-wrap gap-2">
-          {list.map((c) => {
-            const off = excluded.includes(c.name);
-            return (
-              <Chip
-                key={c.name}
-                label={c.name}
-                state={off ? 'off' : 'sel'}
-                icon={off ? 'plus' : 'check'}
-                accessibilityLabel={`${c.name}, ${off ? t('courses.off') : t('courses.on')}`}
-                onPress={() => onChange(off ? excluded.filter((x) => x !== c.name) : [...excluded, c.name])}
-              />
-            );
-          })}
+        <View className="gap-2">
+          <AView layout={layout} className="flex-row flex-wrap gap-2">
+            {list.map((c) => {
+              const sel = isOn(choice, c.name);
+              return (
+                <AView key={c.name} entering={enter} layout={layout}>
+                  <Chip
+                    label={c.name}
+                    state={sel ? 'sel' : 'default'}
+                    icon={sel ? 'check' : 'plus'}
+                    accessibilityLabel={`${c.name}, ${sel ? t('courses.on') : t('courses.off')}`}
+                    onPress={() => onChange(setOn(choice ?? { include: [] }, c.name, !sel))}
+                  />
+                </AView>
+              );
+            })}
+            {courses.data?.scanning ? <Skeleton width={110} className="h-11 rounded-chip" /> : null}
+          </AView>
+          {courses.data?.scanning ? (
+            <Text variant="sm" tone="ink2" accessibilityLiveRegion="polite">
+              {t('courses.scanning')}
+            </Text>
+          ) : courses.data?.error ? (
+            <Text variant="sm" tone="ink2">
+              {t('courses.scanFailed')}
+            </Text>
+          ) : null}
+          <Text variant="sm" bold tone="you" className="underline self-start py-1" accessibilityRole="button" onPress={onWeek}>
+            {t('courses.seeClass', { name: source.label })}
+          </Text>
         </View>
       )}
     </Section>

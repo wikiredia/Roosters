@@ -6,7 +6,8 @@ import { useT, type Key } from '@/i18n';
 
 import { IconTile } from './ui/Bits';
 import type { IconName } from './ui/Icon';
-import { Card, Row, Section, SectionHead } from './ui/Layout';
+import { Card, Row, SectionHead } from './ui/Layout';
+import { Reveal } from './ui/Motion';
 
 type Step = { key: string; title: Key; sub: Key; icon: IconName; go: () => void };
 
@@ -39,13 +40,13 @@ export function SetupSteps({ d }: { d: Today }) {
   }
   if (steps.length === 0) return null;
   return (
-    <Section>
+    <Reveal className="gap-3">
       <SectionHead title={t('steps.title')} aside={String(steps.length)} />
       <Card>
         {steps.map((s, i) => (
           <Row key={s.key} first={i === 0} left={<IconTile name={s.icon} tone="you-ink" />} title={t(s.title)} sub={t(s.sub)} chevron onPress={s.go} accessibilityRole="button" />
         ))}
       </Card>
-    </Section>
+    </Reveal>
   );
 }

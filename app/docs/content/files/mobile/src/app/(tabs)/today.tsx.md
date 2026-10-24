@@ -1,9 +1,10 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T05:30:00Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
-refetched every minute, ETag).
+refetched every minute, ETag). Sections fade in (the skeleton cross-fades into them) and slide when one above
+appears or goes (`Motion.Reveal`).
 
 Sections from top to bottom: sync note, **Now card**, **Complete the following steps** (`SetupSteps`, for
 what onboarding skipped), shared breaks ('together'), the now-board, your plan for the afternoon
@@ -43,7 +44,7 @@ The type of `t()` passed to the parts below.
 
 ## `TodayScreen`
 
-Puts the sections together; pull to refresh.
+Puts the sections together; pull to refresh (the spinner only for your own pull).
 
 ## `Together`
 

@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T05:00:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -11,7 +11,7 @@ Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen*
 | `app/` | Screens: `index.tsx` (the gate), `welcome`, `login/`, `onboarding/`, `(tabs)/` (Today, Rooster, Chat, Me), `friends/`, `settings/`, `i/[code]` (invite links), `compare`, `debug` |
 | `api/` | `hooks.ts` (every call as a TanStack Query hook) and `types.ts` (answer shapes) |
 | `lib/` | `api.ts` (the client for bad wifi), `session.ts`, `onboarding.ts`, `query.ts` (offline cache), `net.ts`, `server.ts`, `time.ts` |
-| `components/` | `ui/` (the design system), `timetable/`, `SetupSteps`, `VerifyFirst`, `InviteCard` |
+| `components/` | `ui/` (the design system; `ui/Motion.tsx` has the shared springs and press animation), `timetable/`, `onboarding/` (course previews), `SetupSteps`, `VerifyFirst`, `InviteCard` |
 | `i18n/` | `nl.ts` (source of truth for keys) and `en.ts` |
 
 ## Starting up
@@ -22,8 +22,17 @@ the first unfinished onboarding step, or Today (always Today once onboarding was
 ## Onboarding you can race through
 
 Welcome → (e-mail → code, or **continue without signing in**) → school → campus → classes → courses → week
-→ friends. Every step has **Skip**. What's skipped shows on Today as **Complete the following steps**
+→ friends. Classes are picked **per semester** (S1 and S2 sections on one screen), and courses per semester
+from the **whole school year**, nothing chosen until you choose it, with a preview of the timetable you'll get
+('Ik volg dit vak niet', 'Ik mis een les') before saving (`onboarding/classes.tsx`, `onboarding/courses.tsx`,
+`components/onboarding/CoursePreview.tsx`). Every step has **Skip**. What's skipped shows on Today as **Complete the following steps**
 (`components/SetupSteps.tsx`): confirm your e-mail, choose your school, add your timetable, add friends.
+
+## The Rooster tab
+
+1–5 days side by side, set by dragging the handle on the week strip (`components/timetable/DayStrip.tsx`);
+swipe through time with `DayPager.tsx` (a short swipe shows the weekend, a long one skips it); the pages
+are `lib/days.ts`. Any week back or ahead works: the API fetches it from Untis when you look.
 
 ## Data and offline
 

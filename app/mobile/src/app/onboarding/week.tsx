@@ -22,7 +22,8 @@ export default function WeekStep() {
   const schedule = useSchedule(isoDay(start), 5);
   const sources = useSources();
   const lessons = (schedule.data?.lessons ?? []).filter((l) => l.course !== undefined);
-  const classNames = (sources.data ?? []).filter((s) => s.kind === 'untis').map((s) => s.label).join(' + ');
+  // The same class in S1 and S2 is two sources: name it once
+  const classNames = [...new Set((sources.data ?? []).filter((s) => s.kind === 'untis').map((s) => s.label))].join(' + ');
   const syncing = schedule.data?.sources.syncing;
   const me = useMe();
   const { finish, busy } = useFinishOnboarding();

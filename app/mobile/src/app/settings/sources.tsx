@@ -48,7 +48,7 @@ export default function SourcesScreen() {
   }
 
   return (
-    <Screen back navTitle={t('me.sources')} refreshing={sources.isRefetching} onRefresh={() => sources.refetch()}>
+    <Screen back navTitle={t('me.sources')} onRefresh={() => sources.refetch()}>
       {failing ? (
         <Banner
           icon="wifiOff"
@@ -72,7 +72,7 @@ export default function SourcesScreen() {
                 first={i === 0}
                 left={<IconTile name="calendar" />}
                 title={s.label}
-                sub={[s.config.exclude?.length ? t('sources.hidden', { n: s.config.exclude.length }) : t('sources.allCourses'), updated(s, t)].join(' · ')}
+                sub={[s.semester ? t('sources.semester', { n: s.semester }) : null, s.config.exclude?.length ? t('sources.hidden', { n: s.config.exclude.length }) : t('sources.allCourses'), updated(s, t)].filter(Boolean).join(' · ')}
                 chevron
                 onPress={() => router.push({ pathname: '/onboarding/courses', params: { source: String(s.id), from: 'settings' } })}
               />

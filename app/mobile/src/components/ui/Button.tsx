@@ -1,13 +1,14 @@
 import { cva, type VariantProps } from 'class-variance-authority';
-import { ActivityIndicator, Pressable, type PressableProps, View } from 'react-native';
+import { ActivityIndicator, type PressableProps, View } from 'react-native';
 import { useCSSVariable } from 'uniwind';
 
 import { cn } from '@/lib/cn';
 
 import { Icon, type IconName } from './Icon';
+import { APressable, usePressScale } from './Motion';
 import { Text, type Tone } from './Text';
 
-const box = cva('flex-row items-center justify-center gap-2 active:opacity-80', {
+const box = cva('flex-row items-center justify-center gap-2 active:opacity-90', {
   variants: {
     variant: {
       primary: 'bg-you',
@@ -59,11 +60,12 @@ type Props = Omit<PressableProps, 'children'> &
     className?: string;
   };
 
-export function Button({ label, icon, variant = 'primary', size = 'md', loading, disabled, className, ...rest }: Props) {
+export function Button({ label, icon, variant = 'primary', size = 'md', loading, disabled, className, style, onPressIn, onPressOut, ...rest }: Props) {
   const v = variant ?? 'primary';
   const spinner = useCSSVariable(v === 'secondary' || v === 'tonal' ? '--color-ink' : '--color-on-you');
+  const press = usePressScale(size === 'md' ? 0.97 : 0.94, { onPressIn, onPressOut });
   return (
-    <Pressable
+    <APressable
       accessibilityRole="button"
       accessibilityState={{ disabled: !!disabled || !!loading, busy: !!loading }}
       accessibilityLabel={rest.accessibilityLabel ?? label}
@@ -71,6 +73,8 @@ export function Button({ label, icon, variant = 'primary', size = 'md', loading,
       className={cn(box({ variant, size }), (disabled || loading) && 'opacity-50', className)}
       hitSlop={size === 'icon' ? 4 : undefined}
       {...rest}
+      {...press.handlers}
+      style={[style as object, press.style]}
     >
       {loading ? (
         <ActivityIndicator size="small" color={String(spinner ?? '#FFFFFF')} />
@@ -82,7 +86,7 @@ export function Button({ label, icon, variant = 'primary', size = 'md', loading,
           {label}
         </Text>
       ) : null}
-    </Pressable>
+    </APressable>
   );
 }
 
@@ -93,24 +97,30 @@ export function IconButton({
   filled,
   color = 'ink',
   className,
+  style,
+  onPressIn,
+  onPressOut,
   ...rest
 }: Omit<PressableProps, 'children'> & { icon: IconName; label: string; filled?: boolean; color?: string; className?: string }) {
+  const press = usePressScale(0.88, { onPressIn, onPressOut });
   return (
-    <Pressable
+    <APressable
       accessibilityRole="button"
       accessibilityLabel={label}
       hitSlop={4}
       className={cn(
-        'w-11 h-11 rounded-full items-center justify-center active:opacity-70',
+        'w-11 h-11 rounded-full items-center justify-center active:opacity-80',
         filled && 'bg-surface border border-line-strong',
         rest.disabled && 'opacity-40',
         className,
       )}
       {...rest}
+      {...press.handlers}
+      style={[style as object, press.style]}
     >
       <View>
         <Icon name={icon} size={filled ? 20 : 24} color={color} />
       </View>
-    </Pressable>
+    </APressable>
   );
 }

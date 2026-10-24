@@ -60,6 +60,12 @@ export function weekdayShort(d: Date, lang: Lang) {
   return s.charAt(0).toUpperCase() + s.slice(1, 2);
 }
 
+/** "sep – jan": the months of a semester */
+export function monthSpan(a: Date, b: Date, lang: Lang) {
+  const m = (d: Date) => d.toLocaleDateString(locale(lang), { month: 'short' }).replace('.', '');
+  return `${m(a)} – ${m(b)}`;
+}
+
 export function monthRange(a: Date, b: Date, lang: Lang) {
   const month = b.toLocaleDateString(locale(lang), { month: 'long' });
   return `${a.getDate()} – ${b.getDate()} ${month}`;

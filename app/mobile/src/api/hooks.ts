@@ -7,6 +7,7 @@ import type {
   Campus,
   Checkin,
   Classmate,
+  ClassLessons,
   Compare,
   Courses,
   Friend,
@@ -15,7 +16,8 @@ import type {
   Requests,
   Schedule,
   School,
-  SchoolClass,
+  SchoolClasses,
+  Semester,
   Source,
   Today,
   User,
@@ -49,16 +51,18 @@ export function useToday(day?: string) {
   return useQuery({
     queryKey: keys.today(day),
     queryFn: () => api.get<Today>(`/api/v1/me/today${day ? `?day=${day}` : ''}`),
-    refetchInterval: 60_000,
+    refetchInterval: (q) => (q.state.data?.loading ? 2000 : 60_000),
   });
 }
 
-/** Several days of Today side by side (Rooster, 1–3 day columns). */
+/** Several days of Today side by side (Rooster, 1–5 day columns). A day far back or ahead that's still
+ * being fetched from Untis (`loading`) is asked again every 2 s. */
 export function useTodays(days: string[]) {
   return useQueries({
     queries: days.map((day) => ({
       queryKey: keys.today(day),
       queryFn: () => api.get<Today>(`/api/v1/me/today?day=${day}`),
+      refetchInterval: (q: { state: { data?: Today } }) => (q.state.data?.loading ? 2000 : false),
     })),
   });
 }
@@ -67,6 +71,7 @@ export function useSchedule(start: string, days: number) {
   return useQuery({
     queryKey: keys.schedule(start, days),
     queryFn: () => api.get<Schedule>(`/api/v1/me/schedule?start=${start}&days=${days}`),
+    refetchInterval: (q) => (q.state.data?.loading ? 2000 : false),
   });
 }
 
@@ -110,6 +115,7 @@ export function useFriendSchedule(id: number, start: string, days: number) {
   return useQuery({
     queryKey: keys.friendSchedule(id, start, days),
     queryFn: () => api.get<FriendSchedule>(`/api/v1/friends/${id}/schedule?start=${start}&days=${days}`),
+    refetchInterval: (q) => (q.state.data?.loading ? 2000 : false),
   });
 }
 
@@ -141,19 +147,35 @@ export function useCampuses(school: number | null) {
 export function useClasses(school: number | null) {
   return useQuery({
     queryKey: keys.classes(school ?? 0),
-    queryFn: () => api.get<{ classes: SchoolClass[] }>(`/api/v1/schools/${school}/classes`).then((r) => r.classes),
+    queryFn: () => api.get<SchoolClasses>(`/api/v1/schools/${school}/classes`),
     enabled: !!school,
     staleTime: 60 * 60_000,
   });
 }
 
-export function useCourses(school: number | null, cls: number) {
+/** The courses of a class this school year; with a semester, only the ones in that semester. */
+export function useCourses(school: number | null, cls: number, semester?: Semester | null) {
   return useQuery({
-    queryKey: keys.courses(school ?? 0, cls),
-    queryFn: () => api.get<Courses>(`/api/v1/schools/${school}/classes/${cls}/courses`),
+    queryKey: [...keys.courses(school ?? 0, cls), semester ?? 0],
+    queryFn: () => api.get<Courses>(`/api/v1/schools/${school}/classes/${cls}/courses${semester ? `?semester=${semester}` : ''}`),
     enabled: !!school,
-    // A class never fetched before: the server fetches it now, we ask again every 2 s
-    refetchInterval: (q) => (q.state.data?.syncing ? 2000 : false),
+    // A class never fetched before: the server fetches it now, we ask again every 2 s.
+    // The rest of the year takes longer (a request per week): every 4 s.
+    refetchInterval: (q) => (q.state.data?.syncing ? 2000 : q.state.data?.scanning ? 4000 : false),
+  });
+}
+
+/** A class's whole timetable for some days (every course, not only yours): onboarding's previews.
+ * One query per class; far weeks poll while the API fetches them (`loading`). */
+export function useClassLessons(school: number | null, classes: number[], start: string, days: number) {
+  return useQueries({
+    queries: classes.map((cls) => ({
+      queryKey: ['class-lessons', school ?? 0, cls, start, days],
+      queryFn: () => api.get<ClassLessons>(`/api/v1/schools/${school}/classes/${cls}/lessons?start=${start}&days=${days}`),
+      enabled: !!school && !!cls,
+      staleTime: 5 * 60_000,
+      refetchInterval: (q: { state: { data?: ClassLessons } }) => (q.state.data?.loading ? 2000 : false),
+    })),
   });
 }
 
@@ -210,7 +232,7 @@ export function useGhost() {
 export function useAddClass() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { class_id: number; include?: string[]; exclude?: string[] }) =>
+    mutationFn: (body: { class_id: number; semester?: Semester | null; include?: string[]; exclude?: string[] }) =>
       api.post<{ source: Source }>('/api/v1/me/sources/untis', body).then((r) => r.source),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.sources }),
   });
@@ -228,7 +250,7 @@ export function useAddIcs() {
 export function useUpdateSource() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: number; include?: string[]; exclude?: string[] }) =>
+    mutationFn: ({ id, ...body }: { id: number; include?: string[]; exclude?: string[]; picked?: boolean }) =>
       api.patch<{ source: Source }>(`/api/v1/me/sources/${id}`, body).then((r) => r.source),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.sources });

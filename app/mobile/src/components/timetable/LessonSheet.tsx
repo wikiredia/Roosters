@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import type { Friend, Lesson, Together } from '@/api/types';
@@ -23,8 +24,11 @@ type Props = {
 /** Tap on a lesson: when, what, where, and who else is free if it's cancelled. */
 export function LessonSheet({ lesson, onClose, friends = [], together = [] }: Props) {
   const { t, lang } = useT();
-  if (!lesson) return null;
-  const l = lesson;
+  // Keep showing the last lesson while the sheet slides away
+  const [last, setLast] = useState(lesson);
+  if (lesson && lesson !== last) setLast(lesson);
+  const l = lesson ?? last;
+  if (!l) return null;
   const off = isOff(l);
   const day = parseDay(l.day);
   const when = l.day === isoDay(new Date()) ? t('today.title') : shortDate(day, lang);
@@ -34,7 +38,7 @@ export function LessonSheet({ lesson, onClose, friends = [], together = [] }: Pr
   const alsoFree = off ? together.filter((s) => s.start < l.end && l.start < s.end && byId.has(s.id)) : [];
   return (
     <Sheet
-      visible
+      visible={!!lesson}
       onClose={onClose}
       closeLabel={t('common.close')}
       title={l.course ?? t('tt.lesson')}

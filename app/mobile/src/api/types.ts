@@ -90,6 +90,7 @@ export type SourcesState = { count: number; updated_at: string | null; syncing: 
 export type Today = {
   day: string;
   now: number;
+  loading?: boolean;
   me: { status: Status; checkin: Checkin | null; lessons: Lesson[] };
   friends: Friend[];
   board: { id: number; status: Status }[];
@@ -98,11 +99,13 @@ export type Today = {
   sources: SourcesState;
 };
 
-export type Schedule = { start: string; days: number; lessons: Lesson[]; sources: SourcesState };
+/** loading: a week far back or ahead is still being fetched from Untis (ask again in a moment) */
+export type Schedule = { start: string; days: number; loading?: boolean; lessons: Lesson[]; sources: SourcesState };
 
 export type FriendSchedule = {
   start: string;
   days: number;
+  loading?: boolean;
   hidden: boolean;
   visibility?: 'full' | 'freebusy';
   lessons: Lesson[];
@@ -119,17 +122,32 @@ export type Source = {
   id: number;
   kind: 'untis' | 'ics';
   label: string;
-  config: { include?: string[]; exclude?: string[]; keywords?: string[] };
+  /** picked: `include` is exactly the courses you follow (chosen one by one; empty = none) */
+  config: { include?: string[]; exclude?: string[]; keywords?: string[]; picked?: boolean };
   last_ok: string | null;
   error: string | null;
   syncing: boolean;
   class_id?: number;
+  /** A class followed in one semester only (1 or 2); null = the whole school year */
+  semester?: Semester | null;
 };
 
 export type School = { id: number; slug: string; name: string; short_name: string | null; country: string };
 export type Campus = { id: number; name: string };
-export type SchoolClass = { id: number; name: string; long_name: string };
-export type Courses = { syncing: boolean; error?: string | null; courses: { name: string; lessons: number }[] };
+export type Semester = 1 | 2;
+/** A lesson of a class's whole timetable (every course): onboarding's previews */
+export type ClassLesson = { day: string; start: number; end: number; course: string; location: string | null; group: string | null; state: LessonState };
+export type ClassLessons = { start: string; days: number; loading: boolean; lessons: ClassLesson[] };
+export type SchoolClass = { id: number; name: string; long_name: string; semesters: Semester[] };
+export type Terms = { s1: { start: string; end: string }; s2: { start: string; end: string }; current: Semester | null };
+export type SchoolClasses = { classes: SchoolClass[]; terms: Terms };
+/** syncing: the class was never fetched; scanning: the rest of the school year is still being fetched */
+export type Courses = {
+  syncing: boolean;
+  scanning?: boolean;
+  error?: string | null;
+  courses: { name: string; lessons: number; semesters?: Semester[] }[];
+};
 
 export type Invite = { code: string; url: string; expires_at: string; uses: number; max_uses: number };
 

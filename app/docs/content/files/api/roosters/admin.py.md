@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T00:30:00Z
 ---
 
 The **admin API** for the management console (Smart-Room console → Roosters+ tab). It is a separate
@@ -39,7 +39,7 @@ A school slug: lowercase letters, digits and dashes, starting with a letter or d
 
 ## `SchoolIn`, `SchoolPatch`, `_check_school_fields`
 
-Input for adding and editing a school. `_check_school_fields` validates the timezone (a real IANA zone), the Untis server (must be `*.webuntis.com`, see `untis.check_server`), and upper-cases the country.
+Input for adding and editing a school. `_check_school_fields` validates the timezone (a real IANA zone), the Untis server (must be `*.webuntis.com`, see `untis.check_server`), and upper-cases the country. The semester dates `year_start`, `s2_start`, `year_end` are `MM-DD` (default `09-01`, `02-01`, `07-15`, see `terms.py`) and must be real days.
 
 ## `TestMailIn`, `test_mail`
 
@@ -70,7 +70,7 @@ Turn database rows into JSON-friendly dicts: datetimes become ISO strings with `
 
 ## `add_school`
 
-`POST /admin/v1/schools`: adds a school, with optional campuses. With an Untis server it queues `refresh_classes` right away, so the worker fetches the class list within seconds. The slug must be unique (409 `slug_taken`).
+`POST /admin/v1/schools`: adds a school, with optional campuses and its semester dates. With an Untis server it queues `refresh_classes` right away, so the worker fetches the class list within seconds. The slug must be unique (409 `slug_taken`).
 
 ## `admin`
 

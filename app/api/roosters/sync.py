@@ -7,7 +7,7 @@ import hashlib
 import logging
 import zoneinfo
 
-from . import config, crypto, db, ics, jobs, notifications, untis
+from . import config, crypto, db, ics, jobs, notifications, terms, untis
 from .netfetch import FetchError, fetch
 
 log = logging.getLogger("roosters.sync")
@@ -86,7 +86,9 @@ def apply(c, table: str, owner_col: str, owner_id: int, lessons: list[dict], *, 
                 continue
             db.run(f"UPDATE {table} SET state='removed', changed_at=%s WHERE id=%s", (now, r["id"]), c)
             changes.append({"type": "cancelled", **_side(r)})
-    db.run(f"DELETE FROM {table} WHERE {owner_col}=%s AND day < %s", (owner_id, today - dt.timedelta(days=7)), c)
+    # Class lessons stay for the school year (scrolling back); calendar links only keep a week
+    keep = config.KEEP_PAST_DAYS if table == "class_lessons" else 7
+    db.run(f"DELETE FROM {table} WHERE {owner_col}=%s AND day < %s", (owner_id, today - dt.timedelta(days=keep)), c)
     return changes
 
 
@@ -96,9 +98,10 @@ def _side(l: dict) -> dict:
 
 
 def wanted(course: str, cfg: dict, hidden: set) -> bool:
-    """Does this user follow this course? (include = only these, exclude = not these, hidden = hidden in the app)"""
+    """Does this user follow this course? (include = only these, exclude = not these, hidden = hidden in the app)
+    `picked`: the courses were chosen one by one in the app, so include is the whole list, even when empty."""
     include, exclude = cfg.get("include") or [], cfg.get("exclude") or []
-    if include and course not in include:
+    if (include or cfg.get("picked")) and course not in include:
         return False
     return course not in exclude and course not in hidden
 
@@ -129,8 +132,8 @@ def _hidden(user_ids, c=None) -> dict[int, set]:
 
 def sync_class(class_id: int) -> list[dict]:
     cls = db.one(
-        "SELECT sc.*, s.untis_server, s.untis_login, s.tz FROM school_classes sc JOIN schools s ON s.id=sc.school_id "
-        "WHERE sc.id=%s", (class_id,))
+        "SELECT sc.*, s.untis_server, s.untis_login, s.tz, s.year_start, s.s2_start, s.year_end "
+        "FROM school_classes sc JOIN schools s ON s.id=sc.school_id WHERE sc.id=%s", (class_id,))
     if cls is None or not cls["untis_server"]:
         return []
     today = dt.datetime.now(tz_of(cls["tz"])).date()
@@ -144,34 +147,149 @@ def sync_class(class_id: int) -> list[dict]:
                         today=today)
         db.run("UPDATE school_classes SET last_sync=UTC_TIMESTAMP(), last_ok=UTC_TIMESTAMP(), last_error=NULL "
                "WHERE id=%s", (class_id,), c)
+        monday = today - dt.timedelta(days=today.weekday())
+        db.many("INSERT INTO class_weeks (school_class_id, monday, fetched_at) VALUES (%s,%s,UTC_TIMESTAMP()) "
+                "ON DUPLICATE KEY UPDATE fetched_at=VALUES(fetched_at), error=NULL",
+                [(class_id, monday + dt.timedelta(weeks=w)) for w in range(config.WEEKS_AHEAD)], c)
         if changes:
-            subs = db.rows("SELECT user_id, config FROM sources WHERE school_class_id=%s AND kind='untis' "
+            subs = db.rows("SELECT user_id, config, semester FROM sources WHERE school_class_id=%s AND kind='untis' "
                            "AND deleted_at IS NULL", (class_id,), c)
             hidden = _hidden([s["user_id"] for s in subs], c)
             for s in subs:
                 cfg = db.unjs(s["config"], {}) or {}
-                mine = [ch for ch in changes if wanted(ch["course"], cfg, hidden[s["user_id"]])]
+                # A class followed in one semester only: changes in the other one aren't yours
+                mine = [ch for ch in changes if wanted(ch["course"], cfg, hidden[s["user_id"]])
+                        and terms.covers(s["semester"], cls, ch["day"])]
                 _notify(s["user_id"], mine, today, c)
     return changes
 
 
 def refresh_classes(school_id: int) -> int:
-    """Updates the list of classes of a school from Untis."""
+    """Updates the list of classes of a school from Untis: asked for a day in each semester, so a class
+    that only exists in S2 can be picked in S1 already. A semester Untis can't answer for (school year
+    not planned yet) marks every class as being in it: better too many to pick from than none."""
     school = db.one("SELECT * FROM schools WHERE id=%s", (school_id,))
     if school is None or not school["untis_server"]:
         return 0
-    try:
-        found = untis.list_classes(school["untis_server"], school["untis_login"] or "")
-    except untis.UntisError as e:
-        raise SyncError(str(e))
+    today = dt.datetime.now(tz_of(school["tz"])).date()
+    year = terms.school_year(school, today)
+    per_sem, errors = {}, []
+    for sem in (1, 2):
+        first, last = year.range(sem)
+        # The semester we're in: today (what Untis shows now); the other one: a few weeks in
+        day = today if first <= today <= last else min(first + dt.timedelta(days=21), last)
+        try:
+            per_sem[sem] = untis.list_classes(school["untis_server"], school["untis_login"] or "", day)
+        except untis.UntisError as e:
+            errors.append(str(e))
+    if not per_sem:
+        raise SyncError(errors[0])
+    found = {}
+    for sem, xs in per_sem.items():
+        for x in xs:
+            found.setdefault(x["untis_id"], {**x, "sems": set()})["sems"].add(sem)
+    rows = [(school_id, x["untis_id"], x["name"], x["long_name"], int(1 in x["sems"] or 1 not in per_sem),
+             int(2 in x["sems"] or 2 not in per_sem)) for x in found.values()]
     with db.tx() as c:
         db.run("UPDATE school_classes SET active=0 WHERE school_id=%s", (school_id,), c)
-        db.many("INSERT INTO school_classes (school_id, untis_id, name, long_name, active) VALUES (%s,%s,%s,%s,1) "
-                "ON DUPLICATE KEY UPDATE name=VALUES(name), long_name=VALUES(long_name), active=1, "
-                "updated_at=UTC_TIMESTAMP()",
-                [(school_id, x["untis_id"], x["name"], x["long_name"]) for x in found], c)
+        db.many("INSERT INTO school_classes (school_id, untis_id, name, long_name, in_s1, in_s2, active) "
+                "VALUES (%s,%s,%s,%s,%s,%s,1) "
+                "ON DUPLICATE KEY UPDATE name=VALUES(name), long_name=VALUES(long_name), in_s1=VALUES(in_s1), "
+                "in_s2=VALUES(in_s2), active=1, updated_at=UTC_TIMESTAMP()", rows, c)
         db.run("UPDATE schools SET classes_synced_at=UTC_TIMESTAMP() WHERE id=%s", (school_id,), c)
     return len(found)
+
+
+def scan_courses(class_id: int) -> int:
+    """All courses of a class in the whole school year, per semester (class_courses): one Untis request
+    per week, past weeks of the year included. Onboarding picks from this list, so a course that only
+    starts later in the year can be chosen now. A few weeks that fail are skipped; most failing = retry."""
+    cls = db.one(
+        "SELECT sc.*, s.untis_server, s.untis_login, s.tz, s.year_start, s.s2_start, s.year_end "
+        "FROM school_classes sc JOIN schools s ON s.id=sc.school_id WHERE sc.id=%s", (class_id,))
+    if cls is None or not cls["untis_server"]:
+        return 0
+    today = dt.datetime.now(tz_of(cls["tz"])).date()
+    year = terms.school_year(cls, today)
+    monday = year.start - dt.timedelta(days=year.start.weekday())
+    weeks = min((year.end - monday).days // 7 + 1, config.SCAN_MAX_WEEKS)
+    found: dict[tuple[int, str], dict] = {}
+    failed = []
+    for w in range(weeks):
+        try:
+            lessons = untis.fetch_week(cls["untis_server"], cls["untis_login"] or "", cls["untis_id"],
+                                       monday + dt.timedelta(weeks=w))
+        except untis.UntisError as e:
+            failed.append(str(e))
+            continue
+        for l in lessons:
+            sem = year.semester(l["day"])
+            if sem is None or l["state"] == "cancelled":
+                continue
+            f = found.setdefault((sem, l["course"]), {"lessons": 0, "first": l["day"], "last": l["day"]})
+            f["lessons"] += 1
+            f["first"], f["last"] = min(f["first"], l["day"]), max(f["last"], l["day"])
+    if failed and len(failed) * 2 > weeks:
+        db.run("UPDATE school_classes SET courses_error=%s WHERE id=%s", (failed[0][:500], class_id))
+        raise SyncError(failed[0])
+    with db.tx() as c:
+        db.run("DELETE FROM class_courses WHERE school_class_id=%s", (class_id,), c)
+        db.many("INSERT INTO class_courses (school_class_id, semester, course, lessons, first_day, last_day) "
+                "VALUES (%s,%s,%s,%s,%s,%s)",
+                [(class_id, sem, course, min(f["lessons"], 32000), f["first"], f["last"])
+                 for (sem, course), f in found.items()], c)
+        db.run("UPDATE school_classes SET courses_scanned_at=UTC_TIMESTAMP(), courses_error=NULL WHERE id=%s",
+               (class_id,), c)
+    return len(found)
+
+
+def synced_weeks(today: dt.date) -> tuple[dt.date, dt.date]:
+    """First and last Monday the routine sync keeps fresh."""
+    monday = today - dt.timedelta(days=today.weekday())
+    return monday, monday + dt.timedelta(weeks=config.WEEKS_AHEAD - 1)
+
+
+def fetch_class_week(class_id: int, monday: dt.date):
+    """One week of a class on demand (scrolling far back or ahead): stored in class_lessons like the
+    routine sync, but without notifications (nobody needs a 'change' for a week in March). Lessons of
+    that week that Untis no longer has are marked removed, unless the answer is suspiciously empty."""
+    cls = db.one("SELECT sc.*, s.untis_server, s.untis_login FROM school_classes sc "
+                 "JOIN schools s ON s.id=sc.school_id WHERE sc.id=%s", (class_id,))
+    if cls is None or not cls["untis_server"]:
+        return
+    try:
+        lessons = untis.fetch_week(cls["untis_server"], cls["untis_login"] or "", cls["untis_id"], monday)
+    except untis.UntisError as e:
+        db.run("INSERT INTO class_weeks (school_class_id, monday, fetched_at, error) VALUES (%s,%s,UTC_TIMESTAMP(),%s) "
+               "ON DUPLICATE KEY UPDATE error=VALUES(error)", (class_id, monday, str(e)[:500]))
+        raise SyncError(str(e))
+    sunday = monday + dt.timedelta(days=6)
+    with db.tx() as c:
+        existing = {r["uid"]: r for r in db.rows(
+            "SELECT id, uid, state, fingerprint FROM class_lessons WHERE school_class_id=%s AND day BETWEEN %s AND %s",
+            (class_id, monday, sunday), c)}
+        for l in lessons:
+            fp = fingerprint(l)
+            old = existing.get(l["uid"])
+            if old is None:
+                db.run("INSERT INTO class_lessons (school_class_id, uid, day, start_min, end_min, course, location, "
+                       "student_group, state, fingerprint) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                       "ON DUPLICATE KEY UPDATE day=VALUES(day)",
+                       (class_id, l["uid"], l["day"], l["start_min"], l["end_min"], l["course"], l.get("location"),
+                        l.get("student_group"), l["state"], fp), c)
+            elif old["fingerprint"] != fp:
+                db.run("UPDATE class_lessons SET day=%s, start_min=%s, end_min=%s, course=%s, location=%s, "
+                       "student_group=%s, state=%s, fingerprint=%s WHERE id=%s",
+                       (l["day"], l["start_min"], l["end_min"], l["course"], l.get("location"), l.get("student_group"),
+                        l["state"], fp, old["id"]), c)
+        if lessons or len(existing) < 5:
+            seen = {l["uid"] for l in lessons}
+            gone = [r["id"] for uid, r in existing.items() if uid not in seen and r["state"] != "removed"]
+            if gone:
+                ph, args = db.in_list(gone)
+                db.run(f"UPDATE class_lessons SET state='removed' WHERE id IN ({ph})", args, c)
+        db.run("INSERT INTO class_weeks (school_class_id, monday, fetched_at) VALUES (%s,%s,UTC_TIMESTAMP()) "
+               "ON DUPLICATE KEY UPDATE fetched_at=VALUES(fetched_at), error=NULL", (class_id, monday), c)
 
 
 # ---- Personal calendar links -----------------------------------------------------
@@ -228,6 +346,34 @@ def _job_refresh_classes(p: dict):
         refresh_classes(int(p["school_id"]))
     except SyncError as e:
         raise jobs.Retry(str(e), dt.timedelta(minutes=10))
+
+
+@jobs.handler("scan_courses")
+def _job_scan_courses(p: dict):
+    try:
+        scan_courses(int(p["class_id"]))
+    except SyncError as e:
+        raise jobs.Retry(str(e), dt.timedelta(minutes=10))
+
+
+@jobs.handler("fetch_class_week")
+def _job_fetch_class_week(p: dict):
+    try:
+        fetch_class_week(int(p["class_id"]), dt.date.fromisoformat(p["monday"]))
+    except SyncError as e:
+        raise jobs.Retry(str(e), dt.timedelta(minutes=2))
+
+
+def queue_week(class_id: int, monday: dt.date, c=None):
+    """Someone is looking at that week right now: priority 1."""
+    jobs.enqueue("fetch_class_week", {"class_id": class_id, "monday": monday.isoformat()},
+                 dedupe=f"fetch_class_week:{class_id}:{monday.isoformat()}", priority=1, max_attempts=2, c=c)
+
+
+def queue_scan(class_id: int, c=None):
+    """After the class's own sync (priority 1): the near weeks come first, the whole year right after."""
+    jobs.enqueue("scan_courses", {"class_id": class_id}, dedupe=f"scan_courses:{class_id}", priority=2,
+                 max_attempts=3, c=c)
 
 
 def queue_class(class_id: int, *, soon: bool = False, c=None):

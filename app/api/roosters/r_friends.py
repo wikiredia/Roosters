@@ -249,9 +249,11 @@ def friend_schedule(friend_id: int, request: Request, start: str | None = None, 
     days = max(1, min(days, 28))
     if m["hidden"]:
         return etag_json(request, {"start": first.isoformat(), "days": days, "hidden": True, "lessons": []})
-    ls = schedule.lessons([friend_id], first, first + dt.timedelta(days=days - 1))[friend_id]
+    last = first + dt.timedelta(days=days - 1)
+    loading = schedule.ensure_weeks([friend_id], first, last, today)
+    ls = schedule.lessons([friend_id], first, last)[friend_id]
     lessons = [schedule.lesson_out(l) for l in ls] if m["visibility"] == "full" else schedule.busy_only(ls)
-    return etag_json(request, {"start": first.isoformat(), "days": days, "hidden": False,
+    return etag_json(request, {"start": first.isoformat(), "days": days, "hidden": False, "loading": loading,
                                "visibility": m["visibility"], "lessons": lessons})
 
 

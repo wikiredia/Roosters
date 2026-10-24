@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T05:00:00Z
 ---
 
-The lists **onboarding** shows: schools, campuses, classes, and the courses of a class (to switch off
-the ones you don't take). All answers use ETags: classes are a few hundred rows that the app caches and
+The lists **onboarding** shows: schools, campuses, classes (per semester), and the courses of a class this
+school year (to switch off the ones you don't take). All answers use ETags: classes are a few hundred rows that the app caches and
 filters offline while you type.
 
 Schools come from the `schools` table, and only **active** ones are listed. An empty list means nobody
@@ -20,11 +20,28 @@ The school or 404 `school_unknown` (inactive schools count as unknown).
 
 ## `classes`
 
-`GET /api/v1/schools/{id}/classes?q=`: all active classes (up to 2000), optionally filtered.
+`GET /api/v1/schools/{id}/classes?q=`: all active classes (up to 2000), optionally filtered, each with
+`semesters` ([1, 2], [1] or [2]: where Untis lists it), plus `terms`: the dates of both semesters of this
+school year and the current one (`terms.Year.out`).
 
 ## `courses`
 
-`GET /api/v1/schools/{id}/classes/{class}/courses`: the courses this class has from this week on, with lesson counts. A class that was never fetched is queued now, and the answer says `syncing: true` (the app asks again a moment later).
+`GET /api/v1/schools/{id}/classes/{class}/courses?semester=`: the courses this class has **this school
+year** (or in one semester), each with its lesson count and `semesters`. Not only the fetched weeks: a
+course that starts in a month has to be choosable in onboarding, because the choice lasts all year.
+
+- The year comes from `class_courses` (`sync.scan_courses`), queued here when it's missing or older than
+  `COURSES_RESCAN_DAYS`. Until it's there: the courses of the weeks we have, and `scanning: true` (the app
+  polls). After a failed scan `scanning` is false and `error` says why; the job retries by itself.
+- Courses that appeared in the fetched weeks since the scan are added.
+- A class never fetched at all (and never scanned): it's queued and the answer says `syncing: true`.
+
+## `class_lessons`
+
+`GET /api/v1/schools/{id}/classes/{class}/lessons?start=&days=`: a class's whole timetable (every course,
+with its group) for up to 14 days. Onboarding shows it ('see this class's timetable'), previews the timetable
+your picks would give, and searches it for 'Ik mis een les'. Public school data, like the class list; far
+weeks are fetched on demand (`loading`), a class never fetched is queued.
 
 ## `schools`
 

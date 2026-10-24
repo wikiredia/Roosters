@@ -12,7 +12,7 @@ from .errors import ApiError
 
 router = APIRouter(prefix="/api/v1/me", tags=["me"])
 
-MAX_SOURCES = 8
+MAX_SOURCES = 16
 SOURCE_OUT = "id, kind, label, school_class_id, config, last_sync, last_ok, last_error, created_at"
 
 
@@ -32,6 +32,7 @@ def source_out(s: dict) -> dict:
            "last_ok": _ts(s.get("last_ok")), "error": s.get("last_error"), "syncing": False}
     if s["kind"] == "untis":
         out["class_id"] = s["school_class_id"]
+        out["semester"] = s.get("semester")
         # The class is shared: its sync state counts
         out["last_ok"] = _ts(s.get("class_last_ok"))
         out["error"] = s.get("class_last_error")
@@ -121,6 +122,8 @@ def ghost(body: GhostIn, ctx: Ctx = Depends(auth)):
 
 class UntisSourceIn(BaseModel):
     class_id: int
+    # 1 or 2: you follow this class in that semester only; None: the whole school year
+    semester: Literal[1, 2] | None = None
     include: list[str] = Field(default_factory=list, max_length=200)
     exclude: list[str] = Field(default_factory=list, max_length=200)
 
@@ -133,6 +136,8 @@ class IcsSourceIn(BaseModel):
 
 class SourceConfigIn(BaseModel):
     include: list[str] | None = Field(None, max_length=200)
+    # True: `include` is exactly the courses you follow (picked one by one; empty = none of them)
+    picked: bool | None = None
     exclude: list[str] | None = Field(None, max_length=200)
     keywords: list[str] | None = Field(None, max_length=50)
     label: str | None = Field(None, max_length=160)
@@ -156,19 +161,23 @@ def add_untis(body: UntisSourceIn, ctx: Ctx = Depends(auth)):
     if cls is None:
         raise ApiError(400, "class_unknown")
     with db.tx() as c:
-        mine = db.rows("SELECT school_class_id FROM sources WHERE user_id=%s AND deleted_at IS NULL FOR UPDATE",
-                       (ctx.uid,), c)
-        if any(s["school_class_id"] == cls["id"] for s in mine):
+        mine = db.rows("SELECT school_class_id, semester FROM sources WHERE user_id=%s AND deleted_at IS NULL "
+                       "FOR UPDATE", (ctx.uid,), c)
+        # The same class in S1 and in S2 are two sources (each with its own courses); all year overlaps both
+        if any(s["school_class_id"] == cls["id"] and (s["semester"] is None or body.semester is None
+                                                      or s["semester"] == body.semester) for s in mine):
             raise ApiError(409, "source_exists")
         if len(mine) >= MAX_SOURCES:
             raise ApiError(400, "source_limit")
         cfg = {"include": _clean(body.include), "exclude": _clean(body.exclude)}
-        sid = db.run("INSERT INTO sources (user_id, kind, label, school_class_id, config) VALUES (%s,'untis',%s,%s,%s)",
-                     (ctx.uid, cls["name"], cls["id"], db.js(cfg)), c)
+        sid = db.run("INSERT INTO sources (user_id, kind, label, school_class_id, semester, config) "
+                     "VALUES (%s,'untis',%s,%s,%s,%s)", (ctx.uid, cls["name"], cls["id"], body.semester, db.js(cfg)), c)
         # Never fetched or stale: fetch now, ahead of the routine syncs (the "aha" moment in onboarding)
         fresh = cls["last_ok"] and db.utcnow() - cls["last_ok"] < dt.timedelta(minutes=config.SYNC_EVERY_DAY)
         if not fresh:
             sync.queue_class(cls["id"], soon=True, c=c)
+        if cls["courses_scanned_at"] is None:
+            sync.queue_scan(cls["id"], c=c)
     s = next(x for x in my_sources(ctx.uid) if x["id"] == sid)
     return {"source": source_out(s)}
 
@@ -204,6 +213,8 @@ def update_source(source_id: int, body: SourceConfigIn, ctx: Ctx = Depends(auth)
     for k in keys:
         if fields.get(k) is not None:
             cfg[k] = _clean(fields[k])
+    if s["kind"] == "untis" and fields.get("picked") is not None:
+        cfg["picked"] = bool(fields["picked"])
     label = (fields.get("label") or "").strip() or s["label"]
     db.run("UPDATE sources SET config=%s, label=%s WHERE id=%s", (db.js(cfg), label[:160], source_id))
     if s["kind"] == "ics" and "keywords" in fields:
@@ -257,8 +268,11 @@ def my_schedule(request: Request, start: str | None = None, days: int = 7, ctx: 
     today = schedule.local_now(ctx.user).date()
     first = parse_day(start, today - dt.timedelta(days=today.weekday()))
     days = max(1, min(days, 28))
-    ls = schedule.lessons([ctx.uid], first, first + dt.timedelta(days=days - 1))[ctx.uid]
-    return etag_json(request, {"start": first.isoformat(), "days": days,
+    last = first + dt.timedelta(days=days - 1)
+    # Far back or ahead: fetched from Untis now; `loading` until it's there (the app asks again)
+    loading = schedule.ensure_weeks([ctx.uid], first, last, today)
+    ls = schedule.lessons([ctx.uid], first, last)[ctx.uid]
+    return etag_json(request, {"start": first.isoformat(), "days": days, "loading": loading,
                                "lessons": [schedule.lesson_out(l) for l in ls], "sources": sources_state(ctx.uid)})
 
 
@@ -275,6 +289,7 @@ def today(request: Request, day: str | None = None, ctx: Ctx = Depends(auth)):
     now_dt = schedule.local_now(ctx.user)
     d = parse_day(day, now_dt.date())
     now = now_dt.hour * 60 + now_dt.minute if d == now_dt.date() else 0
+    loading = schedule.ensure_weeks([ctx.uid], d, d, now_dt.date())
     mates = friends.visible_friends(ctx.uid)
     people = schedule.person_days([ctx.user] + [m["user"] for m in mates], d)
     infos = {pid: logic.day_info(p) for pid, p in people.items()}
@@ -297,7 +312,7 @@ def today(request: Request, day: str | None = None, ctx: Ctx = Depends(auth)):
                if n["kind"] == "schedule_change" and n["day"] and n["day"] >= d.isoformat()]
     checkin = db.one("SELECT status, since_min, until_min FROM checkins WHERE user_id=%s AND day=%s", (ctx.uid, d))
     return etag_json(request, {
-        "day": d.isoformat(), "now": now,
+        "day": d.isoformat(), "now": now, "loading": loading,
         "me": {"status": schedule.status(me, infos[ctx.uid], now), "checkin": checkin,
                "lessons": [schedule.lesson_out(l) for l in my_lessons]},
         "friends": [friends.friend_out(m) for m in mates],

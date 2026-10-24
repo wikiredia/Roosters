@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T00:30:00Z
 ---
 
 **WebUntis**: find a school, list its classes, and fetch class timetables from the **public** view
@@ -49,9 +49,13 @@ One week of one class's timetable data.
 
 This week and the next `WEEKS_AHEAD - 1` weeks of a class.
 
+## `fetch_week`
+
+One week of a class, parsed: what `sync.scan_courses` walks the school year with.
+
 ## `list_classes`
 
-All classes of a school from the public timetable page config. A school without public class timetables gives an error (students can use their personal iCal link instead).
+All classes of a school on one day (default today) from the public timetable page config; classes can differ per semester, so `sync.refresh_classes` asks for a day in each. A school without public class timetables gives an error (students can use their personal iCal link instead).
 
 ## `parse_week`
 
