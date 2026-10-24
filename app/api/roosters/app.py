@@ -30,8 +30,8 @@ if config.CORS_ORIGINS:
         CORSMiddleware,
         allow_origins=config.CORS_ORIGINS,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "If-None-Match", "Accept-Language"],
-        expose_headers=["ETag", "Retry-After", "Idempotent-Replayed"],
+        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-If-None-Match", "Accept-Language"],
+        expose_headers=["ETag", "X-Not-Modified", "Retry-After", "Idempotent-Replayed"],
         max_age=600,
     )
 

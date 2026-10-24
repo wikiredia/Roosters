@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T18:00:00Z
 ---
 
 The **public API process** (`uvicorn roosters.app:app`, compose service `api`). It builds the FastAPI app,
@@ -32,4 +32,5 @@ Every error comes back in the same shape: `{"code": "...", "message": "..."}`. T
 
 ## `no_store`
 
-Sets `Cache-Control: no-store` on every answer unless a route chose its own. `etag_json` (in `deps.py`) uses `private, no-cache` instead, so 304s work.
+Sets `Cache-Control: no-store` on every answer unless a route chose its own. `etag_json` (in `deps.py`) too: nothing the API answers is kept by the phone's HTTP cache. CORS allows the
+app's `X-If-None-Match` and exposes `X-Not-Modified`.

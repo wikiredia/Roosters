@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T16:00:00Z
+updated: 2026-10-24T18:00:00Z
 ---
 
 **Talking to the Roosters+ API on bad school wifi.** Every request goes through `api.get/post/put/patch/del`.
@@ -7,7 +7,9 @@ updated: 2026-10-24T16:00:00Z
 - Every request has a **timeout** (8 s for reads, 15 s for writes; fetch has none by default).
 - **Safe retries** with backoff and jitter (3 attempts). Writes carry an **Idempotency-Key** that stays the
   same for every retry, so the server runs a write once (`api/roosters/idempotency.py`).
-- **ETags**: GETs send `If-None-Match`, and on a 304 we reuse the cached answer.
+- **ETags**: GETs send `X-If-None-Match` (our own header), and on `X-Not-Modified: 1` we reuse our copy. Never
+  a real 304 and `cache: 'no-store'`: iOS answers a 304 with its own cached copy, which was an old 401 (the
+  `auth_expired` loop). After a 401 that a refresh fixed, the copy is dropped and the whole answer asked again.
 - **School wifi login pages** (HTML instead of JSON) are recognised and reported as `captive`, not shown as errors.
 - An expired access token is **refreshed once** (one refresh at a time, shared by all requests). Only a
   real 401 from the server ends the session; no network keeps the tokens for later.

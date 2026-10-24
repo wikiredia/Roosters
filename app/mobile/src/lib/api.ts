@@ -9,7 +9,9 @@ import { accessExpiresSoon, accessToken, clearSession, refreshToken, saveTokens,
  * Talking to the Roosters+ API on bad school wifi:
  * - every request has a timeout (fetch has none by default)
  * - safe retries with backoff + jitter; writes carry an Idempotency-Key, so a retry never runs twice
- * - ETag: when nothing changed the server answers an empty 304 and we reuse what we had
+ * - ETag: when nothing changed the server answers an empty 200 with `X-Not-Modified` and we reuse what we had.
+ *   Our own header, never a real 304, and the phone's HTTP cache is kept out of it: iOS answers a 304 with its
+ *   own cached copy of the URL, which could be an old 401 (`auth_expired` after every refresh)
  * - the school wifi login page (HTML instead of JSON) is recognised and reported, not shown as an error
  * - the access token is refreshed a minute before it runs out (one refresh at a time, shared by all
  *   requests); a 401 anyway refreshes and asks again. Only the server saying the session has ended signs
@@ -73,7 +75,7 @@ async function once(method: string, path: string, opts: Options, idemKey: string
   if (opts.auth !== false && accessToken()) headers.Authorization = `Bearer ${accessToken()}`;
   if (idemKey) headers['Idempotency-Key'] = idemKey;
   const cached = opts.etag ? etags.get(url) : undefined;
-  if (cached) headers['If-None-Match'] = cached.tag;
+  if (cached) headers['X-If-None-Match'] = cached.tag;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? (method === 'GET' ? 8000 : 15000));
@@ -90,6 +92,8 @@ async function once(method: string, path: string, opts: Options, idemKey: string
       headers,
       body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
       signal: controller.signal,
+      // Never from or into the platform's HTTP cache (the web honours this; iOS gets `no-store` from the server)
+      cache: 'no-store',
     });
   } catch (e) {
     reportResult('network');
@@ -99,11 +103,13 @@ async function once(method: string, path: string, opts: Options, idemKey: string
     clearTimeout(timer);
   }
 
-  if (res.status === 304 && cached) {
+  if ((res.status === 304 || res.headers.get('x-not-modified') === '1') && cached) {
     reportResult('ok');
     entry('ok', { status: 304 });
     return cached.data;
   }
+  // 'Unchanged' while we have no copy (it was just dropped): ask for the whole answer
+  if (res.status === 304 || res.headers.get('x-not-modified') === '1') return once(method, path, { ...opts, etag: false }, idemKey);
   const type = res.headers.get('content-type') ?? '';
   // School wifi that isn't logged in answers every request with its own HTML page
   // (or, on a test server, another program answers on the API's port)
@@ -181,6 +187,8 @@ export async function request<T>(method: string, path: string, opts: Options = {
         const r = accessToken() && accessToken() !== sent ? 'ok' : await refreshTokens();
         if (r === 'ok') {
           markRecovered(method, apiBase() + path);
+          // Ask for the whole answer: nothing cached from before the 401 gets a say
+          etags.delete(apiBase() + path);
           attempt--;
           continue;
         }

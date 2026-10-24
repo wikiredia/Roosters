@@ -61,12 +61,17 @@ def lang(request: Request) -> str:
 
 
 def etag_json(request: Request, data) -> Response:
-    """JSON with an ETag: when nothing changed, the app gets an empty 304 (a few bytes on slow wifi)."""
+    """JSON with an ETag: when nothing changed since the app's copy (`X-If-None-Match`), an empty 200 with
+    `X-Not-Modified: 1` (a few bytes on slow wifi), and the app reuses what it has.
+
+    Never a real 304, and never stored by the phone (`no-store`): iOS answers a 304 with *its own* cached copy
+    of that URL, and that copy can be an old 401. The app then saw `auth_expired` after every refresh, while
+    this server said 304. The app keeps its own copies (`mobile/src/lib/api.ts`), so the HTTP cache isn't needed."""
     body = db.js(data).encode()
     tag = '"' + hashlib.sha1(body).hexdigest()[:20] + '"'
-    headers = {"ETag": tag, "Cache-Control": "private, no-cache"}
-    if tag in [t.strip() for t in (request.headers.get("if-none-match") or "").split(",")]:
-        return Response(status_code=304, headers=headers)
+    headers = {"ETag": tag, "Cache-Control": "no-store"}
+    if tag in [t.strip() for t in (request.headers.get("x-if-none-match") or "").split(",")]:
+        return Response(b"", status_code=200, media_type="application/json", headers={**headers, "X-Not-Modified": "1"})
     return Response(body, media_type="application/json", headers=headers)
 
 
