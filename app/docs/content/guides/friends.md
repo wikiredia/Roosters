@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks and privacy
 position: 40
-updated: 2026-10-24T05:27:10Z
+updated: 2026-10-24T07:47:21Z
 ---
 
 ## Becoming friends
@@ -13,7 +13,7 @@ updated: 2026-10-24T05:27:10Z
 
 ## What a friend sees
 
-Each side chooses per friend: the **full** timetable or **free/busy** only (`set_visibility`;
+Each side chooses per friend: the **full** timetable, everything **without rooms**, or **free/busy** only (`set_visibility`;
 `schedule.busy_only` merges busy blocks and drops what and where). **Ghost mode** hides you completely for a
 while. **Blocking** ends the friendship and is silent (the other side can't tell). Guests are invisible.
 

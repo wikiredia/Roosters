@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:27:10Z
+updated: 2026-10-24T07:47:21Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that

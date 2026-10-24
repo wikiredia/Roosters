@@ -158,6 +158,7 @@ export default function IkScreen() {
       {debugEnabled ? (
         <Card>
           <Row first left={<IconTile name="wifi" />} title="Server & debug" sub="Development builds only" chevron onPress={() => router.push('/debug')} />
+          <Row left={<IconTile name="users" />} title="Test data & users" sub="Test friends, switch account" chevron onPress={() => router.push('/dev')} />
         </Card>
       ) : null}
 

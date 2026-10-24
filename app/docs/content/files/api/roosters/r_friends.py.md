@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T07:47:21Z
 ---
 
 **Friends**: the social side. Friend list and visibility, requests within your school, invite links,
@@ -10,7 +10,8 @@ blocking, a friend's timetable, and Compare.
   The exception is the invite preview, so a guest who opens a link sees who invited them.
 - Requests and the classmates list only work **within your own school**, and guests never show up.
 - Blocking is silent: a blocked person gets the same answers as if nothing happened.
-- A friend sees your full timetable or only free/busy, as **you** choose (`set_visibility`), and nothing
+- A friend sees your full timetable, everything but the rooms, or only free/busy, as **you** choose
+  (`set_visibility`), and nothing
   while you're in ghost mode.
 
 The rules for who sees whom are in `friends.py`; break maths in `logic.py`.
@@ -26,7 +27,8 @@ Invite codes: 8 characters with no look-alikes (no 0/O, 1/I/L), so they can be r
 
 ## `VisibilityIn`, `set_visibility`
 
-`PATCH /api/v1/friends/{id}`: what **you** show this friend: `full` or `freebusy`.
+`PATCH /api/v1/friends/{id}`: what **you** show this friend: `full`, `norooms` (what and when, never where) or
+`freebusy`.
 
 ## `_invite_out`, `my_invite`
 
@@ -62,7 +64,7 @@ An invite that exists, isn't revoked or expired and has uses left, or 404 `invit
 
 ## `friend_schedule`
 
-`GET /api/v1/friends/{id}/schedule`: a friend's lessons for up to 28 days, full or free/busy only (`schedule.busy_only`), or nothing while they're hidden. Far weeks are fetched on demand (`loading`, see `schedule.ensure_weeks`).
+`GET /api/v1/friends/{id}/schedule`: a friend's lessons for up to 28 days, full, without rooms, or free/busy only (`schedule.busy_only`), or nothing while they're hidden. Far weeks are fetched on demand (`loading`, see `schedule.ensure_weeks`).
 
 ## `invite_preview`
 

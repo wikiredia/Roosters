@@ -72,9 +72,9 @@ export default function FriendScreen() {
             <Skeleton width={160} />
           </Card>
         )}
-        {schedule.data?.visibility === 'freebusy' ? (
+        {schedule.data?.visibility === 'freebusy' || schedule.data?.visibility === 'norooms' ? (
           <Text variant="sm" tone="ink2">
-            {t('friend.onlyFreeBusy', { name })}
+            {t(schedule.data.visibility === 'freebusy' ? 'friend.onlyFreeBusy' : 'friend.noRooms', { name })}
           </Text>
         ) : null}
       </Section>
@@ -83,6 +83,7 @@ export default function FriendScreen() {
         <SectionHead title={t('friend.whatSees', { name })} />
         <View accessibilityRole="radiogroup" className="gap-2">
           <Option label={t('friend.full')} sub={t('friend.fullSub')} on={shown === 'full'} onPress={() => vis.mutate({ id: fid, visibility: 'full' })} />
+          <Option label={t('friend.norooms')} sub={t('friend.noroomsSub', { name })} on={shown === 'norooms'} onPress={() => vis.mutate({ id: fid, visibility: 'norooms' })} />
           <Option label={t('friend.freebusy')} sub={t('friend.freebusySub', { name })} on={shown === 'freebusy'} onPress={() => vis.mutate({ id: fid, visibility: 'freebusy' })} />
         </View>
       </Section>

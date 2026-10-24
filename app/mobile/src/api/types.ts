@@ -53,14 +53,17 @@ export type Status = {
   left_at?: number;
 };
 
+/** What a friend sees of your timetable: everything, everything but the rooms, or only when you're free/busy */
+export type Visibility = 'full' | 'norooms' | 'freebusy';
+
 export type Friend = {
   id: number;
   display_name: string;
   avatar_color: number;
   school_id: number | null;
   campus_id: number | null;
-  visibility: 'full' | 'freebusy';
-  my_visibility: 'full' | 'freebusy';
+  visibility: Visibility;
+  my_visibility: Visibility;
   hidden: boolean;
 };
 
@@ -136,7 +139,7 @@ export type FriendSchedule = {
   days: number;
   loading?: boolean;
   hidden: boolean;
-  visibility?: 'full' | 'freebusy';
+  visibility?: Visibility;
   lessons: Lesson[];
 };
 

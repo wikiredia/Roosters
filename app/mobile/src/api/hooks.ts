@@ -23,6 +23,7 @@ import type {
   Source,
   Today,
   User,
+  Visibility,
 } from './types';
 
 /** Query keys in one place, so mutations invalidate exactly what they change. */
@@ -377,7 +378,7 @@ export function useAnswerBreak() {
 export function useSetVisibility() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, visibility }: { id: number; visibility: 'full' | 'freebusy' }) =>
+    mutationFn: ({ id, visibility }: { id: number; visibility: Visibility }) =>
       api.patch(`/api/v1/friends/${id}`, { visibility }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.friends }),
   });

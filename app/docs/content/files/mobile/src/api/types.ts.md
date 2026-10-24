@@ -1,8 +1,12 @@
 ---
-updated: 2026-10-24T05:27:10Z
+updated: 2026-10-24T07:47:21Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
+
+## `Visibility`
+
+What a friend sees of your timetable: `full`, `norooms` (no rooms) or `freebusy`.
 
 ## `Friend`, `Together`, `Checkin`, `ScheduleChange`, `Notification`, `SourcesState`
 

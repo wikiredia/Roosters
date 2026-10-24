@@ -64,7 +64,7 @@ export default function FriendsScreen() {
                 first={i === 0}
                 left={<Avatar name={f.display_name} color={f.avatar_color} />}
                 title={f.display_name}
-                sub={t(f.my_visibility === 'full' ? 'friends.seesFull' : 'friends.seesFreeBusy')}
+                sub={t(f.my_visibility === 'full' ? 'friends.seesFull' : f.my_visibility === 'norooms' ? 'friends.seesNoRooms' : 'friends.seesFreeBusy')}
                 chevron
                 onPress={() => router.push(`/friends/${f.id}`)}
               />
