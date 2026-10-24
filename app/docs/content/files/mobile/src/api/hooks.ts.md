@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:30:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -56,6 +56,13 @@ requests too, in its one request).
 ## `useAcceptInvite`, `useResetInvite`, `useFriendRequest`, `useAnswerRequest`, `useSetVisibility`, `useRemoveFriend`, `useBlock`
 
 Social writes.
+
+## `usePinFriend`
+
+Pin a friend or not (`PATCH /friends/{id}` `{pinned}`, only for you). Optimistic like `useSetPush`: the friends
+list and every cached Today get the new pin at once, re-sorted with `lib/friends.pinnedFirst`; put back if the
+server says no. Afterwards friends, Today and the Rooster weeks are asked again (the server sorts the board and the
+shared breaks on it too).
 
 ## `useAddClass`, `useAddIcs`, `useUpdateSource`, `useDeleteSource`, `useRefresh`
 

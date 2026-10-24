@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-24T07:47:21Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 Eighth migration: a third choice for what a friend sees of your timetable, **everything but the rooms** (`norooms`:
-what and when, never where), next to `full` and `freebusy` (`r_friends.set_visibility`, `friend_schedule`).
+what and when, never where), next to `full` and `freebusy` (`r_friends.edit_friend`, `friend_schedule`).
 
 ## `friendships (alter at line 3)`
 

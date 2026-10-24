@@ -1,9 +1,10 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 **One friend**: chat with them (their one-to-one chat, made the first time), their week (full, without rooms or free/busy, as they chose, with a line saying so), what you show them (the same
-three choices), remove or block.
+three choices), pin them ('Vastzetten · {name} staat altijd bovenaan, alleen voor jou', a toggle like a chat's, design
+Ik-1.dc.html C; `usePinFriend`), remove or block.
 
 ## `FriendScreen`
 

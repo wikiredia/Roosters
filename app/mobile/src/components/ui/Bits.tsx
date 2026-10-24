@@ -270,6 +270,15 @@ export function IconTile({ name, tone = 'ink' }: { name: IconName; tone?: string
   );
 }
 
+/** The small filled thumbtack next to a friend you pinned (Today's board, Vergelijken); `label` for screen readers. */
+export function PinMark({ label }: { label: string }) {
+  return (
+    <View accessible accessibilityLabel={label}>
+      <Icon name="thumbtack" size={16} color="you-ink" filled />
+    </View>
+  );
+}
+
 /** Rose pill with a number of unread messages (chat list, the Chat tab). */
 export function Badge({ n, className }: { n: number; className?: string }) {
   return (

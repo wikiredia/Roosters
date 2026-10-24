@@ -3,11 +3,12 @@ import { useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useBlock, useFriends, useFriendSchedule, useOpenDirect, useRemoveFriend, useSetVisibility } from '@/api/hooks';
+import { useBlock, useFriends, useFriendSchedule, useOpenDirect, usePinFriend, useRemoveFriend, useSetVisibility } from '@/api/hooks';
 import { END_HOUR, START_HOUR } from '@/components/timetable/Timetable';
 import { WeekView } from '@/components/timetable/WeekView';
 import { Avatar, Option } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
+import { Toggle } from '@/components/ui/Inputs';
 import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
 import { Empty, Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -18,7 +19,7 @@ import { addDays, isoDay, monday, nowMin } from '@/lib/time';
 /** Room under the week card's grid: the day labels, the card's padding, the grid's own bottom margin. */
 const WEEK_CHROME = 30 + 20 + 10;
 
-/** One friend: chat with them, their week, what they see of you, remove or block. The week is sized so it
+/** One friend: chat with them, their week, what they see of you, pin them (only for you), remove or block. The week is sized so it
  * ends at the bottom of the screen: the first view is the whole profile with their whole week. */
 export default function FriendScreen() {
   const { t } = useT();
@@ -30,6 +31,7 @@ export default function FriendScreen() {
   const week = monday([0, 6].includes(now.getDay()) ? addDays(now, 3) : now);
   const schedule = useFriendSchedule(fid, isoDay(week), 5);
   const vis = useSetVisibility();
+  const pin = usePinFriend();
   const remove = useRemoveFriend();
   const block = useBlock();
   const open = useOpenDirect();
@@ -114,7 +116,13 @@ export default function FriendScreen() {
       </Section>
 
       <Card>
-        <Row first title={t('friend.remove')} sub={t('friend.removeSub')} tone="danger" onPress={onRemove} />
+        <Row
+          first
+          title={t('friend.pin')}
+          sub={t('friend.pinSub', { name })}
+          right={<Toggle value={!!f?.pinned} onChange={(v) => pin.mutate({ id: fid, pinned: v })} label={t('friend.pin')} />}
+        />
+        <Row title={t('friend.remove')} sub={t('friend.removeSub')} tone="danger" onPress={onRemove} />
         <Row title={t('friend.block', { name })} sub={t('friend.blockSub', { name })} tone="danger" onPress={onBlock} />
       </Card>
     </Screen>

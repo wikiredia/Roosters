@@ -7,7 +7,7 @@ import type { BreakRequest, Checkin, Friend, Notification, Today } from '@/api/t
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { SetupSteps } from '@/components/SetupSteps';
 import { type BreakState, isFree, isOff, STATE_LABEL } from '@/components/timetable/Timetable';
-import { Avatar, AvatarStack, Banner, StatusOption, Tag } from '@/components/ui/Bits';
+import { Avatar, AvatarStack, Banner, PinMark, StatusOption, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
 import { Reveal } from '@/components/ui/Motion';
@@ -15,6 +15,7 @@ import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
 import { dayWord, howText, otherPeople, slotState } from '@/lib/breaks';
+import { pinnedOnTop } from '@/lib/friends';
 import { currentLesson, isAway, joinNames, nextLesson, statusLine } from '@/lib/status';
 import { addDays, hhmm, isoDay, longDate, minutesAgo, parseDay, range, shortDate } from '@/lib/time';
 
@@ -213,7 +214,7 @@ function TomorrowLine({ day, t, lang }: { day: string; t: T; lang: 'nl' | 'en' }
   );
 }
 
-/** "Pak je pauze met:" — shared breaks, grouped per time slot. Tap one to ask "Pauze samen?". */
+/** "Pak je pauze met:" — shared breaks, grouped per time slot (pinned friends first in each). Tap one to ask "Pauze samen?". */
 function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & { start: number; end: number })[]) => void }) {
   const open = useOpenDirect();
   const byId = new Map(d.friends.map((f) => [f.id, f]));
@@ -226,7 +227,8 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
     g.people.push(f);
     groups.set(k, g);
   }
-  const list = [...groups.values()].sort((a, b) => a.start - b.start);
+  // Within one break, friends you pinned named first
+  const list = [...groups.values()].map((g) => ({ ...g, people: pinnedOnTop(g.people, (p) => p.pinned) })).sort((a, b) => a.start - b.start);
   if (list.length === 0) {
     return (
       <Card className="p-4 gap-1">
@@ -387,11 +389,17 @@ function Requests({ d, t }: { d: Today; t: T }) {
 /** A break's state as a small tag: the same colours as the calendar, at the size of a word. */
 const STATE_TAG = { planned: 'together', asked: 'line', declined: 'bad' } as const;
 
-/** "Wie is er nu?" — free first; people who aren't on campus folded into one row. */
+/**
+ * "Wie is er nu?" — friends you pinned on top (with a thumbtack, also when they're not on campus), then free first;
+ * the others who aren't on campus folded into one row. The server sorts it the same way; sorting here again keeps
+ * a pin you just set in place before Today is fetched again.
+ */
 function Board({ d, t }: { d: Today; t: T }) {
   const byId = new Map(d.friends.map((f) => [f.id, f]));
-  const here = d.board.filter((b) => !isAway(b.status));
-  const away = d.board.filter((b) => isAway(b.status));
+  const pinned = (id: number) => !!byId.get(id)?.pinned;
+  const board = pinnedOnTop(d.board, (b) => pinned(b.id));
+  const here = board.filter((b) => pinned(b.id) || !isAway(b.status));
+  const away = board.filter((b) => !pinned(b.id) && isAway(b.status));
   return (
     <Section>
       <SectionHead title={t('today.board')} aside={t('today.freeFirst')} />
@@ -406,6 +414,7 @@ function Board({ d, t }: { d: Today; t: T }) {
               first={i === 0}
               title={f.display_name}
               left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} presence={line.free ? 'free' : 'busy'} />}
+              right={f.pinned ? <PinMark label={t('friend.pinned')} /> : undefined}
               sub={
                 <Text variant="sm" tone="ink2">
                   {line.strong ? (

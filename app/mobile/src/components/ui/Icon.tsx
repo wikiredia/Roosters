@@ -62,6 +62,8 @@ const paths = {
       <Circle cx={12} cy={10} r={2.3} />
     </>
   ),
+  /** A thumbtack: a pinned friend (the location marker is `pin`) */
+  thumbtack: <Path d="M9.5 3.5h5l-.5 6 3 3v2h-10v-2l3-3zM12 14.5v6" />,
   copy: (
     <>
       <Rect x={8.5} y={8.5} width={11.5} height={11.5} rx={1.5} />
@@ -146,21 +148,23 @@ type Props = {
   /** A color value, or a token name like "ink-2" */
   color?: string;
   strokeWidth?: number;
+  /** Filled in the same colour (the thumbtack of a pinned friend); the crown always is */
+  filled?: boolean;
 };
 
-export function Icon({ name, size = 24, color = 'ink', strokeWidth = 1.5 }: Props) {
+export function Icon({ name, size = 24, color = 'ink', strokeWidth = 1.5, filled = false }: Props) {
   const literal = color.startsWith('#') || color.startsWith('rgb');
   // A literal colour asks for a token that always exists (the hook can't be skipped), so Uniwind doesn't warn
   const token = useCSSVariable(`--color-${literal ? 'ink' : color}`);
   const stroke = literal ? color : String(token ?? '#161F2A');
-  const filled = name === 'crown';
+  const crown = name === 'crown';
   return (
     <Svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill={filled ? stroke : 'none'}
-      stroke={filled ? 'none' : stroke}
+      fill={crown || filled ? stroke : 'none'}
+      stroke={crown ? 'none' : stroke}
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"

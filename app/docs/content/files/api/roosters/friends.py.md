@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 **Who may see whom.** A friendship is mutual (two rows in `friendships`). Each side chooses what the other
-sees (`full` timetable or `freebusy`), ghost mode hides you for a while, and blocking ends everything (in chat too: `chat.py` hides what someone you blocked writes).
+sees (`full` timetable or `freebusy`) and may pin the other (only for itself), ghost mode hides you for a while, and blocking ends everything (in chat too: `chat.py` hides what someone you blocked writes).
 
 Used by `r_friends.py` and by Today (`r_me.today`). Any feature that shows one person's data to another
 should go through `visible_friends` / `friendship`, so ghost mode and visibility apply.
@@ -26,7 +26,13 @@ Ends a friendship both ways.
 
 ## `friend_out`
 
-A friend for the app.
+A friend for the app, with `pinned` (whether **I** pinned them).
+
+## `set_pinned`
+
+Pins a friend (or not) on **my** row of the friendship (`friendships.pinned` where `user_id` = me), inside the
+caller's transaction. The other row is never touched, so they can't tell. The pin goes with the row: `disconnect`
+(unfriending, blocking) and account deletion remove it, so becoming friends again starts unpinned.
 
 ## `friendship`, `visible_friends_of`
 
@@ -34,7 +40,9 @@ What one or some specific people show me, or None/nothing when we're not friends
 
 ## `visible_friends`
 
-My friends with what each shows **me** (`visibility`), what I show them (`my_visibility`) and whether they're hidden right now (ghost mode).
+My friends with what each shows **me** (`visibility`), what I show them (`my_visibility`), whether I pinned them
+(`pinned`, from my own row) and whether they're hidden right now (ghost mode). Sorted pinned first, then by name:
+the friends list, Today and everything built on it keep that order.
 
 ## `block`, `blocked_by`
 

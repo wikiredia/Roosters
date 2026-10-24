@@ -69,6 +69,8 @@ export type Friend = {
   campus_id: number | null;
   visibility: Visibility;
   my_visibility: Visibility;
+  /** You pinned them: on top wherever friends are listed. Only yours; they never see it */
+  pinned: boolean;
   hidden: boolean;
 };
 

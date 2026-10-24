@@ -42,19 +42,29 @@ def photo(user_id: int, ctx: Ctx = Depends(auth)):
 
 @router.get("/friends")
 def list_friends(ctx: Ctx = Depends(verified)):
+    """Your friends, the ones you pinned first, then by name."""
     return {"friends": [friends.friend_out(m) for m in friends.visible_friends(ctx.uid)]}
 
 
-class VisibilityIn(BaseModel):
-    visibility: Literal["full", "norooms", "freebusy"]
+class FriendPatch(BaseModel):
+    visibility: Literal["full", "norooms", "freebusy"] | None = None
+    pinned: bool | None = None
 
 
 @router.patch("/friends/{friend_id}")
-def set_visibility(friend_id: int, body: VisibilityIn, ctx: Ctx = Depends(verified)):
-    """What I show this friend: my full timetable, everything but the rooms, or only when I'm free/busy."""
-    if friends.friendship(ctx.uid, friend_id) is None:
-        raise ApiError(404, "not_friends")
-    db.run("UPDATE friendships SET visibility=%s WHERE user_id=%s AND friend_id=%s", (body.visibility, ctx.uid, friend_id))
+def edit_friend(friend_id: int, body: FriendPatch, ctx: Ctx = Depends(verified)):
+    """What I show this friend (my full timetable, everything but the rooms, or only when I'm free/busy), and
+    whether I pin them (on top wherever friends are listed; only for me, they never learn it). Only what's sent
+    changes."""
+    with db.tx() as c:
+        if not db.one("SELECT 1 AS x FROM friendships WHERE user_id=%s AND friend_id=%s FOR UPDATE",
+                      (ctx.uid, friend_id), c):
+            raise ApiError(404, "not_friends")
+        if body.visibility is not None:
+            db.run("UPDATE friendships SET visibility=%s WHERE user_id=%s AND friend_id=%s",
+                   (body.visibility, ctx.uid, friend_id), c)
+        if body.pinned is not None:
+            friends.set_pinned(c, ctx.uid, friend_id, body.pinned)
     return {"friend": friends.friend_out(friends.friendship(ctx.uid, friend_id))}
 
 
