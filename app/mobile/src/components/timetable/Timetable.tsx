@@ -52,7 +52,7 @@ export function kindsOf(lessons: Lesson[]): LessonKind[] {
   const out: LessonKind[] = [];
   for (const l of [...lessons].sort((a, b) => a.start - b.start)) {
     const k = lessonKind(l);
-    if (!isOff(l) && !out.includes(k)) out.push(k);
+    if (!isFree(l) && !out.includes(k)) out.push(k);
   }
   return out;
 }
@@ -71,6 +71,11 @@ export const KIND_LABEL: Record<LessonKind, Key> = {
 
 export function isOff(l: Lesson) {
   return l.state === 'cancelled' || l.state === 'removed';
+}
+
+/** A lesson that doesn't keep you busy: cancelled, or one you skip (see lib/skips.ts). Its time is free. */
+export function isFree(l: Lesson) {
+  return isOff(l) || !!l.skipped;
 }
 
 export type Span = { start: number; end: number };
@@ -105,6 +110,7 @@ export function mergeLessons(lessons: Lesson[]): Lesson[] {
       (prev.location ?? null) === (l.location ?? null) &&
       prev.state === l.state &&
       prev.busy === l.busy &&
+      !!prev.skipped === !!l.skipped &&
       l.start >= prev.start &&
       l.start - prev.end <= MERGE_GAP
     ) {
@@ -147,11 +153,11 @@ export function Hatch({ color, gap = 7 }: { color: string; gap?: number }) {
 /** A free moment shorter than this (minutes) is just walking to the next room. */
 export const FREE_MIN = 15;
 
-/** The free moments between a day's lessons (not before the first or after the last). Cancelled lessons
- * leave their time free. */
+/** The free moments between a day's lessons (not before the first or after the last). Cancelled and skipped
+ * lessons leave their time free. */
 export function freeGaps(lessons: Lesson[]): Span[] {
   const ls = mergeLessons(lessons)
-    .filter((l) => !isOff(l))
+    .filter((l) => !isFree(l))
     .sort((a, b) => a.start - b.start);
   const out: Span[] = [];
   let end = ls[0]?.end ?? 0;
@@ -167,10 +173,11 @@ export type Overlap = Span & { lessons: Lesson[] };
 
 /**
  * Where a day's lessons overlap (Untis does that: two groups, a moved lesson, a class you follow twice).
- * Cancelled lessons don't count: they don't take the time. Touching (11:00–12:00 and 12:00–13:00) isn't overlapping.
+ * Cancelled and skipped lessons don't count: they don't take the time. Touching (11:00–12:00 and 12:00–13:00) isn't
+ * overlapping.
  */
 export function overlapsOf(lessons: Lesson[]): Overlap[] {
-  const ls = mergeLessons(lessons).filter((l) => !isOff(l));
+  const ls = mergeLessons(lessons).filter((l) => !isFree(l));
   const parts: Overlap[] = [];
   for (let i = 0; i < ls.length; i++)
     for (let j = i + 1; j < ls.length; j++) {
@@ -194,11 +201,12 @@ export function overlapsOf(lessons: Lesson[]): Overlap[] {
 /** How close (minutes) a tap may be to an overlap to count as a tap on it: they're often only a few minutes. */
 export const OVERLAP_SLOP = 10;
 
-/** What a tap at `min` on a day means: one lesson, a choice between overlapping ones, or nothing. */
-export function lessonsAt(lessons: Lesson[], min: number): Lesson[] {
+/** What a tap at `min` on a day means: one lesson, a choice between overlapping ones, or nothing. Skipped lessons
+ * only with `skipped` (the grid asks for those last: a shared break over one wins). */
+export function lessonsAt(lessons: Lesson[], min: number, skipped = false): Lesson[] {
   const near = overlapsOf(lessons).find((o) => o.start - OVERLAP_SLOP <= min && min < o.end + OVERLAP_SLOP);
-  if (near) return [...near.lessons].sort((a, b) => a.start - b.start || a.end - b.end);
-  const hit = mergeLessons(lessons).find((l) => l.start <= min && min < l.end);
+  if (near && !skipped) return [...near.lessons].sort((a, b) => a.start - b.start || a.end - b.end);
+  const hit = mergeLessons(lessons).find((l) => !!l.skipped === skipped && l.start <= min && min < l.end);
   return hit ? [hit] : [];
 }
 
@@ -241,6 +249,7 @@ export function lessonLabel(l: Lesson, t: (k: Key, p?: Record<string, string | n
   const parts = [l.course ?? t('tt.busy'), `${hhmm(l.start)} ${t('tt.to')} ${hhmm(l.end)}`];
   if (l.location) parts.push(l.location);
   if (isOff(l)) parts.push(t('tt.cancelled'));
+  else if (l.skipped) parts.push(t('tt.skipped'));
   else if (l.state === 'changed') parts.push(t('tt.changed'));
   else if (l.state === 'exam') parts.push(t('tt.exam'));
   return parts.join(', ');
@@ -356,6 +365,7 @@ export function BlockView({ block, style, compact, onPressLesson, onPressInLesso
     );
   }
   const l = block.lesson;
+  if (l.skipped) return <SkippedBlock lesson={l} style={style} compact={compact} pad={pad} t={t} />;
   const off = isOff(l);
   const kind = lessonKind(l);
   const exam = kind === 'exam';
@@ -416,6 +426,23 @@ export function BlockView({ block, style, compact, onPressLesson, onPressInLesso
   );
 }
 
+/**
+ * A class you skip: only a dashed outline and its name struck through, so the free time (and a shared break, drawn
+ * over it) shows through. A tap opens its sheet, where you can take the skip back.
+ */
+function SkippedBlock({ lesson, style, compact, pad, t }: { lesson: Lesson; style: object; compact?: boolean; pad: string; t: (k: Key, p?: Record<string, string | number>) => string }) {
+  return (
+    <View accessibilityLabel={lessonLabel(lesson, t)} className={cn(compact ? 'rounded-[6px]' : 'rounded-block', 'overflow-hidden border-[1.5px] border-dashed border-skip', pad)} style={style}>
+      <Text variant="xs" bold strike tone="ink3" numberOfLines={compact ? 2 : 1}>
+        {compact ? shortCourse(lesson.course ?? '') : lesson.course}
+      </Text>
+      <Text variant="xs" tone="ink3" numberOfLines={1}>
+        {t('tt.skipped')}
+      </Text>
+    </View>
+  );
+}
+
 /** The look of a shared break per state: open soft yellow, asked hatched light and dark yellow, planned solid
  * bright yellow with a check, declined soft red; one you can't ask for faded with a dashed edge. */
 const TOGETHER_STYLE = {
@@ -473,7 +500,7 @@ export function shortCourse(name: string) {
 
 export const STATE_LABEL: Record<BreakState, Key> = { planned: 'tt.planned', asked: 'tt.asked', declined: 'tt.declined' };
 
-export type LegendItem = LessonKind | 'cancelled' | 'together' | 'friend' | BreakState;
+export type LegendItem = LessonKind | 'cancelled' | 'skipped' | 'together' | 'friend' | BreakState;
 
 export function Legend({ items }: { items: LegendItem[] }) {
   const { t } = useT();
@@ -481,7 +508,9 @@ export function Legend({ items }: { items: LegendItem[] }) {
   const sw = (i: LegendItem) =>
     i === 'cancelled'
       ? 'border-[1.5px] border-dashed border-danger'
-      : i === 'together'
+      : i === 'skipped'
+        ? 'border-[1.5px] border-dashed border-skip'
+        : i === 'together'
         ? TOGETHER_STYLE.open
         : i === 'planned' || i === 'asked' || i === 'declined'
           ? TOGETHER_STYLE[i]
@@ -489,7 +518,7 @@ export function Legend({ items }: { items: LegendItem[] }) {
             ? 'bg-friend-soft border-[1.5px] border-friend'
             : cn('border-[1.5px]', KIND_STYLE[i]);
   const label = (i: LegendItem): Key =>
-    i === 'cancelled' ? 'tt.cancelled' : i === 'together' ? 'tt.together' : i === 'planned' || i === 'asked' || i === 'declined' ? STATE_LABEL[i] : i === 'friend' ? 'tt.friendLesson' : KIND_LABEL[i];
+    i === 'cancelled' ? 'tt.cancelled' : i === 'skipped' ? 'tt.skipped' : i === 'together' ? 'tt.together' : i === 'planned' || i === 'asked' || i === 'declined' ? STATE_LABEL[i] : i === 'friend' ? 'tt.friendLesson' : KIND_LABEL[i];
   return (
     // One line that scrolls sideways: it never grows taller (that would push the timetable up)
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-x-3.5" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">

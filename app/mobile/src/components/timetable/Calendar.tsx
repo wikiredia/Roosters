@@ -2,7 +2,7 @@ import { type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, u
 import { Pressable, View } from 'react-native';
 import { useSharedValue, withSpring } from 'react-native-reanimated';
 
-import { useBreaks, useFriends, useWeeks } from '@/api/hooks';
+import { useBreaks, useFriends, useSkip, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -13,13 +13,16 @@ import { type Lang, useT } from '@/i18n';
 import { dateAt, dayIndex, homeStart, MAX_DAYS, mondayOf, weekdayOf } from '@/lib/days';
 import { slotState } from '@/lib/breaks';
 import { joinNames } from '@/lib/status';
+import { skipChanges, skipTarget, type SkipTarget } from '@/lib/skips';
 import { prefs } from '@/lib/storage';
-import { isoDay, nowMin, weekdayShort } from '@/lib/time';
+import { isoDay, nowMin, parseDay, weekdayShort } from '@/lib/time';
 
 import { type DayData, DayGrid, LABEL_H, RESIZE, SWIPE } from './DayGrid';
 import { DayStrip } from './DayStrip';
 import { LessonSheet, OverlapSheet } from './LessonSheet';
-import { kindsOf, Legend, type LegendItem, lessonKind, TimeAxis } from './Timetable';
+import { DragLayer, useSkipDrag } from './SkipDrag';
+import { type SkipNote, SkipToast } from './SkipToast';
+import { isFree, kindsOf, Legend, type LegendItem, lessonKind, mergeLessons, TimeAxis } from './Timetable';
 import { TodayPill } from './TodayPill';
 
 /** Hours always on screen; earlier or later lessons stretch them. */
@@ -58,7 +61,9 @@ type Props = {
  * with the shared breaks in yellow. The week strip on top, the grid's columns and their widths share the same
  * animated values (offset, count), so they move together in the same frame. Data comes a week at a time and only
  * the columns wait for it; dates are there before you land. Pinch or drag the strip's handle for more or fewer
- * days, double tap to zoom in on your lessons, tap a lesson or a shared break for its sheet.
+ * days, double tap to zoom in on your lessons, tap a lesson or a shared break for its sheet. Drag a class into the
+ * bin on the right (or 'Skip' in its sheet) to skip it: a short summary of what that changes, with Undo, comes up
+ * at the bottom (SkipToast).
  * The Rooster tab and Vergelijken (with `only`: the friends you picked) both show this.
  */
 export function Calendar({ only, initialStart, remember = false, onView, control }: Props) {
@@ -79,6 +84,12 @@ export function Calendar({ only, initialStart, remember = false, onView, control
   const [choose, setChoose] = useState<{ lessons: Lesson[]; day: number } | null>(null);
   const chosen = useRef(false);
   const [ask, setAsk] = useState<BreakTarget>(null);
+  // Skipping: the class under your finger (the dragged card shows it), the summary at the bottom, the last skip (Undo)
+  const drag = useSkipDrag();
+  const skip = useSkip();
+  const [lifted, setLifted] = useState<Lesson | null>(null);
+  const [note, setNote] = useState<SkipNote | null>(null);
+  const lastSkip = useRef<SkipTarget | null>(null);
 
   // Shared with the strip and the grid (UI thread)
   const offset = useSharedValue(start);
@@ -233,6 +244,33 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     if (people.length) setAsk({ kind: 'ask', day: isoDay(dateAt(day)), people });
   }
 
+  /** Skip a class (dropped in the bin, or 'Skip' in its sheet): it's gone at once, and the summary says what that
+   * changes: first what we know here (your breaks, when you're in), then with whom, once the server answers. */
+  function doSkip(l: Lesson) {
+    const d = byDay.get(dayIndex(parseDay(l.day)));
+    const target = skipTarget(l);
+    const lessons = d?.lessons ?? [];
+    const before = d?.raw ?? [];
+    const changes = (after: Together[] | null) => skipChanges({ lessons, target, before, after, names, t });
+    const id = Date.now();
+    lastSkip.current = target;
+    setNote({ id, kind: 'skipped', course: target.course, changes: changes(null) });
+    skip({ ...target, skipped: true }).then(
+      (r) => setNote((n) => (n?.id === id ? { ...n, changes: changes(r.together.filter((s) => !only || only.includes(s.id))) } : n)),
+      () => {
+        lastSkip.current = null;
+        setNote((n) => (n?.id === id ? { id, kind: 'failed', course: target.course, changes: [] } : n));
+      },
+    );
+  }
+
+  /** Back on your timetable: Undo in the summary, or 'I'll go after all' in a skipped class's sheet. */
+  function unskip(target: SkipTarget) {
+    lastSkip.current = null;
+    setNote({ id: Date.now(), kind: 'undone', course: target.course, changes: [] });
+    skip({ ...target, skipped: false }).catch(() => setNote({ id: Date.now(), kind: 'failed', course: target.course, changes: [] }));
+  }
+
   const home = initialStart ?? homeStart(want, today, emptyWeekend);
   /** Back to the standard view: this week (or the one it opened on), Monday to Friday, zoomed out. */
   function reset() {
@@ -274,7 +312,7 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     for (const d of visible) {
       const day = byDay.get(d);
       for (const s of day?.together ?? []) out.add(s.state ?? 'together');
-      for (const l of day?.lessons ?? []) out.add(l.state === 'cancelled' || l.state === 'removed' ? 'cancelled' : lessonKind(l));
+      for (const l of day?.lessons ?? []) out.add(l.state === 'cancelled' || l.state === 'removed' ? 'cancelled' : l.skipped ? 'skipped' : lessonKind(l));
     }
     return [...out];
   }, [stamp, start, want, onlyKey, breaks.data]);
@@ -287,8 +325,8 @@ export function Calendar({ only, initialStart, remember = false, onView, control
 
   // Stable callbacks for the grid (memo): opening a sheet re-renders this screen, never the 20-odd day columns,
   // so a tap on a lesson answers at once
-  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want });
-  latest.current = { byDay, askBreak, onTarget, setDays, start, want };
+  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip });
+  latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip };
   const data = useCallback((d: number) => byDay.get(d), [byDay]);
   const onPressLesson = useCallback((lesson: Lesson, day: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), []);
   const onPressOverlap = useCallback((lessons: Lesson[], day: number) => setChoose({ lessons, day }), []);
@@ -300,6 +338,12 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     latest.current.setDays(n, false);
   }, []);
   const onDoubleTap = useCallback(() => setZoomed((z) => !z), []);
+  const classAt = (day: number, start: number) => mergeLessons(latest.current.byDay.get(day)?.lessons ?? []).find((l) => l.start === start && !isFree(l));
+  const onPickClass = useCallback((day: number, start: number) => setLifted(classAt(day, start) ?? null), []);
+  const onDropClass = useCallback((day: number, start: number) => {
+    const l = classAt(day, start);
+    if (l) latest.current.doSkip(l);
+  }, []);
 
   return (
     <>
@@ -378,7 +422,15 @@ export function Calendar({ only, initialStart, remember = false, onView, control
             onTarget={onTargetCb}
             onCount={onCount}
             onDoubleTap={onDoubleTap}
+            drag={drag}
+            onPickClass={onPickClass}
+            onDropClass={onDropClass}
           />
+        ) : null}
+        {size.w ? (
+          <View pointerEvents="none" style={{ position: 'absolute', left: AXIS_W, top: 0, width: size.w, height: size.h }}>
+            <DragLayer drag={drag} lesson={lifted} width={size.w} height={size.h} compact={size.w / want < 120} />
+          </View>
         ) : null}
         {zoomed ? (
           // Small and round, over the hours on the left: covers no lesson, moves nothing
@@ -411,6 +463,13 @@ export function Calendar({ only, initialStart, remember = false, onView, control
           </AView>
         ) : null}
         {!showsToday && size.w ? <TodayPill width={size.w + AXIS_W} height={size.h} top={LABEL_H} onPress={() => moveTo(home)} /> : null}
+        <SkipToast
+          note={note}
+          onDone={() => setNote(null)}
+          onUndo={() => {
+            if (lastSkip.current) unskip(lastSkip.current);
+          }}
+        />
         {hint === 'zoom' ? (
           <View className="absolute left-8 right-2" style={{ top: LABEL_H + 4 }}>
             <Tip
@@ -439,7 +498,20 @@ export function Calendar({ only, initialStart, remember = false, onView, control
         }}
       />
       <BreakSheet target={ask} onClose={() => setAsk(null)} />
-      <LessonSheet lesson={open?.lesson ?? null} onClose={() => setOpen(null)} friends={friends.data} together={open?.together} />
+      <LessonSheet
+        lesson={open?.lesson ?? null}
+        onClose={() => setOpen(null)}
+        friends={friends.data}
+        together={open?.together}
+        onSkip={(l) => {
+          setOpen(null);
+          doSkip(l);
+        }}
+        onUnskip={(l) => {
+          setOpen(null);
+          unskip(skipTarget(l));
+        }}
+      />
     </>
   );
 }

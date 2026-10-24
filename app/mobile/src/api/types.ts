@@ -32,6 +32,8 @@ export type Lesson = {
   /** theory, lab, exercises, project, support, internship, info, exam, other (api/roosters/kinds.py) */
   kind?: string;
   recently_changed?: boolean;
+  /** Your own lessons only: you skip this one (PUT /me/skips). It stays on your timetable, but you're free then */
+  skipped?: boolean;
 };
 
 export type StatusCode =
@@ -71,6 +73,10 @@ export type Friend = {
 };
 
 export type Together = { id: number; start: number; end: number; same_campus: boolean };
+
+/** A class you skip (one course, start to end of the whole block) and, after the change, who you share a break with that day */
+export type Skip = { course: string; start: number; end: number };
+export type SkipAnswer = { day: string; skips: Skip[]; together: Together[] };
 
 export type Checkin = { status: 'chilling' | 'want_chill' | 'home' | 'absent'; since_min: number; until_min: number | null };
 

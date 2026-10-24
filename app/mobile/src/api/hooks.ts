@@ -2,6 +2,8 @@ import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/rea
 
 import { api } from '@/lib/api';
 import { clearSession } from '@/lib/session';
+import { type SkipTarget, withSkip } from '@/lib/skips';
+import { addDays, isoDay, parseDay } from '@/lib/time';
 
 import type {
   BreakMode,
@@ -24,6 +26,7 @@ import type {
   School,
   SchoolClasses,
   Semester,
+  SkipAnswer,
   Source,
   Today,
   User,
@@ -414,6 +417,43 @@ export function useCheckin() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['today'] }),
   });
 }
+
+/**
+ * Skip a class, or take that back (`skipped: false`). Your timetable and Today change at once (the cache, before the
+ * server answers), so the card is gone the moment it lands in the bin and Undo puts it back the moment you tap it.
+ * The requests go one after the other (an Undo never overtakes its skip on slow wifi); each answer brings who you now
+ * share a break with that day (for the summary, components/timetable/SkipToast.tsx), then everything is asked again.
+ */
+export function useSkip() {
+  const qc = useQueryClient();
+  return (v: SkipTarget & { skipped: boolean }): Promise<SkipAnswer> => {
+    qc.cancelQueries({ queryKey: ['schedule'] });
+    qc.cancelQueries({ queryKey: ['today'] });
+    qc.setQueriesData<Schedule>({ queryKey: ['schedule'] }, (d) => d && { ...d, lessons: withSkip(d.lessons, v, v.skipped) });
+    qc.setQueriesData<Today>({ queryKey: ['today'] }, (d) => d && { ...d, me: { ...d.me, lessons: withSkip(d.me.lessons, v, v.skipped) } });
+    skipsPending++;
+    const run = skipQueue.then(() => api.put<SkipAnswer>('/api/v1/me/skips', v));
+    skipQueue = run.then(
+      (r) => {
+        qc.setQueriesData<Schedule>({ queryKey: ['schedule'] }, (d) => {
+          if (!d?.together || r.day < d.start || r.day >= isoDay(addDays(parseDay(d.start), d.days))) return d;
+          return { ...d, together: { ...d.together, [r.day]: r.together } };
+        });
+      },
+      () => {},
+    );
+    skipQueue.then(() => {
+      // Ask again once the last one is through (earlier answers would undo what's still on its way)
+      if (--skipsPending) return;
+      qc.invalidateQueries({ queryKey: ['schedule'] });
+      qc.invalidateQueries({ queryKey: ['today'] });
+      qc.invalidateQueries({ queryKey: ['compare'] });
+    });
+    return run;
+  };
+}
+let skipQueue: Promise<unknown> = Promise.resolve();
+let skipsPending = 0;
 
 export function useGhost() {
   const qc = useQueryClient();

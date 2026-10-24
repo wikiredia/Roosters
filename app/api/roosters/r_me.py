@@ -387,6 +387,42 @@ def today(request: Request, day: str | None = None, ctx: Ctx = Depends(auth)):
     })
 
 
+class SkipIn(BaseModel):
+    day: str
+    start: int = Field(ge=0, le=24 * 60)
+    end: int = Field(ge=0, le=24 * 60)
+    course: str = Field(min_length=1, max_length=200)
+    skipped: bool = True
+
+
+@router.put("/skips")
+def skip(body: SkipIn, ctx: Ctx = Depends(auth)):
+    """Skip a class (or take that back): the lessons of `course` from `start` to `end` that day (a double period
+    is one call) stop making you busy, for your own breaks and for your friends'. Answers with that day's skips
+    and who you now share a break with, so the app can say what changed (and undo it within a few seconds)."""
+    now_dt = schedule.local_now(ctx.user)
+    d = parse_day(body.day, now_dt.date())
+    if d < now_dt.date() or body.end <= body.start:
+        raise ApiError(400, "skip_day" if d < now_dt.date() else "invalid")
+    course = body.course.strip()
+    mine = [l for l in schedule.lessons([ctx.uid], d, d)[ctx.uid]
+            if l["course"] == course and body.start <= l["start_min"] and l["end_min"] <= body.end]
+    if body.skipped:
+        if not mine:
+            raise ApiError(404, "skip_unknown")
+        db.run("INSERT INTO skipped_lessons (user_id, day, course, start_min, end_min) VALUES (%s,%s,%s,%s,%s) "
+               "ON DUPLICATE KEY UPDATE end_min=GREATEST(end_min, VALUES(end_min))",
+               (ctx.uid, d, course, body.start, body.end))
+    else:
+        # Every skip of that course that overlaps: a lesson is never half skipped
+        db.run("DELETE FROM skipped_lessons WHERE user_id=%s AND day=%s AND course=%s AND start_min<%s AND end_min>%s",
+               (ctx.uid, d, course, body.end, body.start))
+    skips = db.rows("SELECT course, start_min AS start, end_min AS end FROM skipped_lessons WHERE user_id=%s AND day=%s "
+                    "ORDER BY start_min", (ctx.uid, d))
+    return {"day": d.isoformat(), "skips": skips,
+            "together": together_days(ctx.user, d, d, now_dt).get(d.isoformat(), [])}
+
+
 class CheckinIn(BaseModel):
     status: Literal["chilling", "want_chill", "home", "absent"] | None
     until_min: int | None = Field(None, ge=0, le=24 * 60)
@@ -442,6 +478,8 @@ def export(ctx: Ctx = Depends(auth)):
                            "JOIN users u ON u.id=f.friend_id WHERE f.user_id=%s", (uid,)),
         "blocked": db.rows("SELECT blocked_id, created_at FROM blocks WHERE user_id=%s", (uid,)),
         "checkins": db.rows("SELECT * FROM checkins WHERE user_id=%s", (uid,)),
+        "skipped_lessons": db.rows("SELECT day, course, start_min, end_min, created_at FROM skipped_lessons "
+                                   "WHERE user_id=%s", (uid,)),
         "break_requests": db.rows("SELECT day, start_min, end_min, mode, place, note, created_at, cancelled_at "
                                   "FROM break_requests WHERE from_id=%s", (uid,)),
         "break_answers": db.rows("SELECT request_id, response, responded_at FROM break_request_members WHERE user_id=%s",

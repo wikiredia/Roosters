@@ -16,8 +16,14 @@ def local_now(user: dict) -> dt.datetime:
     return dt.datetime.now(tz_of(user.get("tz")))
 
 
+def takes_place(l: dict) -> bool:
+    """Whether a lesson makes you busy: not cancelled or removed, and not one you skip."""
+    return l["state"] not in OFF and not l.get("skipped")
+
+
 def lessons(user_ids, day_from: dt.date, day_to: dt.date) -> dict[int, list[dict]]:
-    """All lessons of these people between two days (inclusive), sorted, without duplicates."""
+    """All lessons of these people between two days (inclusive), sorted, without duplicates. The ones a person
+    skips (skipped_lessons) are there with `skipped: True`; `takes_place` leaves them out."""
     user_ids = list(user_ids)
     out: dict[int, list[dict]] = {uid: [] for uid in user_ids}
     if not user_ids:
@@ -46,12 +52,19 @@ def lessons(user_ids, day_from: dt.date, day_to: dt.date) -> dict[int, list[dict
             f"WHERE sl.user_id IN ({ph}) AND sl.day BETWEEN %s AND %s", (*args, day_from, day_to)):
         if r["course"] not in hidden[r["user_id"]]:
             out[r["user_id"]].append(r)
+    skips = defaultdict(list)
+    for r in db.rows(f"SELECT user_id, day, course, start_min, end_min FROM skipped_lessons "
+                     f"WHERE user_id IN ({ph}) AND day BETWEEN %s AND %s", (*args, day_from, day_to)):
+        skips[(r["user_id"], r["day"], r["course"])].append((r["start_min"], r["end_min"]))
     for uid, ls in out.items():
         seen, unique = set(), []
         for l in sorted(ls, key=lambda x: (x["day"], x["start_min"], x["end_min"], x["course"])):
             key = (l["day"], l["start_min"], l["end_min"], l["course"], l["location"])
             if key not in seen:
                 seen.add(key)
+                spans = skips.get((uid, l["day"], l["course"]))
+                if spans and any(s <= l["start_min"] and l["end_min"] <= e for s, e in spans):
+                    l = {**l, "skipped": True}
                 unique.append(l)
         out[uid] = unique
     return out
@@ -117,13 +130,15 @@ def ensure_class_weeks(classes: list[int], mondays: list[dt.date], today: dt.dat
 
 
 def lesson_out(l: dict, detail: bool = True) -> dict:
-    """One lesson for the app. Without detail (friend shares only free/busy): only when."""
-    item = {"day": l["day"].isoformat(), "start": l["start_min"], "end": l["end_min"],
-            "busy": l["state"] not in OFF}
+    """One lesson for the app. Without detail (friend shares only free/busy): only when. `skipped` is only ever
+    your own (friends get lessons without the skipped ones, see r_friends.friend_schedule)."""
+    item = {"day": l["day"].isoformat(), "start": l["start_min"], "end": l["end_min"], "busy": takes_place(l)}
     if detail:
         changed = l.get("changed_at")
         item.update({"course": l["course"], "location": l["location"], "state": l["state"], "kind": l.get("kind") or "other",
                      "recently_changed": bool(changed and db.utcnow() - changed < RECENT)})
+        if l.get("skipped"):
+            item["skipped"] = True
     return item
 
 
@@ -131,14 +146,14 @@ def busy_only(ls: list[dict]) -> list[dict]:
     """Free/busy view: merged busy blocks, nothing about what or where."""
     by_day = defaultdict(list)
     for l in ls:
-        if l["state"] not in OFF:
+        if takes_place(l):
             by_day[l["day"]].append((l["start_min"], l["end_min"]))
     return [{"day": d.isoformat(), "start": s, "end": e, "busy": True}
             for d in sorted(by_day) for s, e in logic.merge(by_day[d])]
 
 
 def person_days(users: list[dict], day: dt.date) -> dict[int, logic.PersonDay]:
-    """PersonDay per user for one day (lessons that take place + campus + check-in)."""
+    """PersonDay per user for one day (lessons that take place, so not the skipped ones + campus + check-in)."""
     ids = [u["id"] for u in users]
     ls = lessons(ids, day, day)
     ph, args = db.in_list(ids)
@@ -148,7 +163,7 @@ def person_days(users: list[dict], day: dt.date) -> dict[int, logic.PersonDay]:
     for u in users:
         out[u["id"]] = logic.PersonDay(
             u["id"], u["display_name"],
-            [(l["start_min"], l["end_min"]) for l in ls[u["id"]] if l["state"] not in OFF],
+            [(l["start_min"], l["end_min"]) for l in ls[u["id"]] if takes_place(l)],
             {u["campus_id"]} if u.get("campus_id") else set(),
             set(), set(),
             checkins.get(u["id"]),

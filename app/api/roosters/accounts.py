@@ -3,7 +3,7 @@ from . import breaks, chat, db
 
 # Tables with a user_id column that belong to exactly one user (deleted with the account)
 _OWNED = ("source_lessons", "sources", "hidden_courses", "checkins", "notifications", "idempotency_keys", "invites",
-          "auth_identities", "sessions", "user_photos")
+          "auth_identities", "sessions", "user_photos", "skipped_lessons")
 
 
 def delete_user(c, uid: int):

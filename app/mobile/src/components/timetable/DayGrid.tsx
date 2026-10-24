@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { FadeIn, FadeInLeft, FadeInRight, type SharedValue, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -12,9 +12,11 @@ import { Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { dateAt, MAX_DAYS, snap } from '@/lib/days';
-import { hhmm, weekdayShort } from '@/lib/time';
+import { canSkip } from '@/lib/skips';
+import { hhmm, isoDay, weekdayShort } from '@/lib/time';
 
-import { type Block, BlockView, dayBlocks, freeGaps, lessonLabel, lessonsAt, OverlapBand, overlapsOf, type Span, type TogetherSlot } from './Timetable';
+import { type DragTarget, type SkipDrag, useDragTargets, useSkipDrag, useSkipGesture } from './SkipDrag';
+import { type Block, BlockView, dayBlocks, freeGaps, lessonLabel, lessonsAt, mergeLessons, OverlapBand, overlapsOf, type Span, type TogetherSlot } from './Timetable';
 
 /** Height of the date above each column. */
 export const LABEL_H = 22;
@@ -55,6 +57,11 @@ type Props = {
   /** Pinch: how many days you see (live while pinching is the shared `count`). */
   onCount: (n: number, start: number) => void;
   onDoubleTap: () => void;
+  /** Drag a class into the bin to skip it (components/timetable/SkipDrag.tsx): the drag's shared state, and what
+   * happens when a finger comes down on a class and when it lands in the bin. Without: classes don't move. */
+  drag?: SkipDrag;
+  onPickClass?: (day: number, start: number) => void;
+  onDropClass?: (day: number, start: number) => void;
 };
 
 /**
@@ -62,7 +69,9 @@ type Props = {
  * `days.snap`), as far back or ahead as you like. Every column is placed from the shared `offset` and `count`
  * on the UI thread, so the strip above, the columns and their widths move together in the same frame:
  * dragging the strip's handle or pinching makes the columns thinner while the next days slide in from the side.
- * Double tap zooms the hours in on your lessons (the screen decides); pinch shows more or fewer days.
+ * Double tap zooms the hours in on your lessons (the screen decides); pinch shows more or fewer days. A class of yours
+ * can be picked up and dragged into the bin on the right to skip it (`drag`; see SkipDrag.useSkipGesture for how
+ * that's told apart from a swipe or a tap).
  * Memo: give it stable callbacks (Calendar does), so opening a sheet doesn't re-render every column.
  */
 export const DayGrid = memo(function DayGrid(p: Props) {
@@ -123,9 +132,11 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     if (hits.length > 1) p.onPressOverlap(hits, day);
     else if (hits.length === 1) p.onPressLesson(hits[0], day);
     else {
-      // A hatched one (over, or too far ahead) can't be asked for
+      // A hatched one (over, or too far ahead) can't be asked for; a shared break over a skipped class goes first
       const s = d?.together.find((x) => x.start <= min && min < x.end);
+      const skipped = lessonsAt(d?.lessons ?? [], min, true)[0];
       if (s && !s.muted) p.onPressTogether(day, { start: s.start, end: s.end });
+      else if (skipped) p.onPressLesson(skipped, day);
     }
   };
   const tap = Gesture.Tap()
@@ -133,6 +144,33 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     .onEnd((e, ok) => {
       if (ok) scheduleOnRN(tapAt, e.x, e.y, offset.get(), count.get());
     });
+
+  // Classes that can still be skipped (not over, not cancelled or skipped already), as the columns draw them
+  const dragList = useMemo<DragTarget[]>(() => {
+    if (!p.drag) return [];
+    const out: DragTarget[] = [];
+    const todayIso = isoDay(dateAt(p.today));
+    for (let day = from; day <= to; day++)
+      for (const l of mergeLessons(p.data(day)?.lessons ?? [])) if (canSkip(l, todayIso, p.nowMin)) out.push({ day, start: l.start, end: l.end });
+    return out;
+  }, [p.data, from, to, p.today, p.nowMin, !!p.drag]);
+  const targets = useDragTargets(dragList);
+  const ownDrag = useSkipDrag();
+  const noop = () => {};
+  const drag = useSkipGesture({
+    drag: p.drag ?? ownDrag,
+    targets,
+    offset,
+    count,
+    width,
+    height,
+    min0: h0 * 60,
+    min1: h1 * 60,
+    pxPerHour,
+    labelH: LABEL_H,
+    onPick: p.onPickClass ?? noop,
+    onDrop: p.onDropClass ?? noop,
+  }).enabled(!!p.drag);
 
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
@@ -146,7 +184,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
   for (let i = from; i <= to; i++) days.push(i);
 
   return (
-    <GestureDetector gesture={Gesture.Simultaneous(pinch, Gesture.Exclusive(pan, doubleTap, tap))}>
+    <GestureDetector gesture={Gesture.Simultaneous(pinch, Gesture.Exclusive(drag, pan, doubleTap, tap))}>
       <View className="flex-1 overflow-hidden" style={{ height }}>
         {/* Hour lines: subtle and dotted, behind everything */}
         <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">

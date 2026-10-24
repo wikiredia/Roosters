@@ -6,7 +6,7 @@ import { SlideInLeft, SlideInRight } from 'react-native-reanimated';
 import { useFriends, useWeeks } from '@/api/hooks';
 import type { Friend, Lesson } from '@/api/types';
 import { Calendar, rangeLabel } from '@/components/timetable/Calendar';
-import { isOff } from '@/components/timetable/Timetable';
+import { isFree } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Check } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
@@ -28,7 +28,7 @@ function lessonWeek(lessons: Lesson[] | undefined, today: number) {
   const mon = mondayOf(today);
   const now = nowMin();
   const left = (lessons ?? []).some((l) => {
-    if (isOff(l)) return false;
+    if (isFree(l)) return false;
     const d = dayIndex(parseDay(l.day));
     return d > today || (d === today && l.end > now);
   });
