@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T08:00:00Z
 ---
 
 Untis sync with a recorded Untis week: parsing keeps only what the app needs; **one fetch per class** and

@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { describe } from '@/lib/debuglog';
+import { resetTo } from '@/lib/nav';
 import { startAsGuest } from '@/lib/onboarding';
 import { debugEnabled } from '@/lib/server';
 import { session } from '@/lib/session';
@@ -28,7 +29,7 @@ export default function EmailLogin() {
     setError(undefined);
     try {
       await startAsGuest();
-      router.replace('/');
+      resetTo('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('common.offline'));
     } finally {

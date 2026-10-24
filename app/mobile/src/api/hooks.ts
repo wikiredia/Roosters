@@ -75,6 +75,19 @@ export function useSchedule(start: string, days: number) {
   });
 }
 
+/** The Rooster tab: whole weeks (Monday + 7 days) with the shared breaks per day, one request per week.
+ * A week far back or ahead that's still being fetched from Untis is asked again every 2 s. */
+export function useWeeks(mondays: string[]) {
+  return useQueries({
+    queries: mondays.map((start) => ({
+      queryKey: [...keys.schedule(start, 7), 'together'],
+      queryFn: () => api.get<Schedule>(`/api/v1/me/schedule?start=${start}&days=7&together=1`),
+      staleTime: 60_000,
+      refetchInterval: (q: { state: { data?: Schedule } }) => (q.state.data?.loading ? 2000 : false),
+    })),
+  });
+}
+
 export function useSources() {
   return useQuery({
     queryKey: keys.sources,

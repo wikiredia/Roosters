@@ -263,8 +263,30 @@ def hide_course(body: HiddenIn, ctx: Ctx = Depends(auth)):
 
 # ---- Schedule & Today ------------------------------------------------------------
 
+def together_days(user: dict, first: dt.date, last: dt.date, now_dt: dt.datetime) -> dict[str, list[dict]]:
+    """Per day: who you share a break with (the yellow blocks of the Rooster tab), like Today does for one day.
+    Friends who are hidden (ghost) don't count. Today only from now on."""
+    mates = [m for m in friends.visible_friends(user["id"]) if not m["hidden"]]
+    if not mates:
+        return {}
+    out = {}
+    d = first
+    while d <= last:
+        people = schedule.person_days([user] + [m["user"] for m in mates], d)
+        infos = {pid: logic.day_info(p) for pid, p in people.items()}
+        after = now_dt.hour * 60 + now_dt.minute if d == now_dt.date() else 0
+        found = logic.partners(people[user["id"]], people, infos, after=after)
+        if found:
+            out[d.isoformat()] = found
+        d += dt.timedelta(days=1)
+    return out
+
+
 @router.get("/schedule")
-def my_schedule(request: Request, start: str | None = None, days: int = 7, ctx: Ctx = Depends(auth)):
+def my_schedule(request: Request, start: str | None = None, days: int = 7, together: bool = False,
+                ctx: Ctx = Depends(auth)):
+    """Your lessons for up to 28 days. With `together=1` also who you share a break with, per day (the Rooster
+    tab asks a week at a time)."""
     today = schedule.local_now(ctx.user).date()
     first = parse_day(start, today - dt.timedelta(days=today.weekday()))
     days = max(1, min(days, 28))
@@ -272,8 +294,11 @@ def my_schedule(request: Request, start: str | None = None, days: int = 7, ctx: 
     # Far back or ahead: fetched from Untis now; `loading` until it's there (the app asks again)
     loading = schedule.ensure_weeks([ctx.uid], first, last, today)
     ls = schedule.lessons([ctx.uid], first, last)[ctx.uid]
-    return etag_json(request, {"start": first.isoformat(), "days": days, "loading": loading,
-                               "lessons": [schedule.lesson_out(l) for l in ls], "sources": sources_state(ctx.uid)})
+    body = {"start": first.isoformat(), "days": days, "loading": loading,
+            "lessons": [schedule.lesson_out(l) for l in ls], "sources": sources_state(ctx.uid)}
+    if together:
+        body["together"] = together_days(ctx.user, first, last, schedule.local_now(ctx.user))
+    return etag_json(request, body)
 
 
 def sources_state(user_id: int) -> dict:

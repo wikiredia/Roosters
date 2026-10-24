@@ -42,6 +42,12 @@ const paths = {
       <Path d="m16 16 4 4" />
     </>
   ),
+  zoomOut: (
+    <>
+      <Circle cx={11} cy={11} r={6.5} />
+      <Path d="m16 16 4 4M8 11h6" />
+    </>
+  ),
   mail: (
     <>
       <Rect x={3.5} y={5.5} width={17} height={13} rx={2} />

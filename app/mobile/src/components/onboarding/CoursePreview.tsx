@@ -34,7 +34,7 @@ export function semesterOf(week: Date, terms?: Terms): Semester | null {
 }
 
 function toLesson(l: ClassLesson): Lesson {
-  return { day: l.day, start: l.start, end: l.end, busy: true, course: l.course, location: l.location, state: l.state };
+  return { day: l.day, start: l.start, end: l.end, busy: true, course: l.course, location: l.location, state: l.state, kind: l.kind };
 }
 
 function semLabel(t: T, s?: Semester | null) {

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T08:00:00Z
 ---
 
 All settings, read **once at import** from environment variables (compose passes `app/.env`).
@@ -64,9 +64,10 @@ Timetable sync (`sync.queue_due`): every 120 minutes from 06:00 to 22:00, every 
 Scrolling through the timetable: class lessons are kept 400 days; a future week fetched on demand is
 fetched again after 24 h; you can look up to 104 weeks back or ahead (`schedule.ensure_weeks`).
 
-## `SCAN_MAX_WEEKS`, `COURSES_RESCAN_DAYS`
+## `SCAN_MAX_WEEKS`, `COURSES_RESCAN_DAYS`, `SCAN_SEMESTER_MAX`
 
-The course scan of a whole school year (`sync.scan_courses`): at most 53 weeks, made again when it's older than 7 days (asked for by onboarding via `r_schools.courses`).
+The course scan (`sync.scan_courses`): at most 53 weeks in a semester list, made again when it's older than 30
+days (asked for by onboarding via `r_schools.courses`), looking at no more than 14 weeks of a semester.
 
 ## `TZ`
 

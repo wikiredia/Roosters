@@ -29,7 +29,7 @@ def lessons(user_ids, day_from: dt.date, day_to: dt.date) -> dict[int, list[dict
     cfgs = {}
     for r in db.rows(
             f"SELECT s.id AS source_id, s.user_id, s.config, s.semester, sch.year_start, sch.s2_start, sch.year_end, "
-            f"cl.day, cl.start_min, cl.end_min, cl.course, cl.location, cl.state, cl.changed_at "
+            f"cl.day, cl.start_min, cl.end_min, cl.course, cl.location, cl.kind, cl.state, cl.changed_at "
             f"FROM sources s JOIN class_lessons cl ON cl.school_class_id=s.school_class_id "
             f"JOIN school_classes sc ON sc.id=s.school_class_id JOIN schools sch ON sch.id=sc.school_id "
             f"WHERE s.user_id IN ({ph}) AND s.kind='untis' AND s.deleted_at IS NULL AND cl.day BETWEEN %s AND %s",
@@ -41,7 +41,7 @@ def lessons(user_ids, day_from: dt.date, day_to: dt.date) -> dict[int, list[dict
         if wanted(r["course"], cfg, hidden[r["user_id"]]) and terms.covers(r["semester"], r, r["day"]):
             out[r["user_id"]].append(r)
     for r in db.rows(
-            f"SELECT sl.user_id, sl.day, sl.start_min, sl.end_min, sl.course, sl.location, sl.state, sl.changed_at "
+            f"SELECT sl.user_id, sl.day, sl.start_min, sl.end_min, sl.course, sl.location, sl.kind, sl.state, sl.changed_at "
             f"FROM source_lessons sl JOIN sources s ON s.id=sl.source_id AND s.deleted_at IS NULL "
             f"WHERE sl.user_id IN ({ph}) AND sl.day BETWEEN %s AND %s", (*args, day_from, day_to)):
         if r["course"] not in hidden[r["user_id"]]:
@@ -122,7 +122,7 @@ def lesson_out(l: dict, detail: bool = True) -> dict:
             "busy": l["state"] not in OFF}
     if detail:
         changed = l.get("changed_at")
-        item.update({"course": l["course"], "location": l["location"], "state": l["state"],
+        item.update({"course": l["course"], "location": l["location"], "state": l["state"], "kind": l.get("kind") or "other",
                      "recently_changed": bool(changed and db.utcnow() - changed < RECENT)})
     return item
 

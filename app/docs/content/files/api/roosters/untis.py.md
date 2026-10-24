@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T00:30:00Z
+updated: 2026-10-24T08:00:00Z
 ---
 
 **WebUntis**: find a school, list its classes, and fetch class timetables from the **public** view
@@ -59,7 +59,9 @@ All classes of a school on one day (default today) from the public timetable pag
 
 ## `parse_week`
 
-Untis' week format to our lesson dicts (uid, day, start_min, end_min, course, location, student_group, state).
+Untis' week format to our lesson dicts (uid, day, start_min, end_min, course, location, student_group, state,
+kind). The free text (`lessonText`) is read only to tell the kind (`kinds.classify`, with the subject's long and
+short name and the `is` flags), never kept.
 
 ## `search_schools`
 

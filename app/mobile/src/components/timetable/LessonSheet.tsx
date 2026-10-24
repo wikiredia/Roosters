@@ -11,7 +11,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { hhmm, isoDay, parseDay, range, shortDate } from '@/lib/time';
 
-import { isOff, lessonKind } from './Timetable';
+import { isOff, KIND_LABEL, lessonKind } from './Timetable';
 
 type Props = {
   lesson: Lesson | null;
@@ -32,7 +32,7 @@ export function LessonSheet({ lesson, onClose, friends = [], together = [] }: Pr
   const off = isOff(l);
   const day = parseDay(l.day);
   const when = l.day === isoDay(new Date()) ? t('today.title') : shortDate(day, lang);
-  const kind = t(lessonKind(l.course) === 'lab' ? 'tt.lab' : 'tt.theory');
+  const kind = t(KIND_LABEL[lessonKind(l)]);
   const byId = new Map(friends.map((f) => [f.id, f]));
   // Friends free while this lesson would have been
   const alsoFree = off ? together.filter((s) => s.start < l.end && l.start < s.end && byId.has(s.id)) : [];

@@ -1,11 +1,12 @@
 ---
-updated: 2026-10-24T03:30:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
 
 ## `BlockView`
 
+Exported for the Rooster tab's `DayGrid`. 
 One block (lesson or together).
 
 ## `GridProps`, `TimeGrid`
@@ -19,7 +20,7 @@ The hours on the left of a grid, on its own; its width (narrower when compact).
 
 ## `Legend`, `LegendItem`
 
-Colour legend under a grid; the Rooster tab passes only what's on screen.
+Colour legend under a grid, one line that scrolls sideways (it never grows taller); the Rooster tab passes only what's on screen.
 
 ## `START_HOUR`, `END_HOUR`
 
@@ -40,12 +41,15 @@ Building blocks of a column.
 
 A day's lessons (merged with `mergeLessons`) and shared breaks as blocks.
 
-## `lessonKind`, `isOff`
+## `lessonKind`, `isOff`, `LessonKind`, `KIND_STYLE`, `KIND_LABEL`
 
-Theory or lab (from the course name: Untis doesn't say); does a lesson not take place?
+The kind of a lesson as the API tells it (`api/roosters/kinds.py`: theory, lab, exercises, project, support,
+internship, info, exam, other; lessons cached from before kinds: a guess from the name), its colours (a soft fill
+and a stronger border, tokens in `global.css`) and its name; does a lesson not take place?
 
 ## `lessonLabel`
 
+Exported: the Rooster tab's blocks use it for screen readers. 
 Accessible label of a lesson.
 
 ## `shortCourse`

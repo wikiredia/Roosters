@@ -1,29 +1,37 @@
 ---
-updated: 2026-10-24T03:30:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
-**Rooster** (timetable): 1–5 days side by side, swiped through as far back or ahead as you like, with
-shared breaks in yellow. No day/week switch: the number of days is set by dragging the handle on the
-week strip (`DayStrip`) or with the − / + buttons under it (remembered in `prefs` as `rooster.days`).
-Swiping is `DayPager` (a short swipe shows the weekend after Friday, a long swipe or flick lands on the
-next school days). The grid **fits the screen** (hours stretch to fill it, so the legend stays visible;
-it only scrolls up and down when the day doesn't fit at `MIN_PX_PER_HOUR`). The first time, a small
-hint under the strip explains the handle (`hint.days`); it goes away with 'Oké' or the first resize.
-'Vandaag' appears when you've moved away (at the weekend the tab opens on the coming school week). Days
-far back or ahead show a skeleton while the API fetches them from Untis (`loading`). Tapping a lesson
-opens `LessonSheet`.
+**Rooster**: your days side by side (1–7), one continuous strip you scroll through day by day, as far back or
+ahead as you like (no pages). The week strip on top (`DayStrip`), the grid's columns (`DayGrid`) and their widths
+share the same animated values (`offset`: the left edge in days, `count`: how many days, `k`: where that first day
+sits in the strip), so everything moves together in the same frame, on the UI thread.
+
+- **Swiping**: day by day with a little momentum (`lib/days.snap`); an empty weekend is calm (short swipe shows it,
+  a bit further lands on Monday). Where a swipe lands is known as the finger lets go: dates and data switch then,
+  not after the animation. Only the columns wait for data; new lessons slide in from the side you came from.
+- **How many days**: drag the dash on the strip (live, the columns thin out while the next days slide in), pinch the
+  grid, or − / + (shown until you've used the dash on your own: `days.learned`). Remembered (`rooster.days`); without
+  a choice 5, or 7 when this week's weekend has something on it.
+- **Zoom**: double tap stretches the hours to your first and last lesson of the visible days; double tap again or
+  the small magnifier over the hours shows everything. Every visit starts zoomed out.
+- **Vandaag** (`TodayPill`) floats over the grid when you've moved away; drag it to any corner.
+- **Tips**: the dash first (`hint.days`), then double tap / pinch once you've learned the dash (`hint.zoom`).
+- The eyebrow ('26 – 30 okt') is one short line; the legend one line that scrolls sideways (only what's on screen),
+  so nothing pushes the grid around.
+
+Data: whole weeks with shared breaks (`useWeeks`, `GET /me/schedule?together=1`), three or four weeks around what
+you see. Tapping a lesson opens `LessonSheet` with that day's shared breaks.
 
 ## `RoosterScreen`
 
-The tab: strip, − / +, the hint, the fixed time axis with the pager, the legend (only what's on screen,
-theory and lab always) and the lesson sheet.
+The tab, as above.
 
-## `PageView`
+## `Tip`
 
-One page: its days from the cached Today answers (`useTodays`, the same requests the Today tab makes),
-friends' shared breaks merged per slot, a skeleton while loading, 'no classes' when empty.
+A small dark tip with 'Oké', over the content but never the whole screen.
 
-## `HOURS`, `MIN_PX_PER_HOUR`, `LABELS`
+## `rangeLabel`, `HOURS`, `AXIS_W`
 
-08–18 always on screen (stretched by earlier or later lessons on the page), the smallest hour height
-before the grid scrolls, the height of the day labels above the columns.
+'19 – 23 okt' / '28 okt – 3 nov' / 'di 20 okt'; 08–18 always on screen (stretched by earlier or later lessons); the
+width of the hours on the left.

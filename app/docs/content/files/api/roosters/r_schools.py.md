@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:00Z
+updated: 2026-10-24T08:00:00Z
 ---
 
 The lists **onboarding** shows: schools, campuses, classes (per semester), and the courses of a class this
@@ -39,7 +39,7 @@ course that starts in a month has to be choosable in onboarding, because the cho
 ## `class_lessons`
 
 `GET /api/v1/schools/{id}/classes/{class}/lessons?start=&days=`: a class's whole timetable (every course,
-with its group) for up to 14 days. Onboarding shows it ('see this class's timetable'), previews the timetable
+with its kind and group) for up to 14 days. Onboarding shows it ('see this class's timetable'), previews the timetable
 your picks would give, and searches it for 'Ik mis een les'. Public school data, like the class list; far
 weeks are fetched on demand (`loading`), a class never fetched is queued.
 

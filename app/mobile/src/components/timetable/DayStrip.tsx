@@ -1,188 +1,141 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect } from 'react';
 import { Pressable, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { cancelAnimation, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
+import { type SharedValue, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { AView, SETTLE } from '@/components/ui/Motion';
+import { AView } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
-import { cn } from '@/lib/cn';
-import { type Page, segment, weekday } from '@/lib/days';
-import { addDays, isoDay, monday, shortDate, weekdayShort } from '@/lib/time';
+import { dateAt, MAX_DAYS } from '@/lib/days';
+import { shortDate, weekdayShort } from '@/lib/time';
 
-const GAP = 4;
-/** Weekend cells are narrower: they're there, but the week is what counts. */
-const WEEKEND = 0.62;
-/** The handle settles with a little bounce. */
-const BOUNCE = { damping: 13, stiffness: 260, mass: 0.7 };
+import { RESIZE } from './DayGrid';
+
+const H = 56;
 
 type Props = {
-  page: Page;
-  /** Tap on a day: start the page there. */
-  onPick: (day: Date) => void;
-  /** While dragging the handle, every time it covers another number of days. */
-  onResize: (n: number) => void;
+  /** Shared with the grid: the left edge of what you see (days), how many days, and where in the strip that
+   * first day sits (0 = the strip's first cell). The strip shows offset - k … offset - k + 7. */
+  offset: SharedValue<number>;
+  count: SharedValue<number>;
+  k: SharedValue<number>;
+  width: number;
+  from: number;
+  to: number;
+  today: number;
   lang: Lang;
-  /** First time: the handle nudges to show it can be dragged. */
+  onPick: (day: number) => void;
+  /** Every time the handle covers another number of days, and when it's let go. */
+  onResize: (n: number) => void;
+  onResizeEnd: (n: number) => void;
+  /** First time: the dash wiggles to show it can be dragged. */
   nudge?: boolean;
 };
 
-/** Cell positions (x, width) of Mon … Sun for a strip `w` wide. */
-function cells(w: number) {
-  const unit = (w - GAP * 6) / (5 + 2 * WEEKEND);
-  const out: { x: number; w: number }[] = [];
-  let x = 0;
-  for (let i = 0; i < 7; i++) {
-    const cw = i < 5 ? unit : unit * WEEKEND;
-    out.push({ x, w: cw });
-    x += cw + GAP;
-  }
-  return out;
-}
-
 /**
- * The week above the timetable: Mon … Sun with their dates. The first day of what you see is a white
- * rectangle; the other days you see are a grey one stretching out of it, with a little dash on its right
- * edge. Drag the dash over more (or fewer) days to see that many side by side (1–5, never past Friday or
- * Sunday); it follows your finger and settles with a bounce. Tap a day to start there.
+ * The week above the timetable, seven equal cells. What you see in the grid is a white cell (the first day) with
+ * a grey band stretching out of it; the dash on the band's edge sets how many days you see (1–7), live: the
+ * grid's columns get thinner or wider with your finger and settle with a bounce. It follows the grid exactly:
+ * swipe the timetable a day and the dates under the band move a day. Tap a day to start there.
  */
-export function DayStrip({ page, onPick, onResize, lang, nudge }: Props) {
+export function DayStrip({ offset, count, k, width, from, to, today, lang, onPick, onResize, onResizeEnd, nudge }: Props) {
   const { t } = useT();
-  const reduced = useReducedMotion();
-  const [width, setWidth] = useState(0);
-  const weekStart = monday(page.start).getTime();
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(new Date(weekStart), i)), [weekStart]);
-  const geo = useMemo(() => cells(width), [width]);
-  const first = weekday(page.start);
-  // How many days the handle can cover from here: up to Friday on a school day, Sunday at the weekend
-  const room = Math.min(5, weekday(segment(page.start).end) - first + 1);
-  const todayIso = isoDay(new Date());
+  const cell = width / 7;
+  const startCount = useSharedValue(1);
+  const startK = useSharedValue(0);
+  const last = useSharedValue(0);
 
-  const left = useSharedValue(0);
-  const white = useSharedValue(0);
-  const span = useSharedValue(0);
-  const startSpan = useSharedValue(0);
-  const nudgeX = useSharedValue(0);
-  const dragging = useSharedValue(false);
-  const currentN = useSharedValue(page.n);
-  const placed = useRef(false);
-
-  const spanOf = (n: number) => (geo.length ? geo[first + n - 1].x + geo[first + n - 1].w - geo[first].x : 0);
-
+  const dates = useAnimatedStyle(() => ({ transform: [{ translateX: (from - (offset.get() - k.get())) * cell }] }));
+  const white = useAnimatedStyle(() => ({ left: k.get() * cell, width: cell }));
+  const band = useAnimatedStyle(() => ({ left: k.get() * cell, width: count.get() * cell }));
+  const handle = useAnimatedStyle(() => ({ left: (k.get() + count.get()) * cell - 22 }));
+  const wiggle = useSharedValue(0);
+  const dash = useAnimatedStyle(() => ({ transform: [{ translateX: wiggle.get() }] }));
   useEffect(() => {
-    if (!width) return;
-    const to = { l: geo[first].x, w: geo[first].w, s: spanOf(page.n) };
-    currentN.set(page.n);
-    if (reduced || !placed.current) {
-      placed.current = true;
-      left.set(to.l);
-      white.set(to.w);
-      span.set(to.s);
-    } else {
-      left.set(withSpring(to.l, SETTLE));
-      white.set(withSpring(to.w, SETTLE));
-      // While the finger holds the handle, the finger decides the width
-      if (!dragging.get()) span.set(withSpring(to.s, BOUNCE));
-    }
-  }, [width, first, page.n, weekStart]);
-
-  useEffect(() => {
-    if (!nudge || reduced) {
-      cancelAnimation(nudgeX);
-      nudgeX.set(withTiming(0));
-      return;
-    }
-    // A small "pull me" every couple of seconds
-    nudgeX.set(withRepeat(withSequence(withTiming(0, { duration: 1400 }), withSpring(10, { damping: 8, stiffness: 300 }), withSpring(0, BOUNCE)), -1));
-  }, [nudge, reduced]);
-
-  // Ends of each count, for the worklet: covering more than half of the next day counts as that day
-  const stops = useMemo(() => Array.from({ length: room }, (_, i) => spanOf(i + 1)), [geo, first, room]);
+    wiggle.set(nudge ? withRepeat(withSequence(withTiming(0, { duration: 1400 }), withSpring(9, { damping: 8, stiffness: 300 }), withSpring(0, RESIZE)), -1) : withTiming(0));
+  }, [nudge, wiggle]);
 
   const pan = Gesture.Pan()
-    .hitSlop({ left: 16, right: 16, top: 12, bottom: 12 })
+    .hitSlop({ left: 16, right: 16, top: 10, bottom: 10 })
     .activeOffsetX([-4, 4])
     .onBegin(() => {
-      dragging.set(true);
-      startSpan.set(span.get());
+      startCount.set(count.get());
+      startK.set(k.get());
+      last.set(Math.round(count.get()));
     })
     .onUpdate((e) => {
-      const min = stops[0];
-      const max = stops[stops.length - 1];
-      let w = startSpan.get() + e.translationX;
-      // Rubber band past the ends
-      if (w < min) w = min - (min - w) / 4;
-      if (w > max) w = max + (w - max) / 4;
-      span.set(w);
-      let n = 1;
-      for (let i = 1; i < stops.length; i++) if (w > (stops[i - 1] + stops[i]) / 2) n = i + 1;
-      if (n !== currentN.get()) {
-        currentN.set(n);
-        scheduleOnRN(onResize, n);
+      let n = startCount.get() + e.translationX / cell;
+      // Rubber band past 1 and 7
+      if (n < 1) n = 1 - (1 - n) / 4;
+      if (n > MAX_DAYS) n = MAX_DAYS + (n - MAX_DAYS) / 4;
+      count.set(n);
+      // The band stays inside the strip: when it grows past Sunday the dates slide left under it
+      k.set(Math.max(0, Math.min(startK.get(), 7 - n)));
+      const r = Math.max(1, Math.min(MAX_DAYS, Math.round(n)));
+      if (r !== last.get()) {
+        last.set(r);
+        scheduleOnRN(onResize, r);
       }
     })
     .onFinalize(() => {
-      dragging.set(false);
-      span.set(withSpring(stops[currentN.get() - 1] ?? stops[0], BOUNCE));
+      const n = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
+      count.set(withSpring(n, RESIZE));
+      k.set(withSpring(Math.max(0, Math.min(Math.round(k.get()), 7 - n)), RESIZE));
+      scheduleOnRN(onResizeEnd, n);
     });
 
-  const whiteStyle = useAnimatedStyle(() => ({ left: left.get(), width: white.get() }));
-  const spanStyle = useAnimatedStyle(() => ({ left: left.get(), width: span.get() }));
-  const handleStyle = useAnimatedStyle(() => ({ left: left.get() + span.get() - 22, transform: [{ translateX: nudgeX.get() }] }));
+  const days: number[] = [];
+  for (let i = from; i <= to; i++) days.push(i);
 
   return (
-    <View
-      className="h-14"
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      accessibilityLabel={t('rooster.stripLabel', { n: page.n })}
-    >
+    <View className="overflow-hidden" style={{ height: H }} accessibilityLabel={t('rooster.stripLabel', { n: Math.round(count.get()) })}>
       {width ? (
         <>
-          <AView className="absolute top-0 bottom-0 rounded-chip bg-surface-sunken" style={spanStyle} pointerEvents="none" />
-          <AView className="absolute top-0 bottom-0 rounded-chip bg-surface border border-line" style={whiteStyle} pointerEvents="none" />
-        </>
-      ) : null}
-      <View className="flex-row h-14" style={{ gap: GAP }}>
-        {days.map((d, i) => {
-          const on = i >= first && i < first + page.n;
-          const today = isoDay(d) === todayIso;
-          return (
-            <Pressable
-              key={isoDay(d)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              accessibilityLabel={shortDate(d, lang)}
-              onPress={() => onPick(d)}
-              className="items-center justify-center rounded-chip"
-              style={{ flex: i < 5 ? 1 : WEEKEND }}
-            >
-              <Text variant="xs" bold tone={on ? 'ink2' : 'ink3'}>
-                {weekdayShort(d, lang)}
-              </Text>
-              <Text bold tone={today ? 'you' : on ? 'ink' : i >= 5 ? 'ink3' : 'ink2'}>
-                {d.getDate()}
-              </Text>
-              {today ? <View className={cn('absolute bottom-1.5 w-1 h-1 rounded-full bg-you')} /> : null}
-            </Pressable>
-          );
-        })}
-      </View>
-      {width && room > 1 ? (
-        <GestureDetector gesture={pan}>
-          <AView
-            className="absolute top-0 bottom-0 w-[22px] items-center justify-center"
-            style={handleStyle}
-            accessible
-            accessibilityRole="adjustable"
-            accessibilityLabel={t('rooster.handle')}
-            accessibilityValue={{ min: 1, max: room, now: page.n }}
-            accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-            onAccessibilityAction={(e) => onResize(Math.max(1, Math.min(room, page.n + (e.nativeEvent.actionName === 'increment' ? 1 : -1))))}
-          >
-            <View className="w-1 h-6 rounded-full bg-ink-3" />
+          <AView className="absolute top-0 bottom-0 rounded-chip bg-surface-sunken" style={band} pointerEvents="none" />
+          <AView className="absolute top-0 bottom-0 rounded-chip bg-surface border border-line" style={white} pointerEvents="none" />
+          <AView className="absolute top-0 bottom-0 left-0" style={dates}>
+            {days.map((day) => {
+              const d = dateAt(day);
+              const weekend = day % 7 >= 5;
+              return (
+                <Pressable
+                  key={day}
+                  accessibilityRole="button"
+                  accessibilityLabel={shortDate(d, lang)}
+                  onPress={() => onPick(day)}
+                  className="absolute top-0 bottom-0 items-center justify-center"
+                  style={{ left: (day - from) * cell, width: cell }}
+                >
+                  <Text variant="xs" bold tone={weekend ? 'ink3' : 'ink2'}>
+                    {weekdayShort(d, lang)}
+                  </Text>
+                  <Text bold tone={day === today ? 'you' : weekend ? 'ink3' : 'ink'}>
+                    {d.getDate()}
+                  </Text>
+                  {day === today ? <View className="absolute bottom-1.5 w-1 h-1 rounded-full bg-you" /> : null}
+                </Pressable>
+              );
+            })}
           </AView>
-        </GestureDetector>
+          <GestureDetector gesture={pan}>
+            <AView
+              className="absolute top-0 bottom-0 w-[22px] items-center justify-center"
+              style={handle}
+              accessible
+              accessibilityRole="adjustable"
+              accessibilityLabel={t('rooster.handle')}
+              accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+              onAccessibilityAction={(e) => {
+                const n = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get()) + (e.nativeEvent.actionName === 'increment' ? 1 : -1)));
+                count.set(withSpring(n, RESIZE));
+                onResizeEnd(n);
+              }}
+            >
+              <AView className="w-1 h-6 rounded-full bg-ink-3" style={dash} />
+            </AView>
+          </GestureDetector>
+        </>
       ) : null}
     </View>
   );

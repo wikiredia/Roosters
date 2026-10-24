@@ -5,6 +5,7 @@ import hashlib
 import icalendar
 import recurring_ical_events
 
+from . import kinds
 from .config import TZ
 
 MAX_EVENTS = 3000
@@ -81,6 +82,7 @@ def parse(data: bytes, config: dict | None = None, tz=TZ) -> list[dict]:
                     "course": title,
                     "location": _text(ev.get("LOCATION"), 255),
                     "state": "cancelled" if status == "CANCELLED" else "normal",
+                    "kind": kinds.classify(title),
                 })
             day += dt.timedelta(days=1)
     return out

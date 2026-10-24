@@ -7,7 +7,7 @@ import datetime as dt
 import json
 import re
 
-from . import config, redisx
+from . import config, kinds, redisx
 from .netfetch import FetchError, fetch
 
 SKIP_STATES = {"FREE"}
@@ -136,6 +136,10 @@ def parse_week(data: dict, class_id: int) -> list[dict]:
         subjects = names(p, SUBJECT)
         d = str(p["date"])
         course = subjects[0] if subjects else (p.get("lessonText") or "Les")
+        flags = p.get("is") or {}
+        # The free text is only read to tell the kind of lesson, never kept
+        kind = kinds.classify(p.get("lessonText"), *subjects, *names(p, SUBJECT, long=False),
+                              exam=cell == "EXAM" or bool(flags.get("exam")), event=bool(flags.get("event")))
         out.append({
             "uid": f"{class_id}:{p['id']}",
             "day": dt.date(int(d[:4]), int(d[4:6]), int(d[6:])),
@@ -145,6 +149,7 @@ def parse_week(data: dict, class_id: int) -> list[dict]:
             "location": ", ".join(names(p, ROOM, long=False))[:255] or None,
             "student_group": (p.get("studentGroup") or None) and p["studentGroup"][:120],
             "state": STATE_MAP.get(cell, "normal"),
+            "kind": kind,
         })
     return out
 

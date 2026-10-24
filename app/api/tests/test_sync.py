@@ -33,7 +33,7 @@ def test_parse_week_keeps_only_what_the_app_needs():
     assert [(l["course"], l["start_min"], l["end_min"], l["location"], l["state"]) for l in lessons] == [
         ("Databases", 510, 630, "B204", "normal"), ("Python Advanced", 660, 750, "C102", "cancelled")]
     # No teachers, no free text
-    assert all(set(l) == {"uid", "day", "start_min", "end_min", "course", "location", "student_group", "state"}
+    assert all(set(l) == {"uid", "day", "start_min", "end_min", "course", "location", "student_group", "state", "kind"}
                for l in lessons)
 
 

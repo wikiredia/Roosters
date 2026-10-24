@@ -120,9 +120,10 @@ def class_lessons(school_id: int, class_id: int, request: Request, start: str | 
         sync.queue_class(class_id, soon=True)
         loading = True
     loading = schedule.ensure_class_weeks([class_id], schedule.outside_mondays(first, last, today), today) or loading
-    rows = db.rows("SELECT day, start_min, end_min, course, location, student_group, state FROM class_lessons "
+    rows = db.rows("SELECT day, start_min, end_min, course, location, kind, student_group, state FROM class_lessons "
                    "WHERE school_class_id=%s AND day BETWEEN %s AND %s AND state <> 'removed' "
                    "ORDER BY day, start_min, course", (class_id, first, last))
     return etag_json(request, {"start": first.isoformat(), "days": days, "loading": loading, "lessons": [
         {"day": r["day"].isoformat(), "start": r["start_min"], "end": r["end_min"], "course": r["course"],
-         "location": r["location"], "group": r["student_group"], "state": r["state"]} for r in rows]})
+         "location": r["location"], "kind": r["kind"], "group": r["student_group"], "state": r["state"]}
+        for r in rows]})

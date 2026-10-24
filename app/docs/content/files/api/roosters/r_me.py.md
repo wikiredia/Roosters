@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -70,9 +70,14 @@ Soft-deletes the source, forgets its encrypted link and deletes its personal les
 
 List notifications (newest first, `after` for polling) and mark them read up to an id.
 
+## `together_days`
+
+Per day, who you share a break with (the yellow blocks of the Rooster tab), like Today does for one day: friends who
+are hidden (ghost) don't count, today only from now on.
+
 ## `my_schedule`
 
-`GET /api/v1/me/schedule?start=&days=`: your lessons for up to 28 days (default: this week), plus the sources' sync state, with an ETag. Any week, past or future: `loading: true` while a week outside the routine sync is being fetched from Untis (`schedule.ensure_weeks`).
+`GET /api/v1/me/schedule?start=&days=`: your lessons for up to 28 days (default: this week), plus the sources' sync state, with an ETag. Any week, past or future: `loading: true` while a week outside the routine sync is being fetched from Untis (`schedule.ensure_weeks`). With `together=1` also `together_days` (the Rooster tab asks a week at a time).
 
 ## `refresh`
 

@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
 import { useAcceptInvite, useMe, useUpdateMe } from '@/api/hooks';
@@ -6,6 +5,7 @@ import type { Tokens } from '@/api/types';
 
 import { api } from './api';
 import { takePendingInvite } from './invite';
+import { resetTo } from './nav';
 import { queryClient } from './query';
 import { saveTokens, session } from './session';
 
@@ -65,7 +65,7 @@ export function useFinishOnboarding() {
       const code = await takePendingInvite();
       if (code) accept.mutate(code);
     }
-    router.replace('/today');
+    resetTo('/today');
   }
   return { finish, busy: update.isPending };
 }

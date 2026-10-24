@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
 The **previews of onboarding's course step**, built on a class's whole timetable (`useClassLessons`, every

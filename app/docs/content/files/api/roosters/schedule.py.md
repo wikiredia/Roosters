@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:00Z
+updated: 2026-10-24T08:00:00Z
 ---
 
 **Reading timetables**: someone's lessons from the classes they follow and their own calendar links,
@@ -20,7 +20,7 @@ Free/busy view: merged busy blocks per day, nothing about what or where.
 
 ## `lesson_out`
 
-One lesson for the app. Without detail (a friend who shares only free/busy) it says only when.
+One lesson for the app, with its kind (the colour). Without detail (a friend who shares only free/busy) it says only when.
 
 ## `ensure_weeks`
 

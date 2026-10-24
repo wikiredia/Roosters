@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
 Friends end to end: invite links work both ways, shared breaks and the now-board, free/busy hiding what
@@ -9,4 +9,4 @@ once, classes needing a school, and the classmates list.
 
 ## `DAY`, `_setup`
 
-A fixed school day and two or three onboarded friends with lessons.
+A fixed school day and two or three onboarded friends with lessons. A week of the timetable comes with the shared breaks per day (`together=1`).

@@ -50,7 +50,11 @@ export default function RootLayout() {
       >
         <StatusBar style="auto" />
         {/* The same native push on iOS and Android, with the swipe back */}
-        <Stack screenOptions={{ headerShown: false, animation: 'ios_from_right', contentStyle: { backgroundColor: String(bg ?? '#F4F3EF') } }} />
+        <Stack screenOptions={{ headerShown: false, animation: 'ios_from_right', contentStyle: { backgroundColor: String(bg ?? '#F4F3EF') } }}>
+          {/* The app itself: nothing to swipe back to (welcome and onboarding are gone, see lib/nav.resetTo) */}
+          <Stack.Screen name="(tabs)" options={{ gestureEnabled: false, animation: 'fade' }} />
+          <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
+        </Stack>
       </PersistQueryClientProvider>
     </SafeAreaProvider>
     </GestureHandlerRootView>

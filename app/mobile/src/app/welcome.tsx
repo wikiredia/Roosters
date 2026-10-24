@@ -12,6 +12,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError } from '@/lib/api';
 import { debugEnabled } from '@/lib/server';
+import { resetTo } from '@/lib/nav';
 import { afterSignIn, startAsGuest } from '@/lib/onboarding';
 
 const LEGAL_URL = process.env.EXPO_PUBLIC_LEGAL_URL ?? 'https://github.com/wikiredia/Roosters';
@@ -45,7 +46,7 @@ export default function Welcome() {
         { auth: false },
       );
       await afterSignIn(tokens);
-      router.replace('/');
+      resetTo('/');
     } catch (e) {
       if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return;
       setError(e instanceof ApiError ? e.message : t('common.tryAgain'));
@@ -58,7 +59,7 @@ export default function Welcome() {
     setGuestBusy(true);
     try {
       await startAsGuest();
-      router.replace('/');
+      resetTo('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('common.offline'));
     } finally {
