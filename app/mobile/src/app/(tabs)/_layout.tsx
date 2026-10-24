@@ -11,6 +11,7 @@ import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { takePendingInvite } from '@/lib/invite';
+import { handlePushResponses, registerPush } from '@/lib/push';
 import { session } from '@/lib/session';
 
 const TABS: Record<string, { icon: IconName; label: Key }> = {
@@ -68,7 +69,13 @@ export default function TabsLayout() {
   useEffect(() => {
     // An invite opened before signing in: accept it now
     if (s.status === 'signedIn') takePendingInvite().then((code) => code && accept.mutate(code));
+    // This session's push token (only if notifications are already allowed: asking is for Meldingen)
+    if (s.status === 'signedIn') registerPush();
   }, [s.status]);
+
+  // A push opened the app (or was tapped while it ran): go to what it's about. Here, not in the root layout:
+  // the tabs only show once you're signed in and set up, so the screen it opens lands on top of them.
+  useEffect(() => handlePushResponses(), []);
 
   if (s.status === 'signedOut') return <Redirect href="/welcome" />;
   return (

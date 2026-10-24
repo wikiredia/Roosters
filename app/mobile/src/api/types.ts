@@ -90,6 +90,18 @@ export type ScheduleChange = {
   old?: { day: string; start_min: number; end_min: number; course: string; location: string | null };
 };
 
+/** Meldingen: what you get a push for. Quiet hours in minutes since midnight, both or neither. */
+export type PushSettings = {
+  requests: boolean;
+  changes: boolean;
+  chat: boolean;
+  quiet_from: number | null;
+  quiet_until: number | null;
+};
+
+/** `device`: this phone is registered for push (signed in here and notifications allowed). */
+export type Push = { settings: PushSettings; device: boolean };
+
 export type Notification = {
   id: number;
   kind: string;
@@ -234,6 +246,8 @@ export type Chat = {
   avatar_color?: number;
   photo?: number | null;
   pinned: boolean;
+  /** The bell: a push for every message in this chat (only for you, off by default) */
+  push: boolean;
   unread: number;
   last_read_id: number;
   last: ChatMessage | null;

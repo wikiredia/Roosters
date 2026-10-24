@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-24T13:30:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -39,7 +39,7 @@ Read up to a message; the badge goes down before the server answers.
 
 ## `useOpenDirect`, `useNewGroup`, `useEditChat`, `useAddToChat`, `useLeaveChat`, `useChatWrite`
 
-Opening the one-to-one chat with a friend, a new group, rename / pin, adding friends, leaving. Writes that answer
+Opening the one-to-one chat with a friend, a new group, rename / pin / the bell (`push`), adding friends, leaving. Writes that answer
 with the chat put it in `keys.chat` and refresh the list and the conversation.
 
 ## `useTakeBack`, `useReport`
@@ -89,6 +89,11 @@ True for a signed-in non-guest: enables the friend queries.
 ## `useUpdateMe`, `useCheckin`, `useGhost`
 
 Profile (also `onboarded`), today's check-in, ghost mode.
+
+## `usePush`, `useSetPush`
+
+Meldingen (`GET/PATCH /api/v1/me/push`, `keys.push`): the categories, quiet hours, and `device` (this phone is
+registered). `useSetPush` sends only what changed and shows it at once; a refusal puts the old settings back.
 
 ## `useSetPhoto`
 

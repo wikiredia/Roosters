@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T13:10:00Z
 ---
 
 The **worker process** (`python -m roosters.worker`, compose service `worker`). Run as many as you like.
@@ -8,7 +8,7 @@ Its loop: every 10 s a heartbeat (so the API and the console can see a worker is
 **scheduler round**, done by only one worker at a time (Redis lock); otherwise **run jobs** back to back,
 sleeping 1 s when there's nothing to do. Database or Redis outages are waited out (retry every 5 s).
 
-The imports matter: importing `mailer` and `sync` registers their job handlers.
+The imports matter: importing `mailer`, `push` and `sync` registers their job handlers.
 
 ## `TICK`, `CLASS_LISTS`
 

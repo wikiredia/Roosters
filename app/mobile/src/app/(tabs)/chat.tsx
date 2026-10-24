@@ -5,6 +5,7 @@ import { useChats, useFriends, useMe, useOpenDirect } from '@/api/hooks';
 import type { Chat, Friend } from '@/api/types';
 import { Avatar, AvatarStack, Badge, Banner } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { Card, ListHead, Row } from '@/components/ui/Layout';
 import { Reveal } from '@/components/ui/Motion';
 import { Empty, Screen, Skeleton } from '@/components/ui/Screen';
@@ -150,7 +151,14 @@ function ChatRow({ chat, first, me }: { chat: Chat; first: boolean; me: number |
               {when(chat.last.created_at, t, lang)}
             </Text>
           ) : null}
-          {unread ? <Badge n={chat.unread} /> : <View className="h-[18px]" />}
+          <View className="flex-row items-center gap-1">
+            {chat.push ? (
+              <View accessible accessibilityLabel={t('chat.bellOn')}>
+                <Icon name="bell" size={16} color="ink-3" />
+              </View>
+            ) : null}
+            {unread ? <Badge n={chat.unread} /> : <View className="h-[18px]" />}
+          </View>
         </View>
       }
     />

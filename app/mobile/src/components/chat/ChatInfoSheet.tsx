@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { useAddToChat, useEditChat, useFriends, useLeaveChat } from '@/api/hooks';
+import { useAddToChat, useEditChat, useFriends, useLeaveChat, usePush } from '@/api/hooks';
 import type { ChatDetail } from '@/api/types';
 import { Avatar, Chip, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
@@ -14,7 +14,7 @@ import { useT } from '@/i18n';
 import { confirm } from '@/lib/confirm';
 
 /**
- * About a chat: pin it (only for you), who's in it; a group: rename it, add friends of yours, leave it. A one-to-one
+ * About a chat: pin it and turn its bell on (both only for you), who's in it; a group: rename it, add friends of yours, leave it. A one-to-one
  * chat leads to the friend's page (their week, what they see of you, block).
  */
 export function ChatInfoSheet({ visible, chat, onClose }: { visible: boolean; chat: ChatDetail; onClose: () => void }) {
@@ -23,6 +23,7 @@ export function ChatInfoSheet({ visible, chat, onClose }: { visible: boolean; ch
   const add = useAddToChat(chat.id);
   const leave = useLeaveChat(chat.id);
   const friends = useFriends();
+  const chatPushOff = usePush().data?.settings.chat === false;
   const [name, setName] = useState(chat.name ?? '');
   const [adding, setAdding] = useState<number[]>([]);
   const group = chat.kind === 'group';
@@ -41,6 +42,11 @@ export function ChatInfoSheet({ visible, chat, onClose }: { visible: boolean; ch
     <Sheet visible={visible} onClose={onClose} closeLabel={t('common.close')} title={chat.name ?? ''} sub={group ? t('chat.members', { n: chat.count }) : undefined}>
       <Card>
         <Row first title={t('chat.pin')} sub={t('chat.pinSub')} right={<Toggle value={chat.pinned} onChange={(v) => edit.mutate({ pinned: v })} label={t('chat.pin')} />} />
+        <Row
+          title={t('chat.bell')}
+          sub={chat.push && chatPushOff ? t('chat.bellChatOff') : t('chat.bellSub')}
+          right={<Toggle value={chat.push} onChange={(v) => edit.mutate({ push: v })} label={t('chat.bell')} />}
+        />
       </Card>
       {group ? (
         <View className="flex-row items-end gap-2">

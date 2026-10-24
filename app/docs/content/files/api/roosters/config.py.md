@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T08:00:00Z
+updated: 2026-10-24T13:10:00Z
 ---
 
 All settings, read **once at import** from environment variables (compose passes `app/.env`).
@@ -38,6 +38,11 @@ MySQL connection. `DB_POOL` is how many idle connections each process keeps (`db
 ## `MAIL_MODE`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_STARTTLS`
 
 Mail (`mailer.py`): `smtp` sends through Mailpit on the laptop or a real provider in production; `console` only logs.
+
+## `PUSH_MODE`, `EXPO_ACCESS_TOKEN`
+
+Push (`push.py`): `expo` (the default) sends through Expo's push service, which needs no account; `console` only
+logs (the tests set it). `EXPO_ACCESS_TOKEN` only once "enhanced push security" is turned on in the Expo dashboard.
 
 ## `MAX_FRIENDS`, `MAX_COMPARE_FREE`
 

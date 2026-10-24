@@ -1,7 +1,7 @@
 ---
 title: Database and migrations
 position: 50
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-24T13:30:00Z
 ---
 
 MySQL 8.4 (`db` service, internal network only, data in the `db` volume). All tables with comments:
@@ -10,7 +10,7 @@ MySQL 8.4 (`db` service, internal network only, data in the `db` volume). All ta
 | Area | Tables |
 | --- | --- |
 | Schools | `schools`, `campuses`, `school_classes`, `class_lessons`, `class_courses`, `class_weeks` |
-| Accounts | `users`, `auth_identities`, `login_codes`, `sessions` |
+| Accounts | `users`, `auth_identities`, `login_codes`, `sessions` (with the phone's push token), `push_settings` |
 | Social | `friendships`, `friend_requests`, `blocks`, `invites`, `break_requests`, `break_request_members` |
 | Chat | `chats`, `chat_members`, `chat_messages`, `chat_reports` (`chat.py`) |
 | Timetables | `sources`, `source_lessons`, `hidden_courses`, `checkins`, `skipped_lessons` |

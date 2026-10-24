@@ -53,12 +53,14 @@ def get_chat(chat_id: int, request: Request, ctx: Ctx = Depends(verified)):
 class ChatPatch(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=80)
     pinned: bool | None = None
+    push: bool | None = None
 
 
 @router.patch("/{chat_id}")
 def edit_chat(chat_id: int, body: ChatPatch, ctx: Ctx = Depends(verified)):
+    """Rename a group; pin a chat or turn its bell (push for every message) on, only for you."""
     with db.tx() as c:
-        chat.edit(c, ctx.uid, chat_id, body.name, body.pinned)
+        chat.edit(c, ctx.uid, chat_id, body.name, body.pinned, body.push)
     return {"chat": chat.chat_out(ctx.uid, chat_id)}
 
 

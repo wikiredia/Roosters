@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:30:00Z
+updated: 2026-10-24T13:20:00Z
 ---
 
 **One conversation** (design: Chat.dc.html B and C). Newest at the bottom (an inverted `FlatList`), older pages when
@@ -14,7 +14,8 @@ Today's board); tapping either opens their profile (`friends/[id]`), a group's i
   proberen". Every try uses the same Idempotency-Key (`lib/chat.ts` `Outgoing`), so it's stored once; should the
   answer have been lost, the outgoing copy hides as soon as the server's copy is in. A refusal (not friends any
   more, too long) shows the server's reason.
-- Opening it marks everything read (once per new message), which lowers the tab badge right away.
+- Opening it marks everything read (once per new message), which lowers the tab badge right away. While it's on
+  screen its messages don't come in as a push banner (`lib/push.setOpenChat`).
 - **Long press** on a message: `components/chat/MessageSheet.tsx` (copy, report, block, take back). The bubble is
   measured on screen; the whole chat slides up with the sheet (`liftY`) and the message stays bright above the scrim.
 - **+** left of the box: a small menu (icon and title): Camera and Bestanden ('Binnenkort': sending photos and

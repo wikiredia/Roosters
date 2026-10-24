@@ -1,10 +1,10 @@
 ---
-updated: 2026-10-24T09:54:20Z
+updated: 2026-10-24T13:10:00Z
 ---
 
 Troubleshooting and test endpoints for the laptop and the test server. They answer **404 unless ENV=dev**
 (`dev_only`), so they can't leak mail setup on a real server. The app's debug screen
-(`mobile/src/app/debug.tsx`) calls the mail checks; **Test data & users** (`mobile/src/app/dev.tsx`) the rest.
+(`mobile/src/app/debug.tsx`) calls the mail and push checks; **Test data & users** (`mobile/src/app/dev.tsx`) the rest.
 
 Test data and switching need a normal sign-in (`deps.auth`), from any network, and only ever touch **your own
 account and the test people it made** (`users.test_owner_id`, `_yours`): another real account, or someone else's
@@ -13,6 +13,11 @@ test people, is a 404 as if it didn't exist. Test people and their timetables: `
 ## `TestMailIn`, `test_mail`
 
 `POST /api/v1/debug/mail`: send a test mail right away (10 per hour per IP).
+
+## `test_push`
+
+`POST /api/v1/debug/push` → `{devices, mode}`: a push to every phone you're signed in on, right away
+(`push.send_test`; 20 per hour). The debug screen's "Send a test push".
 
 ## `dev_only`
 

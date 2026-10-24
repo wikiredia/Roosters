@@ -52,6 +52,11 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_STARTTLS = os.environ.get("SMTP_STARTTLS", "0") == "1"
 
+# Push (push.py): "expo" (Expo's push service, no account needed) or "console" (only log)
+PUSH_MODE = os.environ.get("PUSH_MODE", "expo")
+# Only when "enhanced push security" is on in the Expo dashboard
+EXPO_ACCESS_TOKEN = os.environ.get("EXPO_ACCESS_TOKEN", "")
+
 # Timetables
 SYNC_EVERY_DAY = 120      # minutes between syncs of a class or calendar (06:00–22:00)
 SYNC_EVERY_NIGHT = 480
