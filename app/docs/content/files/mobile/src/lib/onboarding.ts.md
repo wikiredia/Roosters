@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T08:30:00Z
 ---
 
 **Racing through onboarding.** Every step can be skipped, and you can start **without signing in** (a guest
@@ -26,4 +26,4 @@ Before signing in while already in the app (a guest confirming their e-mail): ma
 
 ## `useFinishOnboarding`
 
-'Skip' / 'Done' on any onboarding step: mark onboarding done (`onboarded: true`), accept a waiting invite (not for guests), and go to Today. Offline: Today opens anyway and the gate asks again next time.
+'Skip' / 'Done' on any onboarding step: mark onboarding done (`onboarded: true`), accept a waiting invite (not for guests), and go to Today with nothing to go back to (`nav.resetTo`). Offline: Today opens anyway and the gate asks again next time.

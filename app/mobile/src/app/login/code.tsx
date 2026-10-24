@@ -10,6 +10,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError, NetworkError } from '@/lib/api';
+import { resetTo } from '@/lib/nav';
 import { afterSignIn, device, freshenGuestToken, startAsGuest } from '@/lib/onboarding';
 
 const RESEND_AFTER = 60;
@@ -45,7 +46,7 @@ export default function CodeLogin() {
       await freshenGuestToken();
       const tokens = await api.post<Tokens>('/api/v1/auth/email/verify', { email, code: value, ...device });
       await afterSignIn(tokens);
-      router.replace('/');
+      resetTo('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : e instanceof NetworkError ? t('common.offline') : t('common.tryAgain'));
       setCode('');
@@ -64,13 +65,13 @@ export default function CodeLogin() {
   /** The mail is slow or stuck: go in as a guest now (or back to the app if you already are one) */
   async function later() {
     if (inApp) {
-      router.replace('/today');
+      resetTo('/today');
       return;
     }
     setBusy(true);
     try {
       await startAsGuest();
-      router.replace('/');
+      resetTo('/');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('common.offline'));
     } finally {
