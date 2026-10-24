@@ -279,7 +279,7 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
 function ForYou({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: BreakRequest) => void }) {
   const { lang } = useT();
   const answer = useAnswerBreak();
-  const list = d.breaks.filter((b) => !b.mine && b.my_response === 'pending');
+  const list = (d.breaks ?? []).filter((b) => !b.mine && b.my_response === 'pending');
   if (list.length === 0) return null;
   const act = (b: BreakRequest, action: 'accepted' | 'declined') => answer.mutate({ id: b.id, action });
   return (
@@ -319,7 +319,7 @@ function Requests({ d, t }: { d: Today; t: T }) {
   const { lang } = useT();
   const answer = useAnswerBreak();
   // A no you gave is done; an open question is in "Voor jou"
-  const list = d.breaks.filter((b) => b.mine || b.my_response === 'accepted');
+  const list = (d.breaks ?? []).filter((b) => b.mine || b.my_response === 'accepted');
   if (list.length === 0) return null;
   const act = (b: BreakRequest, action: 'declined' | 'cancel') => answer.mutate({ id: b.id, action });
   return (

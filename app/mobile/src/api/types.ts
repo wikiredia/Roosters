@@ -127,7 +127,8 @@ export type Today = {
   together: Together[];
   changes: Notification[];
   /** Break requests from and to you, today and the coming days */
-  breaks: BreakRequest[];
+  /** Missing from an API older than break requests (the app treats it as none) */
+  breaks?: BreakRequest[];
   sources: SourcesState;
 };
 

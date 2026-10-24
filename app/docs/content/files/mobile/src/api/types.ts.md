@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T09:19:44Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -37,7 +37,7 @@ Now-board status codes and times.
 ## `BreakRequest`, `BreakMode`, `BreakResponse`, `BreakPerson`
 
 A break request (`api/roosters/breaks.py`). `mode` is as the one who asked put it: `lib/breaks.howText` turns it
-into words from your side. Today carries them in `breaks`.
+into words from your side. Today carries them in `breaks` (optional: an API from before break requests leaves it out, and Today shows none instead of crashing).
 
 ## `Chat`, `ChatDetail`, `ChatMessage`, `ChatEvent`, `ChatPerson`, `ReportReason`
 
