@@ -260,7 +260,8 @@ def friend_schedule(friend_id: int, request: Request, start: str | None = None, 
         return etag_json(request, {"start": first.isoformat(), "days": days, "hidden": True, "lessons": []})
     last = first + dt.timedelta(days=days - 1)
     loading = schedule.ensure_weeks([friend_id], first, last, today)
-    ls = schedule.lessons([friend_id], first, last)[friend_id]
+    # A class they skip looks like free time: that they skipped it is theirs to tell
+    ls = [l for l in schedule.lessons([friend_id], first, last)[friend_id] if not l.get("skipped")]
     if m["visibility"] == "freebusy":
         lessons = schedule.busy_only(ls)
     else:

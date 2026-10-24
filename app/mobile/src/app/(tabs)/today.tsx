@@ -7,7 +7,7 @@ import { useAnswerBreak, useCheckin, useOpenDirect, useToday } from '@/api/hooks
 import type { BreakRequest, Checkin, Friend, Notification, Today } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { SetupSteps } from '@/components/SetupSteps';
-import { type BreakState, Hatch, isOff, STATE_LABEL } from '@/components/timetable/Timetable';
+import { type BreakState, Hatch, isFree, isOff, STATE_LABEL } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, StatusOption, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
@@ -129,7 +129,8 @@ function NowCard({ d, t }: { d: Today; t: T }) {
   const { lang } = useT();
   const { lessons, status } = d.me;
   const now = d.now;
-  const active = lessons.filter((l) => !isOff(l));
+  // Skipped ones don't count as classes you have (lib/skips.ts); cancelled ones are mentioned below
+  const active = lessons.filter((l) => !isFree(l));
   const cancelled = lessons.filter((l) => isOff(l));
   const cur = currentLesson(active, now);
   const next = nextLesson(active.filter((l) => l !== cur), now);
@@ -204,7 +205,7 @@ function TomorrowLine({ day, t, lang }: { day: string; t: T; lang: 'nl' | 'en' }
   let next = addDays(base, 1);
   while ([0, 6].includes(next.getDay())) next = addDays(next, 1);
   const q = useToday(isoDay(next));
-  const first = q.data?.me.lessons.find((l) => !isOff(l));
+  const first = q.data?.me.lessons.find((l) => !isFree(l));
   if (!first) return null;
   const when = isoDay(next) === isoDay(addDays(base, 1)) ? t('today.tomorrow') : shortDate(next, lang);
   return (
@@ -460,7 +461,7 @@ const PLAN: { status: Checkin['status']; label: Key }[] = [
 /** "Wat is je plan deze middag?" — your own status for friends. */
 function Plan({ d, t, onPick }: { d: Today; t: T; onPick: (s: Checkin['status']) => void }) {
   const mine = d.me.checkin?.status;
-  const hasLessons = d.me.lessons.some((l) => !isOff(l));
+  const hasLessons = d.me.lessons.some((l) => !isFree(l));
   const options = hasLessons ? PLAN : PLAN.filter((p) => p.status !== 'home');
   const until = d.me.status.until;
   return (
