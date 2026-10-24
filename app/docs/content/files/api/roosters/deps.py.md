@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T16:00:00Z
 ---
 
 **Who is asking** and small helpers every router uses. Read this before writing a route.
@@ -19,7 +19,7 @@ The request context: the user row (joined with the school's `tz`) and the sessio
 
 ## `auth`
 
-Decodes the bearer access token (`tokens.decode_access`), then loads the user through the session. The session must exist, not be revoked or expired, and the user must not be disabled. Sets `request.state.lang` from the user's locale so errors come back in their language. Raises 401 `auth_required`/`auth_expired`.
+Decodes the bearer access token (`tokens.decode_access`), then loads the user through the session. The session must exist, not be revoked or expired, and the user must not be disabled. Sets `request.state.lang` from the user's locale so errors come back in their language. Raises 401 `auth_required`/`auth_expired`. Tells `tokens.saw` which refresh generation the phone uses.
 
 ## `etag_json`
 

@@ -1,7 +1,7 @@
 ---
 title: Auth, sessions and guests
 position: 20
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T16:00:00Z
 ---
 
 ## Ways in
@@ -38,8 +38,12 @@ Abandoned guests (no valid session, older than 7 days) are removed by the hourly
 
 ## Sessions on bad wifi
 
-- The refresh answer can get lost: the previous refresh token stays valid for 2 minutes (`tokens.REUSE_GRACE`).
-- After that, the old token showing up again means it was stolen: the session is revoked.
+- The refresh answer can get lost (bad wifi, the app closed or reloaded halfway): the previous refresh token
+  stays valid as long as the phone never used the newer pair (refresh generations, `tokens.saw`), and always for
+  2 minutes (`tokens.REUSE_GRACE`).
+- Only the old token showing up after the newer pair was used means it was stolen: the session is revoked.
+- The app refreshes a minute before the access token runs out, and only a 401 *from the refresh itself* signs it
+  out (`mobile/src/lib/api.ts`); the server sends the reason along (`revoked_reason`).
 - Every request checks the session in the database (`deps.auth`), so 'sign out everywhere', account
   deletion and turning an account off in the console all take effect at once.
 

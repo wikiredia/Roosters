@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T16:00:00Z
 ---
 
 **Signing in**, with no passwords: a 6-digit code by e-mail, Sign in with Apple, Sign in with Google, or
@@ -11,7 +11,7 @@ the user types the code → `POST /email/verify` → session tokens (`tokens.sta
 **Guests and upgrades:** `POST /guest` creates an account with no sign-in method (`users.is_guest=1`).
 When a request to `/email/verify`, `/apple` or `/google` carries a **guest's bearer token**:
 - no account exists for that identity yet → the guest account **becomes** the account (keeps school,
-  timetable and settings; `is_guest` is cleared and its old session is revoked);
+  timetable and settings; `is_guest` is cleared and its old session is revoked, reason `guest_signed_in`);
 - an account exists → that account wins and the guest is folded into it (`accounts.fold_guest`).
 A signed-in non-guest who signs in again is never merged.
 

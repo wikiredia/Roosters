@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T14:00:00Z
+updated: 2026-10-24T16:00:00Z
 ---
 
 **Talking to the Roosters+ API on bad school wifi.** Every request goes through `api.get/post/put/patch/del`.
@@ -33,13 +33,19 @@ The helpers screens use (`api.get` uses ETags by default). Most screens use the 
 
 One attempt: headers, timeout, the ETag cache, recognising HTML answers, errors → ApiError/NetworkError, logging.
 
-## `refreshTokens`
+## `refreshTokens`, `Refresh`
 
-Swap the refresh token for a new pair, shared by concurrent requests.
+Swap the refresh token for a new pair, one at a time (shared by every request that needs it). `ok`, `offline`
+(no network or a 5xx after three tries: the tokens stay) or `ended` (the refresh itself got a 401: the session
+is gone, `clearSession` with the server's `reason`). Tokens that changed while it was underway (you signed in
+again) win over its answer, and its failure then signs nobody out.
 
 ## `request`
 
-The retry loop around `once`: a 401 refreshes and retries once (marking the 401 in the debug log as recovered); network errors, 5xx and `idempotency_busy` retry with backoff.
+The retry loop around `once`. Refreshes first when the access token runs out within a minute
+(`session.accessExpiresSoon`), so requests don't hit a 401 at all. A 401 anyway: when new tokens arrived
+meanwhile it simply asks again, else it refreshes and asks again (twice at most; the 401 is marked recovered in
+the debug log). A refresh that couldn't reach the server makes it a network error, never a sign-out; network errors, 5xx and `idempotency_busy` retry with backoff.
 
 ## `setApiLanguage`
 

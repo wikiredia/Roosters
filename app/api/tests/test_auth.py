@@ -88,11 +88,37 @@ def test_refresh_rotates_and_the_old_token_stops_after_the_grace_period(client, 
     assert r2.status_code == 200
     # ...and that made r1's token useless (only the newest one counts)
     assert client.post("/api/v1/auth/refresh", json={"refresh_token": r1["refresh_token"]}).status_code == 401
-    # Long after rotation, the previous token showing up again ends the whole session
+    # The phone uses the newest pair...
+    assert client.get("/api/v1/me", headers={"Authorization": f"Bearer {r2.json()['access_token']}"}).status_code == 200
+    # ...so long after rotation, the previous token showing up again ends the whole session
     db.run("UPDATE sessions SET rotated_at=%s", (db.utcnow() - dt.timedelta(minutes=10),))
-    assert client.post("/api/v1/auth/refresh", json={"refresh_token": s["refresh_token"]}).status_code == 401
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": s["refresh_token"]})
+    assert r.status_code == 401 and r.json()["reason"] == "reuse"
     newest = r2.json()["refresh_token"]
-    assert client.post("/api/v1/auth/refresh", json={"refresh_token": newest}).status_code == 401
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": newest})
+    assert r.status_code == 401 and r.json()["code"] == "auth_expired" and r.json()["reason"] == "reuse"
+
+
+def test_a_lost_refresh_answer_never_ends_the_session(client, mails):
+    """The app was closed (or reloaded) while refreshing: the server rotated, the phone never got the new pair.
+    Even much later, its old token still works, because the newer pair was never used."""
+    s = login(client, "lost@example.com", mails)
+    assert client.post("/api/v1/auth/refresh", json={"refresh_token": s["refresh_token"]}).status_code == 200
+    db.run("UPDATE sessions SET rotated_at=%s", (db.utcnow() - dt.timedelta(hours=5),))
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": s["refresh_token"]})
+    assert r.status_code == 200
+    assert client.get("/api/v1/me", headers={"Authorization": f"Bearer {r.json()['access_token']}"}).status_code == 200
+    # And going on from there works as usual
+    assert client.post("/api/v1/auth/refresh", json={"refresh_token": r.json()["refresh_token"]}).status_code == 200
+
+
+def test_an_ended_session_says_why(client, mails):
+    s = login(client, "why@example.com", mails)
+    assert client.post("/api/v1/auth/logout", headers=s["headers"]).status_code == 204
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": s["refresh_token"]})
+    assert r.status_code == 401 and r.json()["reason"] == "logout"
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": "nonsense"})
+    assert r.status_code == 401 and r.json()["reason"] == "unknown_token"
 
 
 def test_logout_everywhere_ends_all_sessions_immediately(client, mails):

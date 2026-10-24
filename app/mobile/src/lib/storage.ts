@@ -34,7 +34,8 @@ export const secrets = {
   },
   async set(key: string, value: string) {
     if (Platform.OS === 'web') return AsyncStorage.setItem(`rp-secret:${key}`, value);
-    return SecureStore.setItemAsync(key, value);
+    // After the first unlock: a refresh that finishes while the phone is locked (in your pocket) can still be saved
+    return SecureStore.setItemAsync(key, value, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK });
   },
   async remove(key: string) {
     if (Platform.OS === 'web') return AsyncStorage.removeItem(`rp-secret:${key}`);

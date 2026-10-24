@@ -20,7 +20,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import accounts, config, crypto, db, debug, i18n, jobs, sync, untis
+from . import accounts, config, crypto, db, debug, i18n, jobs, sync, tokens, untis
 from .errors import ApiError
 
 log = logging.getLogger("roosters.admin")
@@ -441,7 +441,7 @@ def edit_user(user_id: int, body: UserPatch, actor: str = Depends(admin)):
             db.run("UPDATE users SET campus_id=%s WHERE id=%s", (f["campus_id"], user_id), c)
         if f.get("disabled") is True:
             db.run("UPDATE users SET disabled_at=UTC_TIMESTAMP() WHERE id=%s AND disabled_at IS NULL", (user_id,), c)
-            db.run("UPDATE sessions SET revoked_at=UTC_TIMESTAMP() WHERE user_id=%s AND revoked_at IS NULL", (user_id,), c)
+            tokens.revoke_all(user_id, "disabled", c)
         elif f.get("disabled") is False:
             db.run("UPDATE users SET disabled_at=NULL WHERE id=%s", (user_id,), c)
         record(actor, "user_edit", str(user_id), f, c)
@@ -450,7 +450,7 @@ def edit_user(user_id: int, body: UserPatch, actor: str = Depends(admin)):
 
 @router.post("/users/{user_id}/logout-all", status_code=204)
 def logout_user(user_id: int, actor: str = Depends(admin)):
-    db.run("UPDATE sessions SET revoked_at=UTC_TIMESTAMP() WHERE user_id=%s AND revoked_at IS NULL", (user_id,))
+    tokens.revoke_all(user_id, "admin")
     record(actor, "user_logout_all", str(user_id))
     return Response(status_code=204)
 

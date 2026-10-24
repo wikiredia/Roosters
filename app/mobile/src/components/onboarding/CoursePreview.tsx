@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { useClassLessons } from '@/api/hooks';
@@ -71,23 +71,69 @@ function useWeekLessons(schoolId: number | null, sources: Source[], week: Date) 
   return { bySource, loading };
 }
 
+const SKIP_MAX = 6;
+
+/**
+ * The week a preview shows. It opens on this week; a week without a single lesson (a holiday) moves on by
+ * itself to the next one that has lessons (up to SKIP_MAX weeks) and says so. Going to a week yourself stops that.
+ */
+function useOpenWeek() {
+  const [week, setWeekRaw] = useState(startWeek);
+  const [from, setFrom] = useState<Date | null>(null);
+  const [skips, setSkips] = useState(0);
+  const [auto, setAuto] = useState(true);
+  return {
+    week,
+    /** Where it moved on from, while it did that by itself */
+    skippedFrom: auto ? from : null,
+    gaveUp: auto && skips >= SKIP_MAX,
+    setWeek: (d: Date) => {
+      setAuto(false);
+      setWeekRaw(d);
+    },
+    /** Call from an effect once the week's lessons are in */
+    settle: (empty: boolean) => {
+      if (!auto || !empty || skips >= SKIP_MAX) return;
+      setFrom((f) => f ?? week);
+      setSkips((n) => n + 1);
+      setWeekRaw((w) => addDays(w, 7));
+    },
+  };
+}
+
+function SkipNote({ from, gaveUp, lang }: { from: Date | null; gaveUp: boolean; lang: Lang }) {
+  const { t } = useT();
+  if (!from) return null;
+  return (
+    <Text variant="sm" tone="ink2" accessibilityLiveRegion="polite">
+      {gaveUp ? t('preview.noLessonsSoon') : t('preview.skipped', { week: monthRange(from, addDays(from, 4), lang) })}
+    </Text>
+  );
+}
+
 /**
  * 'Bekijk rooster van <klas>': that class's whole week, every course. Tap a lesson to switch its course
  * on or off; courses you don't take are faded.
  */
 export function ClassWeekSheet({ source, onClose, schoolId, choices, setChoices, terms }: { source: Source | null; onClose: () => void; schoolId: number | null; choices: Choices; setChoices: (f: (c: Choices) => Choices) => void; terms?: Terms }) {
   const { t, lang } = useT();
-  const [week, setWeek] = useState(startWeek);
+  const open = useOpenWeek();
+  const { week, setWeek } = open;
   const [last, setLast] = useState(source);
   if (source && source !== last) setLast(source);
   const s = source ?? last;
   const { bySource, loading } = useWeekLessons(schoolId, s ? [s] : [], week);
   const lessons = s ? (bySource[s.id] ?? []).map(toLesson) : [];
+  const settled = !!source && !loading;
+  useEffect(() => {
+    if (settled) open.settle(lessons.length === 0);
+  }, [settled, week, lessons.length]);
   const sem = semesterOf(week, terms);
   const outside = !!s?.semester && !!sem && s.semester !== sem;
   return (
     <Sheet visible={!!source} onClose={onClose} closeLabel={t('common.close')} title={s?.label} sub={t('preview.classSub')}>
       <WeekNav week={week} onChange={setWeek} lang={lang} sem={sem} />
+      <SkipNote from={open.skippedFrom} gaveUp={open.gaveUp} lang={lang} />
       {outside ? (
         <Text variant="sm" tone="ink2">
           {t('preview.otherSemester', { n: s?.semester ?? 1 })}
@@ -120,12 +166,19 @@ type View_ = { kind: 'week' } | { kind: 'lesson'; lesson: ClassLesson & { source
  */
 export function PreviewSheet({ visible, onClose, schoolId, sources, choices, setChoices, terms, onRemoveClass }: { visible: boolean; onClose: () => void; schoolId: number | null; sources: Source[]; choices: Choices; setChoices: (f: (c: Choices) => Choices) => void; terms?: Terms; onRemoveClass: (id: number) => void }) {
   const { t, lang } = useT();
-  const [week, setWeek] = useState(startWeek);
+  const open = useOpenWeek();
+  const { week, setWeek } = open;
   const [view, setView] = useState<View_>({ kind: 'week' });
   const sem = semesterOf(week, terms);
   const active = sources.filter((s) => inSemester(s, sem));
   const { bySource, loading } = useWeekLessons(schoolId, active, week);
   const found = preview(active, bySource, choices);
+  // Empty = your classes have nothing at all that week (a holiday), not just nothing you chose
+  const any = active.reduce((n, s) => n + (bySource[s.id]?.length ?? 0), 0);
+  const settled = visible && active.length > 0 && !loading;
+  useEffect(() => {
+    if (settled) open.settle(any === 0);
+  }, [settled, week, any]);
 
   function close() {
     onClose();
@@ -141,6 +194,7 @@ export function PreviewSheet({ visible, onClose, schoolId, sources, choices, set
     body = (
       <>
         <WeekNav week={week} onChange={setWeek} lang={lang} sem={sem} />
+        <SkipNote from={open.skippedFrom} gaveUp={open.gaveUp} lang={lang} />
         {loading && found.length === 0 ? (
           <Skeleton className="h-64 rounded-card" />
         ) : active.length === 0 ? (

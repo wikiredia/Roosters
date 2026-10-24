@@ -111,7 +111,7 @@ def _sign_in(c, provider: str, subject: str, email: str | None, email_verified: 
         db.run("UPDATE users SET is_guest=0, email=%s, display_name=%s WHERE id=%s",
                (email if email_verified else None, new_name, guest_id), c)
         # The guest's own session ends: the phone gets a fresh one with this answer
-        db.run("UPDATE sessions SET revoked_at=UTC_TIMESTAMP() WHERE user_id=%s AND revoked_at IS NULL", (guest_id,), c)
+        tokens.revoke_all(guest_id, "guest_signed_in", c)
     else:
         user_id, is_new = _new_user(c, name, email if email_verified else None, lang_), True
     db.run("INSERT INTO auth_identities (user_id, provider, subject, email, last_used_at) "

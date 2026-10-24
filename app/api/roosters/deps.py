@@ -24,15 +24,16 @@ def auth(request: Request) -> Ctx:
     header = request.headers.get("authorization") or ""
     if not header.lower().startswith("bearer "):
         raise ApiError(401, "auth_required")
-    user_id, session_id = tokens.decode_access(header[7:].strip())
+    user_id, session_id, gen = tokens.decode_access(header[7:].strip())
     # The session must still exist: "log out everywhere" and account deletion work immediately
     row = db.one(
-        "SELECT u.*, sch.tz FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN schools sch ON sch.id=u.school_id "
+        "SELECT u.*, sch.tz, s.gen AS s_gen, s.seen_gen AS s_seen_gen FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN schools sch ON sch.id=u.school_id "
         "WHERE s.id=%s AND s.user_id=%s AND s.revoked_at IS NULL AND s.expires_at > UTC_TIMESTAMP() "
         "AND u.disabled_at IS NULL",
         (session_id, user_id))
     if row is None:
         raise ApiError(401, "auth_required")
+    tokens.saw(session_id, gen, {"gen": row.pop("s_gen"), "seen_gen": row.pop("s_seen_gen")})
     request.state.lang = row["locale"]
     return Ctx(row, session_id)
 

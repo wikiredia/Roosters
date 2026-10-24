@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T16:00:00Z
 ---
 
 The **previews of onboarding's course step**, built on a class's whole timetable (`useClassLessons`, every
@@ -26,6 +26,13 @@ more (with 'remove this class').
 
 'Bekijk het rooster van <klas>': that class's whole week; tap a lesson to switch its course on or off, courses you
 don't take are faded.
+
+## `useOpenWeek`, `SkipNote`, `SKIP_MAX`
+
+The week both sheets show. They open on this week (the coming one at the weekend); a week where your classes
+have no lessons at all (a holiday, like the autumn break) moves on by itself to the next week with lessons, up to
+`SKIP_MAX` (6) weeks, and `SkipNote` says so ('Geen lessen in de week van …'). Going to a week yourself stops
+that. Before, a sheet opened in a holiday week looked broken: empty.
 
 ## `WeekNav`, `useWeekLessons`, `startWeek`, `semesterOf`
 

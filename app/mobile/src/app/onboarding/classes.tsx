@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { type ScrollView, useWindowDimensions, View } from 'react-native';
 
-import { useAddClass, useClasses, useCourses, useMe, useSources } from '@/api/hooks';
+import { useAddClass, useClasses, useCourses, useDeleteSource, useMe, useSources } from '@/api/hooks';
 import type { SchoolClass, Semester, Terms } from '@/api/types';
 import { Chip, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +13,7 @@ import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { ApiError } from '@/lib/api';
+import { confirm } from '@/lib/confirm';
 import { useFinishOnboarding } from '@/lib/onboarding';
 import { monthSpan, parseDay } from '@/lib/time';
 
@@ -34,6 +35,7 @@ export default function ClassesStep() {
   const classes = useClasses(me.data?.school_id ?? null);
   const sources = useSources();
   const add = useAddClass();
+  const del = useDeleteSource();
   const [q, setQ] = useState('');
   const [picked, setPicked] = useState<Pick[]>([]);
   const [saving, setSaving] = useState(false);
@@ -47,10 +49,13 @@ export default function ClassesStep() {
   const toSearch = () => setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, searchY.current), animated: true }), 60);
   const { finish } = useFinishOnboarding();
   // Untis lists every class in both semesters; where its courses are tells which one it really runs in.
-  // `only`: class → the one semester it has courses in (from the course scan, see ClassProbe)
-  const [only, setOnly] = useState<Map<number, Semester>>(new Map());
+  // `scan`: class → what its course scan found so far (see ClassProbe); a number = courses in that semester only
+  const [scan, setScan] = useState<Map<number, Scan>>(new Map());
+  const only = useMemo(() => new Map([...scan].filter((e): e is [number, Semester] => typeof e[1] === 'number')), [scan]);
   // Classes picked with a tap on the row: those picks follow `only` once it's known
   const auto = useRef(new Set<number>());
+  // Picks the app took out because the class has no courses in that semester: said out loud, with an undo
+  const [dropped, setDropped] = useState<Pick[]>([]);
   const [hint, setHint] = useState<{ id: number; semester: Semester } | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(hintTimer.current), []);
@@ -73,8 +78,33 @@ export default function ClassesStep() {
   const todo = picked.filter((p) => !have.has(p));
 
   function toggle(p: Pick) {
-    if (have.has(p) || saving) return;
+    if (saving) return;
+    if (have.has(p)) {
+      unfollow(p);
+      return;
+    }
+    setDropped((xs) => xs.filter((x) => x !== p));
     setPicked((xs) => (xs.includes(p) ? xs.filter((x) => x !== p) : [...xs, p]));
+  }
+
+  /** A class you already follow in that semester: stop following it there (asks first: its course choices go too). */
+  async function unfollow(p: Pick) {
+    const { id, semester } = parse(p);
+    const src = (sources.data ?? []).find((s) => s.kind === 'untis' && s.class_id === id && (!s.semester || s.semester === semester));
+    if (!src) return;
+    const name = byId.get(id)?.name ?? src.label;
+    const ok = await confirm(
+      src.semester ? t('classes.unfollow', { name, n: semester }) : t('classes.unfollowYear', { name }),
+      t('classes.unfollowSub'),
+      t('classes.unfollowYes'),
+      t('common.cancel'),
+    );
+    if (!ok) return;
+    try {
+      await del.mutateAsync(src.id);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('common.tryAgain'));
+    }
   }
 
   /** A chip in the list: the other semester of a one-semester class still toggles, with a short hint why it's odd. */
@@ -89,13 +119,22 @@ export default function ClassesStep() {
     toggle(p);
   }
 
-  /** The course scan of a picked class found courses in one semester only: its row picks go to that one. */
-  function found(id: number, semester: Semester) {
-    if (only.get(id) === semester) return;
-    setOnly((m) => new Map(m).set(id, semester));
-    if (!auto.current.has(id)) return;
-    const other = pick(id, semester === 1 ? 2 : 1);
-    if (!have.has(other)) setPicked((xs) => xs.filter((x) => x !== other));
+  /** What a picked class's course scan found. Courses in one semester only: its row picks go to that one. */
+  function found(id: number, result: Scan) {
+    if (scan.get(id) === result) return;
+    setScan((m) => new Map(m).set(id, result));
+    if (typeof result !== 'number' || !auto.current.has(id)) return;
+    const other = pick(id, result === 1 ? 2 : 1);
+    if (have.has(other) || !picked.includes(other)) return;
+    setPicked((xs) => xs.filter((x) => x !== other));
+    setDropped((xs) => [...xs.filter((x) => x !== other), other]);
+  }
+
+  /** 'Toch ook semester n': put a pick the app took out back. */
+  function undrop(p: Pick) {
+    auto.current.delete(parse(p).id);
+    setDropped((xs) => xs.filter((x) => x !== p));
+    setPicked((xs) => (xs.includes(p) ? xs : [...xs, p]));
   }
 
   /** Tap on the row: the class in every semester it exists in, or out of all of them again. */
@@ -107,6 +146,7 @@ export default function ClassesStep() {
     const allOn = open.every((p) => picked.includes(p));
     if (allOn) auto.current.delete(c.id);
     else auto.current.add(c.id);
+    setDropped((xs) => xs.filter((x) => parse(x).id !== c.id));
     setPicked((xs) => (allOn ? xs.filter((x) => !open.includes(x)) : [...xs, ...open.filter((p) => !xs.includes(p))]));
   }
 
@@ -133,6 +173,7 @@ export default function ClassesStep() {
     }
   }
 
+  const scanNote = (r?: Scan) => (r === 'checking' ? t('classes.checking') : typeof r === 'number' ? t('classes.onlyIn', { n: r }) : null);
   const label = settings ? t('classes.add', { n: todo.length }) : t('classes.next', { n: chosen.size });
   return (
     <Screen
@@ -144,7 +185,7 @@ export default function ClassesStep() {
       footer={<Button label={label} disabled={settings ? todo.length === 0 : chosen.size === 0} loading={saving} onPress={next} />}
     >
       {[...new Set(picked.map((p) => parse(p).id))].map((id) => (
-        <ClassProbe key={id} school={me.data?.school_id ?? null} id={id} current={classes.data?.terms.current ?? null} onFound={found} />
+        <ClassProbe key={id} school={me.data?.school_id ?? null} id={id} onFound={found} />
       ))}
       <View className="gap-2">
         <Text variant="title" accessibilityRole="header">
@@ -164,6 +205,16 @@ export default function ClassesStep() {
           lang={lang}
         />
       ))}
+      {dropped.map((p) => {
+        const { id, semester } = parse(p);
+        const one = semester === 1 ? 2 : 1;
+        return (
+          <AView key={p} entering={enter} exiting={exit} className="rounded-card bg-surface-sunken p-3 gap-2" accessibilityLiveRegion="polite">
+            <Text variant="sm">{t('classes.autoPicked', { name: byId.get(id)?.name ?? '…', n: one, m: semester })}</Text>
+            <Button variant="ghost" size="sm" label={t('classes.alsoIn', { n: semester })} onPress={() => undrop(p)} className="self-start" />
+          </AView>
+        );
+      })}
       <View onLayout={(e) => (searchY.current = e.nativeEvent.layout.y)}>
         <Input
           icon="search"
@@ -204,7 +255,7 @@ export default function ClassesStep() {
               <Row
                 first={i === 0}
                 title={c.name}
-                sub={c.long_name || undefined}
+                sub={[c.long_name, scanNote(scan.get(c.id))].filter(Boolean).join(' · ') || undefined}
                 onPress={() => toggleRow(c)}
                 accessibilityRole="button"
                 accessibilityHint={t('classes.rowHint')}
@@ -275,7 +326,8 @@ function SemesterPicks({ semester, terms, picks, have, name, onRemove, lang }: {
                 state="on"
                 label={name(id)}
                 icon={saved ? 'check' : 'close'}
-                accessibilityLabel={saved ? name(id) : t('classes.remove', { name: name(id) })}
+                // Saved ones too: tapping asks whether to stop following it in this semester
+                accessibilityLabel={saved ? `${name(id)}, ${t('classes.unfollowYes')}` : t('classes.remove', { name: name(id) })}
                 onPress={() => onRemove(p)}
               />
             );
@@ -290,20 +342,20 @@ function SemesterPicks({ semester, terms, picks, have, name, onRemove, lang }: {
   );
 }
 
+/** checking: the course scan is still running; both / none: done; a semester: courses in that one only */
+type Scan = 'checking' | 'both' | 'none' | Semester;
+
 /**
- * Asks for a picked class's courses (the API starts its course scan) and tells when they're all in one
- * semester. The scan starts in the current semester and moves to the other when the class has nothing now,
- * so courses found only in the other semester already decide it; otherwise it waits for the scan to end.
+ * Asks for a picked class's courses (the API starts its course scan) and says what it found. Decides only once
+ * the scan is done: around a holiday the scan skips ahead to the other semester, so an early "only semester 2"
+ * would be wrong.
  */
-function ClassProbe({ school, id, current, onFound }: { school: number | null; id: number; current: Semester | null; onFound: (id: number, s: Semester) => void }) {
-  const q = useCourses(school, id);
-  const d = q.data;
+function ClassProbe({ school, id, onFound }: { school: number | null; id: number; onFound: (id: number, s: Scan) => void }) {
+  const d = useCourses(school, id).data;
   const sems = new Set((d?.courses ?? []).flatMap((c) => c.semesters ?? []));
-  const one = sems.size === 1 ? [...sems][0] : null;
-  const sure = !!d && !d.syncing && !d.error && (!d.scanning || (current !== null && one !== null && one !== current));
-  const decided = sure ? one : null;
+  const result: Scan = !d || d.syncing || d.scanning || d.error ? 'checking' : sems.size === 0 ? 'none' : sems.size === 1 ? [...sems][0] : 'both';
   useEffect(() => {
-    if (decided) onFound(id, decided);
-  }, [decided, id, onFound]);
+    onFound(id, result);
+  }, [result, id, onFound]);
   return null;
 }
