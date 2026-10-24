@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 Small parts: avatars, tags, chips, banners, selection controls.
@@ -27,6 +27,11 @@ Selection controls.
 ## `Tag`
 
 A small label (ok, premium, ink, …).
+
+## `PinMark`
+
+The small filled blue thumbtack next to a friend you pinned (Today's board, Vergelijken), with a label for screen
+readers ('Vastgezet').
 
 ## `Badge`
 

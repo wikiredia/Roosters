@@ -95,13 +95,23 @@ export function IconButton({
   icon,
   label,
   filled,
+  solid,
   color = 'ink',
   className,
   style,
   onPressIn,
   onPressOut,
   ...rest
-}: Omit<PressableProps, 'children'> & { icon: IconName; label: string; filled?: boolean; color?: string; className?: string }) {
+}: Omit<PressableProps, 'children'> & {
+  icon: IconName;
+  label: string;
+  /** On a round surface with a border */
+  filled?: boolean;
+  /** The icon itself filled (a pinned friend's thumbtack) */
+  solid?: boolean;
+  color?: string;
+  className?: string;
+}) {
   const press = usePressScale(0.88, { onPressIn, onPressOut });
   return (
     <APressable
@@ -119,7 +129,7 @@ export function IconButton({
       style={[style as object, press.style]}
     >
       <View>
-        <Icon name={icon} size={filled ? 20 : 24} color={color} />
+        <Icon name={icon} size={filled ? 20 : 24} color={color} filled={solid} />
       </View>
     </APressable>
   );

@@ -7,7 +7,7 @@ import { useFriends, useWeeks } from '@/api/hooks';
 import type { Friend, Lesson } from '@/api/types';
 import { Calendar, rangeLabel } from '@/components/timetable/Calendar';
 import { isFree } from '@/components/timetable/Timetable';
-import { Avatar, AvatarStack, Check } from '@/components/ui/Bits';
+import { Avatar, AvatarStack, Check, PinMark } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
 import { AView } from '@/components/ui/Motion';
@@ -36,8 +36,9 @@ function lessonWeek(lessons: Lesson[] | undefined, today: number) {
 }
 
 /**
- * Vergelijken, in two steps: tick friends (up to 3 for free), then 'Vergelijk' shows the calendar of the Rooster tab
- * (the same one: swipe, pinch, double tap, tap a shared break to ask) with only the breaks you share with them,
+ * Vergelijken, in two steps: tick friends (up to 3 for free; the ones you pinned are suggested first), then
+ * 'Vergelijk' shows the calendar of the Rooster tab (the same one: swipe, pinch, double tap, tap a shared break to
+ * ask) with only the breaks you share with them,
  * on the current lesson week (or the next one when yours is over). With `ids` (a friend's page, a chat's +) it opens
  * on the calendar straight away; back goes to the list.
  */
@@ -65,11 +66,14 @@ export default function CompareScreen() {
   // Shared breaks in the week you'll compare, per friend
   const shared = new Map<number, number>();
   for (const day of Object.values(week?.data?.together ?? {})) for (const s of day) shared.set(s.id, (shared.get(s.id) ?? 0) + 1);
-  // Suggestions: the 3 you pick most (no history yet: the 3 you share most breaks with); only these show a count,
-  // the full comparison is what Vergelijken (and Premium, later) is for
+  // Suggestions: the friends you pinned, then the ones you pick most (no history yet: the ones you share most breaks
+  // with), 3 in all or every pinned one; only these show a count, the full comparison is what Vergelijken (and
+  // Premium, later) is for. Everyone else in the API's order (pinned first, then by name)
   const all = friends.data ?? [];
-  const byPicks = all.filter((f) => picks[f.id]).sort((a, b) => picks[b.id] - picks[a.id]);
-  const suggested = (byPicks.length ? byPicks : [...all].filter((f) => shared.get(f.id)).sort((a, b) => (shared.get(b.id) ?? 0) - (shared.get(a.id) ?? 0))).slice(0, 3);
+  const pins = all.filter((f) => f.pinned);
+  const byPicks = all.filter((f) => !f.pinned && picks[f.id]).sort((a, b) => picks[b.id] - picks[a.id]);
+  const byShared = all.filter((f) => !f.pinned && shared.get(f.id)).sort((a, b) => (shared.get(b.id) ?? 0) - (shared.get(a.id) ?? 0));
+  const suggested = [...pins, ...(byPicks.length ? byPicks : byShared)].slice(0, Math.max(3, pins.length));
   const rest = all.filter((f) => !suggested.includes(f));
 
   function go() {
@@ -87,7 +91,12 @@ export default function CompareScreen() {
       left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} />}
       title={f.display_name}
       sub={f.hidden ? t('status.hidden') : count ? t('compare.sharedWeek', { n: shared.get(f.id) ?? 0 }) : undefined}
-      right={<Check on={picked.includes(f.id)} />}
+      right={
+        <View className="flex-row items-center gap-2">
+          {f.pinned ? <PinMark label={t('friend.pinned')} /> : null}
+          <Check on={picked.includes(f.id)} />
+        </View>
+      }
       accessibilityRole="checkbox"
       accessibilityState={{ checked: picked.includes(f.id) }}
       onPress={() => toggle(f.id)}

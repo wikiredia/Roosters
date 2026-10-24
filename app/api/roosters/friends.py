@@ -1,25 +1,33 @@
 """Who may see whom. Friendship is mutual (two rows); each side chooses what the other sees
-(full timetable or only free/busy); ghost mode hides you for a while; blocking ends everything."""
+(full timetable or only free/busy) and may pin the other (only for itself); ghost mode hides you for a while;
+blocking ends everything."""
 from . import config, db
 from .errors import ApiError
 
 
 def visible_friends(user_id: int) -> list[dict]:
-    """My friends, with what each of them shows me. -> [{user, visibility, my_visibility, hidden}]"""
+    """My friends, with what each of them shows me, pinned ones first, then by name.
+    -> [{user, visibility, my_visibility, pinned, hidden}]"""
     now = db.utcnow()
     rows = db.rows(
-        "SELECT u.*, f.visibility AS their_visibility, mine.visibility AS my_visibility FROM friendships f "
-        "JOIN users u ON u.id=f.user_id JOIN friendships mine ON mine.user_id=%s AND mine.friend_id=f.user_id "
-        "WHERE f.friend_id=%s ORDER BY u.display_name", (user_id, user_id))
+        "SELECT u.*, f.visibility AS their_visibility, mine.visibility AS my_visibility, mine.pinned AS my_pinned "
+        "FROM friendships f JOIN users u ON u.id=f.user_id "
+        "JOIN friendships mine ON mine.user_id=%s AND mine.friend_id=f.user_id "
+        "WHERE f.friend_id=%s ORDER BY mine.pinned DESC, u.display_name, u.id", (user_id, user_id))
     return [{"user": r, "visibility": r["their_visibility"], "my_visibility": r["my_visibility"],
-             "hidden": bool(r["ghost_until"] and r["ghost_until"] > now)} for r in rows]
+             "pinned": bool(r["my_pinned"]), "hidden": bool(r["ghost_until"] and r["ghost_until"] > now)} for r in rows]
 
 
 def friend_out(m: dict) -> dict:
     u = m["user"]
     return {"id": u["id"], "display_name": u["display_name"], "avatar_color": u["avatar_color"],
             "photo": u.get("photo_v"), "school_id": u["school_id"], "campus_id": u["campus_id"], "visibility": m["visibility"],
-            "my_visibility": m["my_visibility"], "hidden": m["hidden"]}
+            "my_visibility": m["my_visibility"], "pinned": m["pinned"], "hidden": m["hidden"]}
+
+
+def set_pinned(c, me: int, friend: int, pinned: bool):
+    """Pin a friend (or not): only on my own row of the friendship, so they never learn it."""
+    db.run("UPDATE friendships SET pinned=%s WHERE user_id=%s AND friend_id=%s", (1 if pinned else 0, me, friend), c)
 
 
 def friendship(me: int, other: int) -> dict | None:

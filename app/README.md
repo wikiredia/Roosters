@@ -104,7 +104,14 @@ reach the API, so no mail is sent at all.
    while you fix the mail. `GET /api/v1/debug` gives the same report as the `debug` command; both
    debug endpoints answer 404 unless `ENV=dev`.
 
-Sign in with Apple only works in a development build (`npx expo run:ios`), not in Expo Go.
+Sign in with Apple and Google only work in a development build (`npx expo run:ios|android`), not in Expo Go
+(the buttons just don't show there). Google also needs client ids: create them in Google Cloud (steps in the docs
+guide **Running and operating** → Sign in with Google), then put them in `app/mobile/.env` and make a new build:
+
+```bash
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=123-web.apps.googleusercontent.com   # also GOOGLE_CLIENT_IDS in app/.env
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=123-ios.apps.googleusercontent.com   # iOS; app.config.ts makes the URL scheme
+```
 
 ### Feel the school wifi
 
@@ -144,6 +151,7 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 - **Only what's needed:** no teachers, no free text from Untis; calendar links encrypted.
 - **Friends:** invite link (`/i/<code>`) or a request within your school. Each friend sees your full
   timetable or only free/busy (your choice per friend); ghost mode hides you for a while; blocking is silent.
+  Pin a few friends and they come first everywhere friends are listed (only for you: they never see it).
 - **Built for bad wifi:** `GET /api/v1/me/today` gives the whole Today screen in one request, with an
   ETag (nothing changed → empty 304). Writes accept an `Idempotency-Key` header: a retry after a lost
   answer gets the same answer instead of running twice. Rate limits per account, not per IP (a whole
@@ -166,7 +174,7 @@ They run against a real MySQL and Valkey (also in GitHub Actions, on every chang
 | Debug (ENV=dev only) | `GET /api/v1/debug`, `POST /debug/mail`; signed in, for your own account and test people: `GET /debug/users`, `POST /debug/login`, `POST/DELETE /debug/test-users`, `DELETE /debug/users/{id}`, `POST /debug/users/{id}/timetable`, `POST /debug/test-chats`, `PUT /debug/friends/{id}` |
 | Breaks | `GET/POST /api/v1/breaks`, `POST /breaks/{id}/respond\|counter\|cancel` |
 | Chat | `GET/POST /api/v1/chats`, `POST /chats/direct`, `GET/PATCH /chats/{id}`, `POST /chats/{id}/members`, `DELETE /chats/{id}/members/me`, `GET/POST /chats/{id}/messages`, `DELETE /chats/{id}/messages/{id}`, `POST /chats/{id}/read`, `POST /chats/messages/{id}/report`; admin: `GET /admin/v1/reports`, `POST /admin/v1/reports/{id}` |
-| Friends | `GET /api/v1/friends`, `PATCH/DELETE /friends/{id}`, `GET/POST /friends/requests`, `POST /friends/requests/{id}/accept\|decline\|cancel`, `POST /invites`, `GET /invites/{code}`, `POST /invites/{code}/accept`, `GET/POST /blocks`, `DELETE /blocks/{id}`, `GET /friends/{id}/schedule`, `GET /compare` |
+| Friends | `GET /api/v1/friends` (pinned first), `PATCH /friends/{id}` (visibility, pinned), `DELETE /friends/{id}`, `GET/POST /friends/requests`, `POST /friends/requests/{id}/accept\|decline\|cancel`, `POST /invites`, `GET /invites/{code}`, `POST /invites/{code}/accept`, `GET/POST /blocks`, `DELETE /blocks/{id}`, `GET /friends/{id}/schedule`, `GET /compare` |
 
 The OpenAPI schema (`/api/openapi.json`) is always on. The app's types live in `mobile/src/api/types.ts`.
 Every route with its file and a description: the docs (console → Roosters+ → Documentation → API routes & jobs).
@@ -187,6 +195,9 @@ listen on this laptop only: the admin API (`api/roosters/admin.py`, `ADMIN_TOKEN
    settings (push per chat too)~~ (done: `api/roosters/push.py`, `mobile/src/lib/push.ts`, Ik → Meldingen; needs an
    EAS project id and a development build; "a friend is free" and "travelling together" pushes still to come),
    ~~skipping one lesson ("Vak overslaan")~~ (done: `r_me.skip`, `mobile/src/components/timetable/SkipDrag.tsx`)
-2. In the app after that: Google Sign-In (needs client IDs), QR codes, pinned friends, the notifications step in onboarding
+2. In the app after that: ~~Google Sign-In~~ (done: `mobile/src/lib/google.ts`, `mobile/src/components/GoogleButton.tsx`; needs client IDs), QR codes,
+   ~~pinned friends~~ (done: `friendships.pinned`, `PATCH /friends/{id}` `{pinned}`, Vrienden and a friend's page; first in the lists,
+   on Today's board and in Vergelijken), ~~the notifications step in onboarding~~ (done: `mobile/src/app/onboarding/notifications.tsx`,
+   last step, and on Today's steps until the phone was asked)
 3. Premium (RevenueCat), widgets
 4. Server: Caddy (HTTPS, HTTP/3) + backups + monitoring on Hetzner

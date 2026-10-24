@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -10,7 +10,8 @@ What a friend sees of your timetable: `full`, `norooms` (no rooms) or `freebusy`
 
 ## `Friend`, `Together`, `Checkin`, `ScheduleChange`, `Notification`, `SourcesState`
 
-Parts of the Today answer.
+Parts of the Today answer. A `Friend` has `pinned`: **you** pinned them (only yours, they never see it); the API
+lists friends pinned first, then by name.
 
 ## `Invite`, `PersonCard`, `Requests`, `Classmate`
 

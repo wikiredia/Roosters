@@ -106,7 +106,7 @@ export default function CoursesStep() {
   return (
     <Screen
       back
-      progress={settings ? undefined : [5, 7]}
+      progress={settings ? undefined : [5, 8]}
       navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       navTitle={settings ? t('courses.editTitle') : undefined}
       footer={

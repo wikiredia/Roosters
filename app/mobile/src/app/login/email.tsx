@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { GoogleButton } from '@/components/GoogleButton';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Inputs';
 import { Screen } from '@/components/ui/Screen';
@@ -9,6 +10,7 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { describe } from '@/lib/debuglog';
+import { googleSupport } from '@/lib/google';
 import { resetTo } from '@/lib/nav';
 import { startAsGuest } from '@/lib/onboarding';
 import { debugEnabled } from '@/lib/server';
@@ -20,9 +22,12 @@ export default function EmailLogin() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [detail, setDetail] = useState<string | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
   // Already in the app as a guest (from Today's steps): no onboarding progress, no skip
   const { from } = useLocalSearchParams<{ from?: string }>();
   const inApp = from === 'steps' || session.get().status === 'signedIn';
+  // A guest can also keep their account with Google (welcome has the button for everyone else)
+  const google = inApp && googleSupport() === 'ready';
 
   async function skip() {
     setBusy(true);
@@ -60,7 +65,7 @@ export default function EmailLogin() {
   return (
     <Screen
       back
-      progress={inApp ? undefined : [1, 7]}
+      progress={inApp ? undefined : [1, 8]}
       navTitle={inApp ? t('steps.email') : undefined}
       navRight={inApp ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={skip} />}
       noBanner
@@ -87,6 +92,24 @@ export default function EmailLogin() {
         error={error}
       />
       <Button label={t('login.sendCode')} onPress={send} loading={busy} />
+      {google ? (
+        <View className="gap-3">
+          <Text variant="sm" tone="ink3" className="text-center">
+            {t('login.or')}
+          </Text>
+          <GoogleButton
+            onError={(message, why) => {
+              setGoogleError(message);
+              setDetail(debugEnabled && why ? why : null);
+            }}
+          />
+          {googleError ? (
+            <Text variant="sm" tone="danger" className="text-center" accessibilityLiveRegion="polite">
+              {googleError}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       {detail ? (
         <View className="gap-1">
           <Text variant="xs" tone="ink2" selectable>

@@ -328,9 +328,16 @@ def together_days(user: dict, first: dt.date, last: dt.date, now_dt: dt.datetime
         after = now_dt.hour * 60 + now_dt.minute if d == now_dt.date() else 0
         found = logic.partners(people[user["id"]], people, infos, after=after)
         if found:
-            out[d.isoformat()] = found
+            out[d.isoformat()] = _pinned_first(found, mates)
         d += dt.timedelta(days=1)
     return out
+
+
+def _pinned_first(found: list[dict], mates: list[dict]) -> list[dict]:
+    """Shared breaks still in time order, but within the same start your pinned friends first (the app names the
+    people of one break in this order)."""
+    pinned = {m["user"]["id"] for m in mates if m["pinned"]}
+    return sorted(found, key=lambda x: (x["start"], x["id"] not in pinned))
 
 
 @router.get("/schedule")
@@ -380,10 +387,12 @@ def today(request: Request, day: str | None = None, ctx: Ctx = Depends(auth)):
         board.append({"id": f["id"], "status": schedule.status(people[f["id"]], infos[f["id"]], now)})
     order = {"break": 0, "chilling": 1, "wants_to_chill": 1, "in_class": 2, "later": 3, "done": 4, "home": 5,
              "absent": 6, "no_classes": 7, "hidden": 8}
-    board.sort(key=lambda x: (order.get(x["status"]["code"], 9), x["status"].get("until") or 0))
+    # Friends you pinned always on top ("Vastgezet · bovenaan in Vandaag"), then whoever is free first
+    pinned = {m["user"]["id"] for m in mates if m["pinned"]}
+    board.sort(key=lambda x: (x["id"] not in pinned, order.get(x["status"]["code"], 9), x["status"].get("until") or 0))
     hidden = {m["user"]["id"] for m in mates if m["hidden"]}
     visible = {pid: p for pid, p in people.items() if pid not in hidden}
-    together = logic.partners(me, visible, infos, after=now)
+    together = _pinned_first(logic.partners(me, visible, infos, after=now), mates)
     changes = [n for n in notifications.list_for(ctx.uid, limit=20)
                if n["kind"] == "schedule_change" and n["day"] and n["day"] >= d.isoformat()]
     checkin = db.one("SELECT status, since_min, until_min FROM checkins WHERE user_id=%s AND day=%s", (ctx.uid, d))
@@ -535,7 +544,7 @@ def export(ctx: Ctx = Depends(auth)):
                             "WHERE user_id=%s", (uid,)),
         "sources": secret_free,
         "hidden_courses": db.rows("SELECT course FROM hidden_courses WHERE user_id=%s", (uid,)),
-        "friends": db.rows("SELECT f.friend_id, u.display_name, f.visibility, f.created_at FROM friendships f "
+        "friends": db.rows("SELECT f.friend_id, u.display_name, f.visibility, f.pinned, f.created_at FROM friendships f "
                            "JOIN users u ON u.id=f.friend_id WHERE f.user_id=%s", (uid,)),
         "blocked": db.rows("SELECT blocked_id, created_at FROM blocks WHERE user_id=%s", (uid,)),
         "checkins": db.rows("SELECT * FROM checkins WHERE user_id=%s", (uid,)),

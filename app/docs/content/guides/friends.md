@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 ## Becoming friends
@@ -13,12 +13,24 @@ updated: 2026-10-24T12:55:00Z
 
 ## What a friend sees
 
-Each side chooses per friend: the **full** timetable, everything **without rooms**, or **free/busy** only (`set_visibility`;
+Each side chooses per friend: the **full** timetable, everything **without rooms**, or **free/busy** only (`edit_friend`;
 `schedule.busy_only` merges busy blocks and drops what and where). **Ghost mode** hides you completely for a
 while. **Blocking** ends the friendship and is silent (the other side can't tell). Guests are invisible.
 
 Every feature that shows one person's data to another must go through `friends.visible_friends` /
 `friendship`, so these rules apply.
+
+## Pinned friends
+
+Pin the few friends you care about most and they come first wherever friends are listed: the friends list (their own
+card, 'Vastgezet · bovenaan in Vandaag'), Today's board (on top, also when they're not on campus), the names of a
+shared break, Vergelijken's 'Voor jou', and every picker that keeps the API's order (new group, adding to a chat, the
+Chat tab's friends). A pin is **only yours**: it's `friendships.pinned` on your own row (migration `0014`), set with
+`PATCH /api/v1/friends/{id}` `{pinned}` (`r_friends.edit_friend`, `friends.set_pinned`); nothing a friend can ask
+reads it. It goes with the friendship (unfriending, blocking, deleting the account), is in the export, and has no
+cap (like pinned chats). 'Voor jou' break questions on Today stay in time order: the soonest one needs an answer
+first. App: the thumbtack on each row of `app/friends/index.tsx`, the 'Vastzetten' toggle on `app/friends/[id].tsx`,
+`PinMark` (`components/ui/Bits.tsx`), `lib/friends.ts`, `usePinFriend`.
 
 ## Breaks together (logic.py)
 

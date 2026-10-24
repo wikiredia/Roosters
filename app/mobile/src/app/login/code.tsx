@@ -92,7 +92,7 @@ export default function CodeLogin() {
   return (
     <Screen
       back
-      progress={inApp ? undefined : [1, 7]}
+      progress={inApp ? undefined : [1, 8]}
       navRight={<Button variant="ghost" size="sm" label={inApp ? t('login.later') : t('common.skip')} onPress={later} />}
       noBanner
     >

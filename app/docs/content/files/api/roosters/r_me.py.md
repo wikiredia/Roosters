@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -65,7 +65,8 @@ Soft-deletes the source, forgets its encrypted link and deletes its personal les
 ## `export`
 
 `GET /api/v1/me/export`: everything stored about you (GDPR art. 15/20) as JSON, without secrets (no encrypted links),
-including the classes you skip, the break requests you made and your answers, your chats, the messages you wrote and the reports you made.
+including your friends (with what you show each and whether you pinned them), the classes you skip, the break requests you made and your answers, your chats, the messages you wrote and the reports you made,
+your Meldingen and which devices get push (without the tokens).
 
 ## `my_notifications`, `ReadIn`, `read`
 
@@ -87,7 +88,13 @@ this session has a token). `PATCH` with only what changed; quiet hours in minute
 ## `together_days`
 
 Per day, who you share a break with (the yellow blocks of the Rooster tab), like Today does for one day: friends who
-are hidden (ghost) don't count, today only from now on.
+are hidden (ghost) don't count, today only from now on. Within the same start your pinned friends come first
+(`_pinned_first`), so the app names them first.
+
+## `_pinned_first`
+
+Shared breaks stay in time order, but within the same start the friends you pinned come first (Today's 'Pak je
+pauze met' and the Rooster tab's yellow blocks name people in this order).
 
 ## `my_schedule`
 
@@ -112,7 +119,8 @@ Summary for the app's banners: how many sources, oldest 'updated at', still sync
 ## `today`
 
 `GET /api/v1/me/today?day=`: **one round trip** for the Today screen and each day column of the Rooster tab (slow wifi), with `loading` like `my_schedule`: your status now, your
-check-in, today's lessons, friends with their status on the now-board (sorted: on a break first),
+check-in, today's lessons, friends (pinned first, then by name) with their status on the now-board (sorted: the
+friends you pinned on top, then on a break first),
 who you share breaks with (`logic.partners`), today's and upcoming changes, your break requests (`breaks.list_for`:
 today and the coming days, none for guests) and the sources' state.
 With an ETag, so an unchanged screen costs a few bytes. Hidden (ghost) friends show as 'hidden' and are

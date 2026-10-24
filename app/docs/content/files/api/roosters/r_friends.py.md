@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-24T13:40:00Z
 ---
 
-**Friends**: the social side. Friend list and visibility, requests within your school, invite links,
+**Friends**: the social side. Friend list, visibility and pins, requests within your school, invite links,
 blocking, a friend's timetable, and Compare.
 
 **Privacy rules** (keep them when you change anything here):
@@ -11,8 +11,9 @@ blocking, a friend's timetable, and Compare.
 - Requests and the classmates list only work **within your own school**, and guests never show up.
 - Blocking is silent: a blocked person gets the same answers as if nothing happened.
 - A friend sees your full timetable, everything but the rooms, or only free/busy, as **you** choose
-  (`set_visibility`), and nothing
+  (`edit_friend`), and nothing
   while you're in ghost mode.
+- A pin is **only yours** (`edit_friend`, on your own `friendships` row): nothing a friend can ask shows it.
 
 The rules for who sees whom are in `friends.py`; break maths in `logic.py`.
 Tests: `tests/test_friends.py`, `tests/test_guests.py`.
@@ -25,10 +26,13 @@ Invite codes: 8 characters with no look-alikes (no 0/O, 1/I/L), so they can be r
 
 `GET /api/v1/friends/requests`: pending incoming and outgoing requests.
 
-## `VisibilityIn`, `set_visibility`
+## `FriendPatch`, `edit_friend`
 
-`PATCH /api/v1/friends/{id}`: what **you** show this friend: `full`, `norooms` (what and when, never where) or
-`freebusy`.
+`PATCH /api/v1/friends/{id}` with `visibility` and/or `pinned` (only what's sent changes), answers with the friend:
+- `visibility`: what **you** show this friend: `full`, `norooms` (what and when, never where) or `freebusy`.
+- `pinned`: pin them (or not), **only for you** (`friends.set_pinned`): they come first in your friends list, on
+  Today's board and in Vergelijken's suggestions. No cap, like pinned chats (`chat_members.pinned`): the app shows
+  every pinned friend on top. 404 `not_friends` when you aren't friends.
 
 ## `_invite_out`, `my_invite`
 
@@ -73,7 +77,8 @@ An invite that exists, isn't revoked or expired and has uses left, or 404 `invit
 
 ## `list_friends`
 
-`GET /api/v1/friends`: your friends with what each shows you and what you show them.
+`GET /api/v1/friends`: your friends with what each shows you, what you show them and whether you pinned them;
+pinned first, then by name (`friends.visible_friends`).
 
 ## `remove_friend`
 

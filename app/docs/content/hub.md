@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-24T13:55:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -63,17 +63,19 @@ notifies the people affected.
 | I want to … | Look at |
 | --- | --- |
 | Add or change an API route | the `r_*.py` file for the area (`r_me`, `r_friends`, `r_breaks`, `r_chat`, `r_schools`, `r_auth`); errors in `i18n.py` |
-| Change sign-in, sessions, guests | `api/roosters/r_auth.py`, `tokens.py`, `providers.py`, `accounts.py`; guide **Auth, sessions and guests** |
+| Change sign-in, sessions, guests | `api/roosters/r_auth.py`, `tokens.py`, `providers.py`, `accounts.py`; the app's `mobile/src/app/welcome.tsx`, `login/`, `mobile/src/lib/google.ts`; guide **Auth, sessions and guests** (Google client ids: **Running and operating**) |
 | Change when two people 'share a break' | `api/roosters/logic.py` (pure functions, tested in `tests/test_logic.py`) |
 | Change what friends can see | `api/roosters/friends.py`, `r_friends.py`, `schedule.py`; guide **Friends and privacy** |
+| Change pinned friends (where they come first) | `api/roosters/friends.py` (`visible_friends`, `set_pinned`), `r_friends.edit_friend`, `r_me.today`, `mobile/src/lib/friends.ts`, `mobile/src/app/friends/` |
 | Change how timetables are fetched | `api/roosters/sync.py`, `untis.py`, `ics.py`, `netfetch.py`; guide **Timetables** |
 | Add a table or column | a new `api/roosters/migrations/NNNN_*.sql`; guide **Database** |
 | Add a background job | `@jobs.handler` in the owning module, import it in `worker.py` |
 | Add or change a screen | `mobile/src/app/` (file = route); texts in `mobile/src/i18n/nl.ts` + `en.ts` |
-| Change onboarding or 'Complete the following steps' | `mobile/src/app/onboarding/`, `mobile/src/lib/onboarding.ts`, `mobile/src/components/SetupSteps.tsx` |
+| Change onboarding or 'Complete the following steps' | `mobile/src/app/onboarding/`, `mobile/src/lib/onboarding.ts`, `mobile/src/components/SetupSteps.tsx` (the notifications step: `onboarding/notifications.tsx` + `lib/push.ts`) |
 | Change semesters or the course list of the school year | `api/roosters/terms.py`, `sync.scan_courses`, `r_schools.courses`; guide **Timetables** |
 | Change the calendar (Rooster tab and Vergelijken) | `mobile/src/components/timetable/Calendar.tsx`, `DayGrid.tsx`, `DayStrip.tsx` |
 | Change skipping a class (drag to the bin, summary, Undo) | `mobile/src/components/timetable/SkipDrag.tsx`, `SkipToast.tsx`, `mobile/src/lib/skips.ts`; API `r_me.skip`, `schedule.takes_place` |
+| Change push notifications (texts, who gets what, Meldingen) | `api/roosters/push.py`, `notifications.py`, `mobile/src/lib/push.ts`, `mobile/src/app/settings/notifications.tsx` |
 | Change profile photos | `api/roosters/r_me.py` (`put_photo`), `r_friends.photo`, `mobile/src/lib/photo.ts`, `components/ui/Bits.tsx` (`Avatar`) |
 | Change a design token or component | `mobile/src/global.css`, `mobile/src/components/ui/` |
 | Add something to the management console | `api/roosters/admin.py` (+ the console's `roosters.js`); guide **Management console and docs** |
