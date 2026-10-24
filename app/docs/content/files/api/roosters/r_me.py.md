@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T05:00:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -38,7 +38,8 @@ finish **or skip** onboarding (`mobile/src/lib/onboarding.ts`), and from then on
 ## `UntisSourceIn`, `IcsSourceIn`, `SourceConfigIn`, `_clean`
 
 Inputs for sources. Course names in include/exclude are trimmed, deduplicated and sorted.
-`UntisSourceIn.semester`: 1 or 2 to follow the class in that semester only, `null` for the whole school year.
+`SourceConfigIn.picked`: the courses were chosen one by one, so `include` is exactly what you follow (empty =
+nothing; see `sync.wanted`). `UntisSourceIn.semester`: 1 or 2 to follow the class in that semester only, `null` for the whole school year.
 
 ## `_ts`
 

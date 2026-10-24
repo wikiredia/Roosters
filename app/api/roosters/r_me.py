@@ -136,6 +136,8 @@ class IcsSourceIn(BaseModel):
 
 class SourceConfigIn(BaseModel):
     include: list[str] | None = Field(None, max_length=200)
+    # True: `include` is exactly the courses you follow (picked one by one; empty = none of them)
+    picked: bool | None = None
     exclude: list[str] | None = Field(None, max_length=200)
     keywords: list[str] | None = Field(None, max_length=50)
     label: str | None = Field(None, max_length=160)
@@ -211,6 +213,8 @@ def update_source(source_id: int, body: SourceConfigIn, ctx: Ctx = Depends(auth)
     for k in keys:
         if fields.get(k) is not None:
             cfg[k] = _clean(fields[k])
+    if s["kind"] == "untis" and fields.get("picked") is not None:
+        cfg["picked"] = bool(fields["picked"])
     label = (fields.get("label") or "").strip() or s["label"]
     db.run("UPDATE sources SET config=%s, label=%s WHERE id=%s", (db.js(cfg), label[:160], source_id))
     if s["kind"] == "ics" and "keywords" in fields:

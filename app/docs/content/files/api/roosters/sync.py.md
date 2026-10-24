@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T05:00:00Z
 ---
 
 **Fetching timetables** and updating lessons, with **change detection**.
@@ -112,3 +112,5 @@ A school's timezone, or the default.
 ## `wanted`
 
 Does this user follow this course? (include = only these, exclude = not these, hidden = switched off in the app.)
+With `picked` (courses chosen one by one in onboarding), `include` is the whole list, even when it's empty:
+nothing chosen means nothing, not everything.

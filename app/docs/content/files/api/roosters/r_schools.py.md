@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T00:30:00Z
+updated: 2026-10-24T05:00:00Z
 ---
 
 The lists **onboarding** shows: schools, campuses, classes (per semester), and the courses of a class this
@@ -35,6 +35,13 @@ course that starts in a month has to be choosable in onboarding, because the cho
   polls). After a failed scan `scanning` is false and `error` says why; the job retries by itself.
 - Courses that appeared in the fetched weeks since the scan are added.
 - A class never fetched at all (and never scanned): it's queued and the answer says `syncing: true`.
+
+## `class_lessons`
+
+`GET /api/v1/schools/{id}/classes/{class}/lessons?start=&days=`: a class's whole timetable (every course,
+with its group) for up to 14 days. Onboarding shows it ('see this class's timetable'), previews the timetable
+your picks would give, and searches it for 'Ik mis een les'. Public school data, like the class list; far
+weeks are fetched on demand (`loading`), a class never fetched is queued.
 
 ## `schools`
 

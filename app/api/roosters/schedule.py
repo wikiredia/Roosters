@@ -57,6 +57,19 @@ def lessons(user_ids, day_from: dt.date, day_to: dt.date) -> dict[int, list[dict
     return out
 
 
+def outside_mondays(day_from: dt.date, day_to: dt.date, today: dt.date) -> list[dt.date]:
+    """The Mondays between two days that the routine sync doesn't cover (and aren't too far away)."""
+    first, last = synced_weeks(today)
+    limit = dt.timedelta(weeks=config.WEEKS_MAX_DISTANCE)
+    out = []
+    d = day_from - dt.timedelta(days=day_from.weekday())
+    while d <= day_to:
+        if (d < first or d > last) and abs(d - first) <= limit:
+            out.append(d)
+        d += dt.timedelta(weeks=1)
+    return out
+
+
 def ensure_weeks(user_ids, day_from: dt.date, day_to: dt.date, today: dt.date) -> bool:
     """Weeks outside the routine sync (far back or ahead) are fetched from Untis when someone looks at
     them. Queues what's missing or stale; True while a week has never been fetched (the app shows a
@@ -64,22 +77,21 @@ def ensure_weeks(user_ids, day_from: dt.date, day_to: dt.date, today: dt.date) -
     user_ids = list(user_ids)
     if not user_ids:
         return False
-    first, last = synced_weeks(today)
-    limit = dt.timedelta(weeks=config.WEEKS_MAX_DISTANCE)
-    mondays = []
-    d = day_from - dt.timedelta(days=day_from.weekday())
-    while d <= day_to:
-        if (d < first or d > last) and abs(d - first) <= limit:
-            mondays.append(d)
-        d += dt.timedelta(weeks=1)
+    mondays = outside_mondays(day_from, day_to, today)
     if not mondays:
         return False
     ph, args = db.in_list(user_ids)
     classes = [r["school_class_id"] for r in db.rows(
         f"SELECT DISTINCT school_class_id FROM sources WHERE user_id IN ({ph}) AND kind='untis' "
         f"AND deleted_at IS NULL AND school_class_id IS NOT NULL", args)]
-    if not classes:
+    return ensure_class_weeks(classes, mondays, today)
+
+
+def ensure_class_weeks(classes: list[int], mondays: list[dt.date], today: dt.date) -> bool:
+    """`ensure_weeks` for classes directly (a class's own timetable in onboarding)."""
+    if not classes or not mondays:
         return False
+    first = synced_weeks(today)[0]
     cph, cargs = db.in_list(classes)
     mph, margs = db.in_list(mondays)
     have = {(r["school_class_id"], r["monday"]): r for r in db.rows(

@@ -98,9 +98,10 @@ def _side(l: dict) -> dict:
 
 
 def wanted(course: str, cfg: dict, hidden: set) -> bool:
-    """Does this user follow this course? (include = only these, exclude = not these, hidden = hidden in the app)"""
+    """Does this user follow this course? (include = only these, exclude = not these, hidden = hidden in the app)
+    `picked`: the courses were chosen one by one in the app, so include is the whole list, even when empty."""
     include, exclude = cfg.get("include") or [], cfg.get("exclude") or []
-    if include and course not in include:
+    if (include or cfg.get("picked")) and course not in include:
         return False
     return course not in exclude and course not in hidden
 

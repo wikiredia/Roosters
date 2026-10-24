@@ -127,3 +127,29 @@ def test_a_class_for_s2_only_is_not_in_your_s1_timetable(client, mails, school):
     assert [l["course"] for l in now["lessons"]] == ["Databases"]
     later = client.get("/api/v1/me/schedule", headers=h, params={"start": s2.isoformat(), "days": 1}).json()
     assert [l["course"] for l in later["lessons"]] == ["Python Advanced"]
+
+
+def test_a_class_timetable_shows_every_course(client, mails, school):
+    k = school["classes"][0]
+    add_class_lessons(k, [("08:30", "10:30", "Databases", "B204"), ("11:00", "12:30", "Python Advanced", "C102")])
+    u = _setup(client, mails, school)
+    body = client.get(f"/api/v1/schools/{school['id']}/classes/{k}/lessons", headers=u["headers"],
+                      params={"start": today().isoformat(), "days": 1}).json()
+    assert body["loading"] is False
+    assert [(l["course"], l["start"]) for l in body["lessons"]] == [("Databases", 510), ("Python Advanced", 660)]
+
+
+def test_picked_courses_are_exactly_the_ones_you_follow(client, mails, school):
+    k = school["classes"][0]
+    add_class_lessons(k, [("08:30", "10:30", "Databases", "B204"), ("11:00", "12:30", "Python Advanced", "C102")])
+    u = _setup(client, mails, school)
+    h = u["headers"]
+    sid = client.post("/api/v1/me/sources/untis", headers=h, json={"class_id": k}).json()["source"]["id"]
+    params = {"start": today().isoformat(), "days": 1}
+    r = client.patch(f"/api/v1/me/sources/{sid}", headers=h, json={"include": ["Python Advanced"], "picked": True})
+    assert r.status_code == 200 and r.json()["source"]["config"]["picked"] is True
+    lessons = client.get("/api/v1/me/schedule", headers=h, params=params).json()["lessons"]
+    assert [l["course"] for l in lessons] == ["Python Advanced"]
+    # Picked, but nothing: nothing (an empty include no longer means everything)
+    client.patch(f"/api/v1/me/sources/{sid}", headers=h, json={"include": [], "picked": True})
+    assert client.get("/api/v1/me/schedule", headers=h, params=params).json()["lessons"] == []

@@ -122,7 +122,8 @@ export type Source = {
   id: number;
   kind: 'untis' | 'ics';
   label: string;
-  config: { include?: string[]; exclude?: string[]; keywords?: string[] };
+  /** picked: `include` is exactly the courses you follow (chosen one by one; empty = none) */
+  config: { include?: string[]; exclude?: string[]; keywords?: string[]; picked?: boolean };
   last_ok: string | null;
   error: string | null;
   syncing: boolean;
@@ -134,6 +135,9 @@ export type Source = {
 export type School = { id: number; slug: string; name: string; short_name: string | null; country: string };
 export type Campus = { id: number; name: string };
 export type Semester = 1 | 2;
+/** A lesson of a class's whole timetable (every course): onboarding's previews */
+export type ClassLesson = { day: string; start: number; end: number; course: string; location: string | null; group: string | null; state: LessonState };
+export type ClassLessons = { start: string; days: number; loading: boolean; lessons: ClassLesson[] };
 export type SchoolClass = { id: number; name: string; long_name: string; semesters: Semester[] };
 export type Terms = { s1: { start: string; end: string }; s2: { start: string; end: string }; current: Semester | null };
 export type SchoolClasses = { classes: SchoolClass[]; terms: Terms };

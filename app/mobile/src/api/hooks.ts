@@ -7,6 +7,7 @@ import type {
   Campus,
   Checkin,
   Classmate,
+  ClassLessons,
   Compare,
   Courses,
   Friend,
@@ -164,6 +165,20 @@ export function useCourses(school: number | null, cls: number, semester?: Semest
   });
 }
 
+/** A class's whole timetable for some days (every course, not only yours): onboarding's previews.
+ * One query per class; far weeks poll while the API fetches them (`loading`). */
+export function useClassLessons(school: number | null, classes: number[], start: string, days: number) {
+  return useQueries({
+    queries: classes.map((cls) => ({
+      queryKey: ['class-lessons', school ?? 0, cls, start, days],
+      queryFn: () => api.get<ClassLessons>(`/api/v1/schools/${school}/classes/${cls}/lessons?start=${start}&days=${days}`),
+      enabled: !!school && !!cls,
+      staleTime: 5 * 60_000,
+      refetchInterval: (q: { state: { data?: ClassLessons } }) => (q.state.data?.loading ? 2000 : false),
+    })),
+  });
+}
+
 export function useClassmates() {
   return useQuery({
     queryKey: keys.classmates,
@@ -235,7 +250,7 @@ export function useAddIcs() {
 export function useUpdateSource() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: number; include?: string[]; exclude?: string[] }) =>
+    mutationFn: ({ id, ...body }: { id: number; include?: string[]; exclude?: string[]; picked?: boolean }) =>
       api.patch<{ source: Source }>(`/api/v1/me/sources/${id}`, body).then((r) => r.source),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.sources });

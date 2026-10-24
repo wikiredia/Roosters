@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T05:00:00Z
 ---
 
 **Reading timetables**: someone's lessons from the classes they follow and their own calendar links,
@@ -29,6 +29,11 @@ to `WEEKS_MAX_DISTANCE` weeks away. Per followed class and week (`class_weeks`):
 the answer says `loading` (the app shows a skeleton and asks again); a future week older than
 `WEEK_STALE_HOURS` or a past week fetched before it was over → refreshed in the background; Untis said no
 → tried again after an hour. Called by `/me/schedule`, `/me/today` and a friend's schedule.
+
+## `ensure_class_weeks`, `outside_mondays`
+
+The same for classes directly (a class's own timetable in onboarding, `r_schools.class_lessons`), and the
+Mondays of a range the routine sync doesn't cover.
 
 ## `lessons`
 

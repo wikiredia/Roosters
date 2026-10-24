@@ -5,7 +5,7 @@ import datetime as dt
 from fastapi import APIRouter, Depends, Query, Request
 
 from . import config, db, schedule, sync, terms
-from .deps import Ctx, auth, etag_json
+from .deps import Ctx, auth, etag_json, parse_day
 from .errors import ApiError
 
 router = APIRouter(prefix="/api/v1/schools", tags=["schools"])
@@ -99,3 +99,30 @@ def courses(school_id: int, class_id: int, request: Request, semester: int | Non
     # A scan that failed stops the app's polling; the job retries on its own and the next visit has it
     return etag_json(request, {"syncing": False, "scanning": scanned is None and not cls["courses_error"], "error": cls["courses_error"],
                                "courses": out})
+
+
+@router.get("/{school_id}/classes/{class_id}/lessons")
+def class_lessons(school_id: int, class_id: int, request: Request, start: str | None = None, days: int = 7,
+                  ctx: Ctx = Depends(auth)):
+    """A class's whole timetable (every course, not just yours) for up to 14 days: onboarding shows it
+    ('see this class's timetable'), previews the timetable your picks would give, and finds what you're
+    missing ('Ik mis een les'). Public school data, like the class list. Far weeks: `loading`, as for
+    your own schedule (`schedule.ensure_weeks`)."""
+    cls = db.one("SELECT * FROM school_classes WHERE id=%s AND school_id=%s AND active=1", (class_id, school_id))
+    if cls is None:
+        raise ApiError(404, "class_unknown")
+    today = schedule.local_now(ctx.user).date()
+    first = parse_day(start, today - dt.timedelta(days=today.weekday()))
+    days = max(1, min(days, 14))
+    last = first + dt.timedelta(days=days - 1)
+    loading = False
+    if cls["last_ok"] is None:
+        sync.queue_class(class_id, soon=True)
+        loading = True
+    loading = schedule.ensure_class_weeks([class_id], schedule.outside_mondays(first, last, today), today) or loading
+    rows = db.rows("SELECT day, start_min, end_min, course, location, student_group, state FROM class_lessons "
+                   "WHERE school_class_id=%s AND day BETWEEN %s AND %s AND state <> 'removed' "
+                   "ORDER BY day, start_min, course", (class_id, first, last))
+    return etag_json(request, {"start": first.isoformat(), "days": days, "loading": loading, "lessons": [
+        {"day": r["day"].isoformat(), "start": r["start_min"], "end": r["end_min"], "course": r["course"],
+         "location": r["location"], "group": r["student_group"], "state": r["state"]} for r in rows]})
