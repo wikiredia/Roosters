@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T17:00:00Z
+updated: 2026-10-24T05:00:04Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -7,7 +7,8 @@ The **time grid**: time axis, day columns, lesson blocks (theory or lab colours,
 ## `BlockView`
 
 Exported for the Rooster tab's `DayGrid`. 
-One block (lesson or together).
+One block (lesson, together or free). A free moment is a light grey fill without an outline, with a small coffee
+cup in its top right corner (no text unless it has a label).
 
 ## `GridProps`, `TimeGrid`
 
@@ -53,6 +54,17 @@ tap; screen readers get a label that says to tap to choose.
 ## `dayBlocks`, `spanOf`, `overlaps`
 
 A day's lessons (merged with `mergeLessons`) and shared breaks as blocks.
+
+## `FREE_MIN`, `freeGaps`
+
+The free moments between a day's lessons (the Rooster grid colours them grey): gaps of at least `FREE_MIN` (15)
+minutes between merged lessons that take place, never before the first or after the last lesson. A cancelled
+lesson leaves its time free.
+
+## `KIND_DOT`, `kindsOf`
+
+The week strip's dots: a day's kinds of lessons that take place, in the order they come, each as its strong colour
+(`bg-theory`, `bg-lab`, …; an exam is ink).
 
 ## `lessonKind`, `isOff`, `LessonKind`, `KIND_STYLE`, `KIND_LABEL`
 

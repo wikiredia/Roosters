@@ -34,6 +34,29 @@ export const KIND_STYLE: Record<LessonKind, string> = {
   other: 'bg-other-soft border-other',
 };
 
+/** The small dot per kind under a date in the week strip: the kind's strong colour. */
+export const KIND_DOT: Record<LessonKind, string> = {
+  theory: 'bg-theory',
+  lab: 'bg-lab',
+  exercises: 'bg-exercises',
+  project: 'bg-project',
+  support: 'bg-support',
+  internship: 'bg-internship',
+  info: 'bg-info',
+  exam: 'bg-ink',
+  other: 'bg-other',
+};
+
+/** The kinds of a day's lessons that take place (cancelled ones don't count), in the order they come. */
+export function kindsOf(lessons: Lesson[]): LessonKind[] {
+  const out: LessonKind[] = [];
+  for (const l of [...lessons].sort((a, b) => a.start - b.start)) {
+    const k = lessonKind(l);
+    if (!isOff(l) && !out.includes(k)) out.push(k);
+  }
+  return out;
+}
+
 export const KIND_LABEL: Record<LessonKind, Key> = {
   theory: 'tt.theory',
   lab: 'tt.lab',
@@ -97,6 +120,24 @@ export function dayBlocks(lessons: Lesson[], together: (Span & { label: string }
     ...mergeLessons(lessons).map((l) => ({ type: 'lesson' as const, lesson: l, past: nowMin != null && l.end <= nowMin })),
     ...together.map((s) => ({ type: 'together' as const, span: { start: s.start, end: s.end }, label: s.label })),
   ];
+}
+
+/** A free moment shorter than this (minutes) is just walking to the next room. */
+export const FREE_MIN = 15;
+
+/** The free moments between a day's lessons (not before the first or after the last). Cancelled lessons
+ * leave their time free. */
+export function freeGaps(lessons: Lesson[]): Span[] {
+  const ls = mergeLessons(lessons)
+    .filter((l) => !isOff(l))
+    .sort((a, b) => a.start - b.start);
+  const out: Span[] = [];
+  let end = ls[0]?.end ?? 0;
+  for (const l of ls.slice(1)) {
+    if (l.start - end >= FREE_MIN) out.push({ start: end, end: l.start });
+    end = Math.max(end, l.end);
+  }
+  return out;
 }
 
 /** A stretch of time where two or more (merged) lessons run at once, with the lessons involved. */
@@ -308,13 +349,14 @@ export function BlockView({ block, style, compact, onPressLesson, onPressInLesso
     );
   }
   if (block.type === 'free') {
+    // Light grey, no outline: a quiet gap with a small coffee cup in the corner
     return (
-      <View className={cn('rounded-[6px] border-[1.5px] border-dashed border-line-strong', pad)} style={style}>
-        <Text variant="xs" bold tone="ink3">
-          {t('tt.free')}
-        </Text>
+      <View className="rounded-[6px] bg-surface-sunken overflow-hidden" style={style}>
+        <View className="absolute top-1 right-1">
+          <Icon name="coffee" size={compact ? 11 : 13} color="ink-3" strokeWidth={1.75} />
+        </View>
         {block.label ? (
-          <Text variant="xs" tone="ink3" numberOfLines={1}>
+          <Text variant="xs" tone="ink3" numberOfLines={1} className={pad}>
             {block.label}
           </Text>
         ) : null}

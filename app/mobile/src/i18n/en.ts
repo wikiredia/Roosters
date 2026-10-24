@@ -286,6 +286,7 @@ export const en: Record<Key, string> = {
   'rooster.today': 'Today',
   'rooster.zoomHint': 'Double tap your timetable to zoom in on your lessons. Pinch to see more or fewer days.',
   'rooster.zoomOut': 'Show all',
+  'rooster.resetHint': 'Back to this week, Monday to Friday, zoomed out',
   'rooster.todayHint': 'Goes back to today. Drag to move it.',
   'rooster.nDays': '{n} days',
   'rooster.stripLabel': 'Showing {n} days',
