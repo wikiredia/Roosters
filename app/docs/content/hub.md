@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-24T13:55:00Z
+updated: 2026-10-24T18:00:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -94,4 +94,5 @@ notifies the people affected.
 ## Guides
 
 The guides on the left go deeper: auth and guests, timetables, friends and privacy, the database, the app,
-operations, security, the management console, and recipes for common changes.
+operations, releasing to TestFlight and Play (HTTPS with Caddy, EAS, Apple and Google accounts), security, the
+management console, and recipes for common changes.

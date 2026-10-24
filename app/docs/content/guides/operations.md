@@ -1,7 +1,7 @@
 ---
 title: Running and operating
 position: 70
-updated: 2026-10-24T13:45:00Z
+updated: 2026-10-24T18:00:00Z
 ---
 
 ## Start, stop, update
@@ -52,8 +52,9 @@ The worker sends them through Expo's push service (`api/roosters/push.py`): no a
 
 1. An EAS project: `cd mobile && npx eas-cli init` (adds `extra.eas.projectId` to `app.json`).
 2. A development build (`npx expo run:ios|android` or `eas build --profile development`): Expo Go on Android can't
-   get push. iOS needs an Apple developer account (EAS sets up the push key); Android needs FCM credentials
-   uploaded to EAS (`eas credentials`).
+   get push. iOS needs an Apple developer account (EAS sets up the push key); Android needs a Firebase project:
+   `google-services.json` in the app (`android.googleServicesFile`) and the FCM V1 key uploaded to EAS
+   (`eas credentials`). Step by step: guide **Releasing to TestFlight and Play**.
 3. Ik → Meldingen → **Zet meldingen aan**.
 
 Turning on "enhanced push security" in the Expo dashboard later means setting `EXPO_ACCESS_TOKEN` in `.env`.
