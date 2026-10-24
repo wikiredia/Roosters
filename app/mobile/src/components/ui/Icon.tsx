@@ -142,8 +142,10 @@ type Props = {
 };
 
 export function Icon({ name, size = 24, color = 'ink', strokeWidth = 1.5 }: Props) {
-  const token = useCSSVariable(`--color-${color}`);
-  const stroke = color.startsWith('#') || color.startsWith('rgb') ? color : String(token ?? '#161F2A');
+  const literal = color.startsWith('#') || color.startsWith('rgb');
+  // A literal colour asks for a token that always exists (the hook can't be skipped), so Uniwind doesn't warn
+  const token = useCSSVariable(`--color-${literal ? 'ink' : color}`);
+  const stroke = literal ? color : String(token ?? '#161F2A');
   const filled = name === 'crown';
   return (
     <Svg

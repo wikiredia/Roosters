@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T09:19:44Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
@@ -50,7 +50,7 @@ Puts the sections together; pull to refresh (the spinner only for your own pull)
 
 'Voor jou' with '1 vraag' (design: Today.dc.html): breaks friends asked you for and you haven't answered, right
 under the Now card. "Lotte: pauze om 12:30?" (another day: "pauze morgen om …"), until when and where, their note,
-Ja / Nee / Ander uur (opens `BreakSheet` for another time). Hidden when nobody asked.
+Ja / Nee / Ander uur (opens `BreakSheet` for another time). Hidden when nobody asked (or the API is older and sends no `breaks`).
 
 ## `Requests`
 
