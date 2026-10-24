@@ -8,6 +8,9 @@ _OWNED = ("source_lessons", "sources", "hidden_courses", "checkins", "notificati
 
 def delete_user(c, uid: int):
     """Deletes the account and everything linked to it, inside the caller's transaction."""
+    # Test people it made (testdata.py) go with it
+    for r in db.rows("SELECT id FROM users WHERE test_owner_id=%s", (uid,), c):
+        delete_user(c, r["id"])
     for table in _OWNED:
         db.run(f"DELETE FROM {table} WHERE user_id=%s", (uid,), c)
     db.run("DELETE FROM friendships WHERE user_id=%s OR friend_id=%s", (uid, uid), c)

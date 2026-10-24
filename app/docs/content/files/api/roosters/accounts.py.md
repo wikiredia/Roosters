@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T09:54:20Z
 ---
 
 Operations on **whole accounts**, used by several routes so they behave the same everywhere:
@@ -19,7 +19,8 @@ Tables whose rows belong to exactly one user and are deleted with the account. F
 
 ## `delete_user`
 
-Deletes the account and everything linked to it, inside the caller's transaction: owned rows, both sides of friendships, requests and blocks, break requests and answers (`breaks.delete_user`), chats, messages and reports (`chat.delete_user`), then the user row. Nothing is soft-deleted.
+Deletes the account and everything linked to it, inside the caller's transaction: the test people it made
+(`testdata.py`), owned rows, both sides of friendships, requests and blocks, break requests and answers (`breaks.delete_user`), chats, messages and reports (`chat.delete_user`), then the user row. Nothing is soft-deleted.
 
 ## `fold_guest`
 

@@ -1,13 +1,15 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T09:54:20Z
 ---
 
 **Test people** for trying the app on a laptop or test server: made-up friends with a made-up timetable, so you can
 switch to them (`r_debug.login_as`) and see what a friend sees. Only reachable through `r_debug.py` (ENV=dev, private
 network). The app side is `mobile/src/app/dev.tsx` (Me → Test data & users).
 
-- Test people are recognised by their e-mail domain (`TEST_DOMAIN`, `roosters.test`): removing them removes
-  everything they have (`accounts.delete_user`).
+- Test people are recognised by their e-mail domain (`TEST_DOMAIN`, `roosters.test`) and **belong to the account
+  that made them** (`users.test_owner_id`): only it sees them, switches to them and removes them; deleting that
+  account deletes them too. Each has an e-mail sign-in identity, so switching to one runs the real sign-in code.
+  Removing them removes everything they have (`accounts.delete_user`).
 - Their timetable is a personal calendar source **without a link** (label 'Testrooster', `config.test`), filled with
   lessons from last week to three weeks ahead. `last_sync` is set far in the future (`NEVER`), so `sync` never tries
   to fetch it (it would fail: there's no link).
@@ -33,9 +35,10 @@ are kept.
 
 The made-up lessons: 2–4 a school day at `SLOTS`, 1–2 hours, never overlapping, sometimes cancelled.
 
-## `remove_all`, `is_test`
+## `remove_all`, `mine`, `owner_of`, `is_test`
 
-Remove every test person; is this account a test person?
+Remove an account's test people; the ids of its test people; the real account behind whoever is signed in
+(yourself, or the owner of the test person you switched to); is this account a test person (by e-mail domain)?
 
 ## `TEST_DOMAIN`, `NAMES`, `COURSES`, `ROOMS`, `SLOTS`, `NEVER`
 

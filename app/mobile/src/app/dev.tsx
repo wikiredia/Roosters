@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import type { Visibility } from '@/api/types';
 import { Avatar, Banner, Tag } from '@/components/ui/Bits';
@@ -16,9 +16,10 @@ import { debugEnabled } from '@/lib/server';
 import { saveTokens, type Tokens } from '@/lib/session';
 
 /**
- * Test data & users: development builds only (like Server & debug), against an API with ENV=dev, from this computer
- * or your own network. Make test friends with a made-up timetable, switch to any account in one tap to see what
- * a friend sees, befriend or unfriend, remove test people again. Developer-facing, so English and not translated.
+ * Test data & users: development builds only (like Server & debug), against an API with ENV=dev, signed in. Make test
+ * friends with a made-up timetable, switch to one of them in one tap to see what a friend sees (and back to your own
+ * account), befriend or unfriend, remove them again. Only your own account and the test people it made: never another
+ * real account. Developer-facing, so English and not translated.
  */
 
 type DevUser = {
@@ -39,7 +40,7 @@ type DevUser = {
 const VIS: Record<Visibility, string> = { full: 'everything', norooms: 'no rooms', freebusy: 'free/busy' };
 
 function errorText(e: unknown) {
-  if (e instanceof ApiError && e.status === 404) return 'The API answered 404: it runs without ENV=dev, is an older version, or you are not on this computer or your own network.';
+  if (e instanceof ApiError && e.status === 404) return 'The API answered 404: it runs without ENV=dev, is an older version, or that account is not yours.';
   if (e instanceof ApiError) return `${e.status} ${e.code}: ${e.message}`;
   if (e instanceof NetworkError) return `No answer from the API (${e.kind}).`;
   return e instanceof Error ? e.message : String(e);
@@ -48,7 +49,7 @@ function errorText(e: unknown) {
 export default function DevScreen() {
   const users = useQuery({
     queryKey: ['debug-users'],
-    queryFn: () => api.get<{ me: number | null; users: DevUser[] }>('/api/v1/debug/users', { etag: false }),
+    queryFn: () => api.get<{ me: number; owner: number; users: DevUser[] }>('/api/v1/debug/users', { etag: false }),
     enabled: debugEnabled,
   });
   const [busy, setBusy] = useState<string | null>(null);
@@ -77,7 +78,8 @@ export default function DevScreen() {
   async function switchTo(u: DevUser) {
     setBusy(`switch-${u.id}`);
     try {
-      const t = await api.post<Tokens>('/api/v1/debug/login', { user_id: u.id }, { auth: false });
+      // Signed in like a real login: this session ends, the account gets a new one for this device
+      const t = await api.post<Tokens>('/api/v1/debug/login', { user_id: u.id, platform: Platform.OS, device_name: 'Test data & users' });
       queryClient.clear();
       await saveTokens(t);
       router.replace('/');
@@ -96,9 +98,9 @@ export default function DevScreen() {
   return (
     <Screen back navTitle="Test data & users" noBanner onRefresh={() => users.refetch()}>
       <Text variant="sm" tone="ink2">
-        Test people get a made-up timetable (last week to three weeks ahead) at your school and campus. Tap anyone to continue as them: change what a
-        friend sees on their page (Me → Friends), switch, and look at yourself from their side. Only with ENV=dev, from this computer or your own
-        network.
+        Test people get a made-up timetable (last week to three weeks ahead) at your school and campus. Tap one to continue as them: change what a
+        friend sees on their page (Me → Friends), switch, and look at yourself from their side. Only your own account and your test people are
+        listed; only with ENV=dev.
       </Text>
 
       {result ? <Banner kind={result.ok ? 'neutral' : 'bad'} title={result.ok ? 'Done' : "That didn't work"} body={result.text} /> : null}
@@ -197,6 +199,7 @@ export default function DevScreen() {
                         {[`#${u.id}`, u.email ?? (u.guest ? 'guest' : 'no e-mail'), u.school].filter(Boolean).join(' · ')}
                       </Text>
                       <View className="flex-row flex-wrap gap-1.5">
+                        {u.id === users.data?.owner ? <Tag kind="ok">your account</Tag> : null}
                         {u.test ? <Tag kind="you">test</Tag> : null}
                         {u.guest ? <Tag>guest</Tag> : null}
                         {!u.onboarded ? <Tag>not onboarded</Tag> : null}
