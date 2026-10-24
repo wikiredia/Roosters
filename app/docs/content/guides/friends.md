@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 ## Becoming friends
@@ -27,6 +27,11 @@ Every feature that shows one person's data to another must go through `friends.v
 - Shared break: overlap of 30+ minutes on the same campus, 31+ on different campuses.
 - Today shows your partners (`logic.partners`) and the now-board (`logic.board_status`). Compare shows
   every group of 2+ people that shares a break (`logic.compare_matches`), with up to 3 friends for free.
+- **Skipping a class** (`r_me.skip`, table `skipped_lessons`) makes that time free: `schedule.takes_place` leaves the
+  lesson out of everything that decides when you're busy, so your breaks grow and friends can share that time with
+  you. Friends only see free time, never that you skipped. In the app: drag a class into the bin or 'Skip this class'
+  in its sheet, then a short summary of what changed with a 5-second Undo (`mobile/src/lib/skips.ts`,
+  `components/timetable/SkipDrag.tsx`, `SkipToast.tsx`).
 
 ## Break requests (breaks.py)
 

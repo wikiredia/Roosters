@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-24T12:55:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -93,3 +93,10 @@ Profile (also `onboarded`), today's check-in, ghost mode.
 ## `useSetPhoto`
 
 Your profile photo: a square JPEG as base64 (`PUT /api/v1/me/photo`), or null to remove it; updates `me`.
+
+## `useSkip`
+
+Skip a class or take that back. Changes the cached timetable and Today at once (`lib/skips.withSkip`), so the card is
+gone the moment it lands in the bin and Undo is instant; the requests then go one after the other (`skipQueue`: an
+Undo never overtakes its skip on slow wifi). Each answer puts that day's shared breaks in the cached week (for the
+summary); once the last one is through (`skipsPending`), schedules, Today and Compare are asked again.
