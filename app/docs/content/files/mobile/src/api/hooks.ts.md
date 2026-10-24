@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -28,6 +28,11 @@ Timetable sources and the manual refresh.
 ## `useFriends`, `useRequests`, `useInvite`, `useFriendSchedule`, `useCompare`, `useClassmates`
 
 Friends, requests, your invite link, a friend's week, Compare, classmates.
+
+## `useWeeks`
+
+The Rooster tab: whole weeks with the shared breaks per day (`/me/schedule?together=1`), one request per week;
+polls while a far week is `loading`.
 
 ## `useMe`, `useToday`, `useTodays`, `useSchedule`, `useSources`
 

@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-24T05:00:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -30,9 +30,11 @@ from the **whole school year**, nothing chosen until you choose it, with a previ
 
 ## The Rooster tab
 
-1–5 days side by side, set by dragging the handle on the week strip (`components/timetable/DayStrip.tsx`);
-swipe through time with `DayPager.tsx` (a short swipe shows the weekend, a long one skips it); the pages
-are `lib/days.ts`. Any week back or ahead works: the API fetches it from Untis when you look.
+1–7 days side by side, one continuous strip you scroll through day by day (`components/timetable/DayGrid.tsx`),
+mirrored by the week strip above (`DayStrip.tsx`): they share the same animated values, so they move together.
+Drag the strip's dash, pinch or − / + for more or fewer days; double tap to zoom the hours; 'Vandaag' floats over
+the grid (`TodayPill.tsx`). Day math and where a swipe lands: `lib/days.ts`. Data comes a week at a time
+(`useWeeks`); every lesson kind has its own colour.
 
 ## Data and offline
 

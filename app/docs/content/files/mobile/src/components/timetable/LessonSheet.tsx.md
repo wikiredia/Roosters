@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T02:00:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
 Tap on a lesson: when, what, where, and who else is free if it's cancelled.

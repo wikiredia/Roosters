@@ -82,14 +82,19 @@ export function Screen({ children, title, eyebrow, right, navTitle, back, progre
         </View>
       ) : null}
       {title ? (
-        <View className="flex-row items-end justify-between gap-3 px-5 pt-1 pb-3 min-h-14">
-          <View className="flex-1">
-            {eyebrow ? <Text variant="eyebrow">{eyebrow}</Text> : null}
-            <Text variant="title" accessibilityRole="header">
+        <View className="px-5 pt-1 pb-3">
+          {/* The eyebrow has the whole width and one line: a long date never pushes the page down */}
+          {eyebrow ? (
+            <Text variant="eyebrow" numberOfLines={1}>
+              {eyebrow}
+            </Text>
+          ) : null}
+          <View className="flex-row items-end justify-between gap-3 min-h-11">
+            <Text variant="title" accessibilityRole="header" numberOfLines={1} className="flex-shrink">
               {title}
             </Text>
+            {right}
           </View>
-          {right}
         </View>
       ) : null}
       {scroll ? (

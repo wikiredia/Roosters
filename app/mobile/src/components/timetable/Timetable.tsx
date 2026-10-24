@@ -1,4 +1,4 @@
-import { Pressable, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
 import type { Lesson } from '@/api/types';
 import { Icon } from '@/components/ui/Icon';
@@ -8,10 +8,41 @@ import { useT, type Key } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { hhmm } from '@/lib/time';
 
-/** Theory or lab? Untis doesn't say it directly; most schools put it in the course name. */
-export function lessonKind(course?: string): 'theory' | 'lab' {
-  return /\b(labo|lab|practicum|werkcollege|oefen|workshop)/i.test(course ?? '') ? 'lab' : 'theory';
+/** The kinds of lessons the API tells apart (api/roosters/kinds.py), each with its own colour. */
+export type LessonKind = 'theory' | 'lab' | 'exercises' | 'project' | 'support' | 'internship' | 'info' | 'exam' | 'other';
+
+/** The lesson's kind from the API; lessons cached before it had kinds: a guess from the course name. */
+export function lessonKind(l: { kind?: string; course?: string; state?: string }): LessonKind {
+  if (l.state === 'exam') return 'exam';
+  if (l.kind && l.kind !== 'other') return l.kind as LessonKind;
+  if (/\b(labo|lab|practicum)/i.test(l.course ?? '')) return 'lab';
+  return l.kind ? 'other' : 'theory';
 }
+
+/** Block colours per kind: soft fill and a stronger border (tokens in global.css). */
+export const KIND_STYLE: Record<LessonKind, string> = {
+  theory: 'bg-theory-soft border-theory',
+  lab: 'bg-lab-soft border-lab',
+  exercises: 'bg-exercises-soft border-exercises',
+  project: 'bg-project-soft border-project',
+  support: 'bg-support-soft border-support',
+  internship: 'bg-internship-soft border-internship',
+  info: 'bg-info-soft border-info',
+  exam: 'bg-ink border-ink',
+  other: 'bg-other-soft border-other',
+};
+
+export const KIND_LABEL: Record<LessonKind, Key> = {
+  theory: 'tt.theory',
+  lab: 'tt.lab',
+  exercises: 'tt.exercises',
+  project: 'tt.project',
+  support: 'tt.support',
+  internship: 'tt.internship',
+  info: 'tt.info',
+  exam: 'tt.exam',
+  other: 'tt.lesson',
+};
 
 export function isOff(l: Lesson) {
   return l.state === 'cancelled' || l.state === 'removed';
@@ -19,7 +50,7 @@ export function isOff(l: Lesson) {
 
 export type Span = { start: number; end: number };
 
-type Block =
+export type Block =
   | { type: 'lesson'; lesson: Lesson; past: boolean }
   | { type: 'together'; span: Span; label: string }
   | { type: 'friend'; span: Span }
@@ -74,7 +105,7 @@ function overlaps(a: Span, b: Span) {
   return a.start < b.end && b.start < a.end;
 }
 
-function lessonLabel(l: Lesson, t: (k: Key, p?: Record<string, string | number>) => string) {
+export function lessonLabel(l: Lesson, t: (k: Key, p?: Record<string, string | number>) => string) {
   const parts = [l.course ?? t('tt.busy'), `${hhmm(l.start)} ${t('tt.to')} ${hhmm(l.end)}`];
   if (l.location) parts.push(l.location);
   if (isOff(l)) parts.push(t('tt.cancelled'));
@@ -163,7 +194,7 @@ export function TimeGrid({ columns, pxPerHour = 48, nowMin, compact, onPressLess
   );
 }
 
-function BlockView({ block, style, compact, onPressLesson, onPressTogether, t }: { block: Block; style: object; compact?: boolean; onPressLesson?: (l: Lesson) => void; onPressTogether?: (s: Span) => void; t: (k: Key, p?: Record<string, string | number>) => string }) {
+export function BlockView({ block, style, compact, onPressLesson, onPressInLesson, onPressTogether, t }: { block: Block; style: object; compact?: boolean; onPressLesson?: (l: Lesson) => void; onPressInLesson?: () => void; onPressTogether?: (s: Span) => void; t: (k: Key, p?: Record<string, string | number>) => string }) {
   const pad = compact ? 'px-1.5 py-1' : 'px-2.5 py-1.5';
   if (block.type === 'together') {
     return (
@@ -215,8 +246,8 @@ function BlockView({ block, style, compact, onPressLesson, onPressTogether, t }:
   }
   const l = block.lesson;
   const off = isOff(l);
-  const kind = lessonKind(l.course);
-  const exam = l.state === 'exam';
+  const kind = lessonKind(l);
+  const exam = kind === 'exam';
   const cls = cn(
     compact ? 'rounded-[6px]' : 'rounded-block',
     'overflow-hidden',
@@ -227,9 +258,7 @@ function BlockView({ block, style, compact, onPressLesson, onPressTogether, t }:
         ? 'bg-ink'
         : l.course === undefined
           ? 'bg-friend-soft border-[1.5px] border-friend'
-          : kind === 'lab'
-            ? 'bg-lab-soft border-[1.5px] border-lab'
-            : 'bg-theory-soft border-[1.5px] border-theory',
+          : cn('border-[1.5px]', KIND_STYLE[kind]),
     l.state === 'changed' && 'border-ink',
     l.state === 'extra' && 'border-[2.5px]',
     block.past && 'opacity-55',
@@ -238,6 +267,7 @@ function BlockView({ block, style, compact, onPressLesson, onPressTogether, t }:
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={lessonLabel(l, t)}
+      onPressIn={onPressInLesson}
       onPress={onPressLesson ? () => onPressLesson(l) : undefined}
       className={cls}
       style={style}
@@ -266,7 +296,7 @@ function BlockView({ block, style, compact, onPressLesson, onPressTogether, t }:
             </Text>
           ) : (
             <Text variant="xs" tone={exam ? 'inverse' : 'ink'} numberOfLines={1}>
-              {exam ? t('tt.exam') : compact ? (l.location ?? '') : [t(kind === 'lab' ? 'tt.lab' : 'tt.theory'), l.location].filter(Boolean).join(' · ')}
+              {exam ? t('tt.exam') : compact ? (l.location ?? '') : [t(KIND_LABEL[kind]), l.location].filter(Boolean).join(' · ')}
             </Text>
           )}
         </>
@@ -285,36 +315,24 @@ export function shortCourse(name: string) {
   return `${first.slice(0, 5)}.`;
 }
 
-export type LegendItem = 'theory' | 'lab' | 'cancelled' | 'together' | 'friend' | 'exam';
+export type LegendItem = LessonKind | 'cancelled' | 'together' | 'friend';
 
 export function Legend({ items }: { items: LegendItem[] }) {
   const { t } = useT();
-  const sw: Record<string, string> = {
-    theory: 'bg-theory-soft border-[1.5px] border-theory',
-    lab: 'bg-lab-soft border-[1.5px] border-lab',
-    cancelled: 'border-[1.5px] border-dashed border-danger',
-    together: 'bg-together',
-    friend: 'bg-friend-soft border-[1.5px] border-friend',
-    exam: 'bg-ink',
-  };
-  const label: Record<string, Key> = {
-    theory: 'tt.theory',
-    lab: 'tt.lab',
-    cancelled: 'tt.cancelled',
-    together: 'tt.together',
-    friend: 'tt.friendLesson',
-    exam: 'tt.exam',
-  };
+  const sw = (i: LegendItem) =>
+    i === 'cancelled' ? 'border-[1.5px] border-dashed border-danger' : i === 'together' ? 'bg-together' : i === 'friend' ? 'bg-friend-soft border-[1.5px] border-friend' : cn('border-[1.5px]', KIND_STYLE[i]);
+  const label = (i: LegendItem): Key => (i === 'cancelled' ? 'tt.cancelled' : i === 'together' ? 'tt.together' : i === 'friend' ? 'tt.friendLesson' : KIND_LABEL[i]);
   return (
-    <View className="flex-row flex-wrap gap-x-3.5 gap-y-1.5" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+    // One line that scrolls sideways: it never grows taller (that would push the timetable up)
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-x-3.5" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {items.map((i) => (
         <View key={i} className="flex-row items-center gap-1.5">
-          <View className={cn('w-4 h-3 rounded-[3px]', sw[i])} />
+          <View className={cn('w-4 h-3 rounded-[3px]', sw(i))} />
           <Text variant="xs" bold tone="ink2">
-            {t(label[i])}
+            {t(label(i))}
           </Text>
         </View>
       ))}
-    </View>
+    </ScrollView>
   );
 }

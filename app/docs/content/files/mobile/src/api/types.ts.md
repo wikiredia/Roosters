@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:00Z
+updated: 2026-10-24T11:00:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -32,7 +32,8 @@ Now-board status codes and times.
 
 ## `Today`, `Schedule`, `FriendSchedule`, `Compare`
 
-`loading` on Today, Schedule and FriendSchedule: a week far back or ahead is still being fetched.
+`loading` on Today, Schedule and FriendSchedule: a week far back or ahead is still being fetched. A lesson has its
+`kind`; a Schedule asked with `together=1` has the shared breaks per day.
 
 Whole answers of the main screens.
 

@@ -162,3 +162,13 @@ def test_classmates_are_people_in_your_classes_who_arent_friends_yet(client, mai
     client.post("/api/v1/friends/requests", headers=reda["headers"], json={"user_id": lotte["user_id"]})
     mates = client.get("/api/v1/classmates", headers=reda["headers"]).json()["classmates"]
     assert mates[0]["requested"] is True
+
+
+def test_a_week_of_the_timetable_comes_with_the_shared_breaks_per_day(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    s = client.get("/api/v1/me/schedule", headers=reda["headers"],
+                   params={"start": DAY.isoformat(), "days": 7, "together": 1}).json()
+    assert [(x["id"], x["start"], x["end"]) for x in s["together"][DAY.isoformat()]] == [(kayra["user_id"], 630, 720)]
+    # Without asking: not computed
+    assert "together" not in client.get("/api/v1/me/schedule", headers=reda["headers"],
+                                        params={"start": DAY.isoformat()}).json()
