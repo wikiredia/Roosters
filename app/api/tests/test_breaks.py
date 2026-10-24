@@ -1,0 +1,158 @@
+import datetime as dt
+
+from roosters import db, logic
+from roosters.breaks import already_asked, conflict, flip, summarize
+
+from .conftest import add_class_lessons, befriend, login, onboard, today
+
+H = 60
+# Tomorrow, so no break is "already over" whenever the tests run
+DAY = today() + dt.timedelta(days=1)
+
+
+def info(lessons, checkin=None):
+    return logic.day_info(logic.PersonDay(1, "Kayra", [(a * H, b * H) for a, b in lessons], {1}, set(), set(), checkin))
+
+
+# ---- Pure parts --------------------------------------------------------------------
+
+def test_conflict():
+    assert conflict(info([(9, 10), (12, 13)]), 10 * H, 12 * H) is None
+    assert conflict(info([(9, 10), (11, 13)]), 10 * H, 11 * H + 30) == "in_class"
+    # Before the first and after the last lesson is fine
+    assert conflict(info([(9, 10)]), 8 * H, 9 * H) is None
+    assert conflict(info([(9, 10)]), 10 * H, 11 * H) is None
+    assert conflict(info([]), 10 * H, 11 * H) == "no_classes"
+    assert conflict(info([(9, 10)], {"status": "absent"}), 10 * H, 11 * H) == "no_classes"
+    assert conflict(info([(9, 10), (14, 15)], {"status": "home", "since_min": 11 * H}), 12 * H, 13 * H) == "home"
+
+
+def test_summary_and_flip():
+    assert summarize(["pending", "declined"]) == "pending"
+    assert summarize(["accepted", "declined"]) == "planned"
+    assert summarize(["declined"]) == "declined"
+    assert flip("i_come") == "you_come" and flip("you_come") == "i_come" and flip("meet") == "meet"
+
+
+def E(rid, frm, s, e, members):
+    return {"id": rid, "from_id": frm, "start": s * H, "end": e * H, "members": members}
+
+
+def test_already_asked():
+    hit = already_asked([E(1, 1, 12, 13, {2: "pending"})], 1, [2], 12 * H + 30, 13 * H)
+    assert hit == {"id": 1, "kind": "mine", "state": "pending", "who": [2]}
+    hit = already_asked([E(1, 2, 12, 13, {1: "accepted"})], 1, [2], 12 * H, 13 * H)
+    assert hit["kind"] == "theirs" and hit["state"] == "accepted"
+    # A no, another time or other people: you can ask
+    assert already_asked([E(1, 1, 12, 13, {2: "declined"})], 1, [2], 12 * H, 13 * H) is None
+    assert already_asked([E(1, 1, 10, 11, {2: "pending"})], 1, [2], 12 * H, 13 * H) is None
+    assert already_asked([E(1, 1, 12, 13, {3: "pending"})], 1, [2], 12 * H, 13 * H) is None
+
+
+# ---- Through the API ---------------------------------------------------------------
+
+def _setup(client, mails, school):
+    """Reda (class 1) free 10:00-12:00, Kayra (class 2) free 10:30-12:00, same campus, friends."""
+    k1, k2 = school["classes"]
+    db.run("UPDATE school_classes SET last_ok=UTC_TIMESTAMP()")
+    add_class_lessons(k1, [("09:00", "10:00", "Databases", "B204"), ("12:00", "13:00", "DevOps", "C102")], DAY)
+    add_class_lessons(k2, [("09:00", "10:30", "Python Advanced", "A.1.05"), ("12:00", "14:00", "Cloud Computing", "B204")],
+                      DAY)
+    reda = login(client, "reda@example.com", mails)
+    kayra = login(client, "kayra@example.com", mails)
+    onboard(client, reda, school, k1)
+    onboard(client, kayra, school, k2)
+    befriend(client, reda, kayra)
+    return reda, kayra
+
+
+def _ask(client, who, to, start=630, end=720, **extra):
+    return client.post("/api/v1/breaks", headers=who["headers"],
+                       json={"to_ids": [to["user_id"]], "day": DAY.isoformat(), "start": start, "end": end, **extra})
+
+
+def test_ask_and_say_yes(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    r = _ask(client, reda, kayra, mode="meet", place="  cafetaria ", note="Ik trakteer")
+    assert r.status_code == 201, r.text
+    b = r.json()["break"]
+    assert (b["mine"], b["state"], b["place"], b["note"]) == (True, "pending", "cafetaria", "Ik trakteer")
+    assert [m["id"] for m in b["members"]] == [kayra["user_id"]]
+    # Kayra sees it (also on Today) and gets a notification
+    theirs = client.get("/api/v1/breaks", headers=kayra["headers"]).json()["breaks"]
+    assert [(x["id"], x["mine"], x["my_response"]) for x in theirs] == [(b["id"], False, "pending")]
+    t = client.get("/api/v1/me/today", headers=kayra["headers"]).json()
+    assert [x["id"] for x in t["breaks"]] == [b["id"]]
+    kinds = [n["kind"] for n in client.get("/api/v1/me/notifications", headers=kayra["headers"]).json()["notifications"]]
+    assert "break_request" in kinds
+    r = client.post(f"/api/v1/breaks/{b['id']}/respond", headers=kayra["headers"], json={"response": "accepted"})
+    assert r.json()["break"]["state"] == "planned"
+    mine = client.get("/api/v1/breaks", headers=reda["headers"]).json()["breaks"][0]
+    assert mine["state"] == "planned" and mine["members"][0]["response"] == "accepted"
+    answers = [n for n in client.get("/api/v1/me/notifications", headers=reda["headers"]).json()["notifications"]
+               if n["kind"] == "break_answer"]
+    assert answers[0]["payload"]["response"] == "accepted"
+
+
+def test_no_asking_twice_from_either_side(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    first = _ask(client, reda, kayra).json()["break"]
+    r = _ask(client, reda, kayra, start=660)
+    assert r.status_code == 409 and r.json()["code"] == "break_dup" and r.json()["kind"] == "mine"
+    r = _ask(client, kayra, reda)
+    assert r.status_code == 409 and r.json()["kind"] == "theirs" and r.json()["request"] == first["id"]
+    # After a no you can ask again
+    client.post(f"/api/v1/breaks/{first['id']}/respond", headers=kayra["headers"], json={"response": "declined"})
+    assert _ask(client, reda, kayra).status_code == 201
+
+
+def test_busy_people_and_bad_times_are_refused(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    # Kayra has class until 10:30
+    r = _ask(client, reda, kayra, start=600, end=660)
+    assert r.status_code == 400 and r.json()["people"] == [{"id": kayra["user_id"], "reason": "in_class"}]
+    # Reda has class from 12:00
+    r = _ask(client, reda, kayra, start=690, end=750)
+    assert r.json()["code"] == "break_busy_me" and r.json()["reason"] == "in_class"
+    assert _ask(client, reda, kayra, start=700, end=702).json()["code"] == "break_time"
+    far = {"to_ids": [kayra["user_id"]], "day": (today() + dt.timedelta(days=30)).isoformat(), "start": 630, "end": 720}
+    assert client.post("/api/v1/breaks", headers=reda["headers"], json=far).json()["code"] == "break_day"
+
+
+def test_only_friends_and_not_guests(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    amir = login(client, "amir@example.com", mails)
+    onboard(client, amir, school, school["classes"][0])
+    assert _ask(client, reda, amir).status_code == 404
+    guest = client.post("/api/v1/auth/guest", json={"platform": "ios"}).json()
+    r = client.post("/api/v1/breaks", headers={"Authorization": f"Bearer {guest['access_token']}"},
+                    json={"to_ids": [reda["user_id"]], "start": 630, "end": 720})
+    assert r.status_code == 403
+
+
+def test_another_time_and_taking_it_back(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    b = _ask(client, reda, kayra, mode="i_come").json()["break"]
+    # Kayra: not then, 11:00-11:45
+    r = client.post(f"/api/v1/breaks/{b['id']}/counter", headers=kayra["headers"], json={"start": 660, "end": 705})
+    assert r.status_code == 201, r.text
+    c = r.json()["break"]
+    assert (c["mine"], c["start"], c["end"], c["mode"], c["counter_of"]) == (True, 660, 705, "you_come", b["id"])
+    redas = {x["id"]: x for x in client.get("/api/v1/breaks", headers=reda["headers"]).json()["breaks"]}
+    assert redas[b["id"]]["state"] == "declined" and redas[c["id"]]["my_response"] == "pending"
+    # Kayra takes hers back: gone for both
+    client.post(f"/api/v1/breaks/{c['id']}/cancel", headers=kayra["headers"])
+    assert c["id"] not in {x["id"] for x in client.get("/api/v1/breaks", headers=reda["headers"]).json()["breaks"]}
+    # Only the one who asked can take it back
+    assert client.post(f"/api/v1/breaks/{b['id']}/cancel", headers=kayra["headers"]).status_code == 404
+
+
+def test_unfriending_and_deleting_hide_requests(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    _ask(client, reda, kayra)
+    client.delete(f"/api/v1/friends/{kayra['user_id']}", headers=reda["headers"])
+    assert client.get("/api/v1/breaks", headers=kayra["headers"]).json()["breaks"] == []
+    assert client.get("/api/v1/breaks", headers=reda["headers"]).json()["breaks"] == []
+    client.delete("/api/v1/me", headers=reda["headers"])
+    assert db.one("SELECT COUNT(*) AS n FROM break_requests")["n"] == 0
+    assert db.one("SELECT COUNT(*) AS n FROM break_request_members")["n"] == 0

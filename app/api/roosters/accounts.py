@@ -1,5 +1,5 @@
 """Whole accounts: deleting one with everything linked to it, and folding a guest into an existing account."""
-from . import db
+from . import breaks, db
 
 # Tables with a user_id column that belong to exactly one user (deleted with the account)
 _OWNED = ("source_lessons", "sources", "hidden_courses", "checkins", "notifications", "idempotency_keys", "invites",
@@ -13,6 +13,7 @@ def delete_user(c, uid: int):
     db.run("DELETE FROM friendships WHERE user_id=%s OR friend_id=%s", (uid, uid), c)
     db.run("DELETE FROM friend_requests WHERE from_id=%s OR to_id=%s", (uid, uid), c)
     db.run("DELETE FROM blocks WHERE user_id=%s OR blocked_id=%s", (uid, uid), c)
+    breaks.delete_user(c, uid)
     db.run("DELETE FROM users WHERE id=%s", (uid,), c)
 
 

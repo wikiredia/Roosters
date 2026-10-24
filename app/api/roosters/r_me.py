@@ -6,7 +6,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
-from . import accounts, config, crypto, db, friends, logic, netfetch, notifications, redisx, schedule, sync
+from . import accounts, breaks, config, crypto, db, friends, logic, netfetch, notifications, redisx, schedule, sync
 from .deps import Ctx, auth, etag_json, parse_day
 from .errors import ApiError
 
@@ -344,6 +344,8 @@ def today(request: Request, day: str | None = None, ctx: Ctx = Depends(auth)):
         "board": board,
         "together": together,
         "changes": changes,
+        # Break requests from and to you, today and the coming days (guests have no friends to ask)
+        "breaks": [] if ctx.user["is_guest"] else breaks.list_for(ctx.user),
         "sources": sources_state(ctx.uid),
     })
 
@@ -403,6 +405,10 @@ def export(ctx: Ctx = Depends(auth)):
                            "JOIN users u ON u.id=f.friend_id WHERE f.user_id=%s", (uid,)),
         "blocked": db.rows("SELECT blocked_id, created_at FROM blocks WHERE user_id=%s", (uid,)),
         "checkins": db.rows("SELECT * FROM checkins WHERE user_id=%s", (uid,)),
+        "break_requests": db.rows("SELECT day, start_min, end_min, mode, place, note, created_at, cancelled_at "
+                                  "FROM break_requests WHERE from_id=%s", (uid,)),
+        "break_answers": db.rows("SELECT request_id, response, responded_at FROM break_request_members WHERE user_id=%s",
+                                 (uid,)),
         "notifications": db.rows("SELECT kind, payload, day, created_at, read_at FROM notifications WHERE user_id=%s",
                                  (uid,)),
         "personal_calendar_lessons": db.rows("SELECT day, start_min, end_min, course, location, state FROM source_lessons "

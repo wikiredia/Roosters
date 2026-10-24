@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:30:00Z
+updated: 2026-10-24T05:27:10Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
@@ -7,7 +7,7 @@ refetched every minute, ETag). Sections fade in (the skeleton cross-fades into t
 appears or goes (`Motion.Reveal`).
 
 Sections from top to bottom: sync note, **Now card**, **Complete the following steps** (`SetupSteps`, for
-what onboarding skipped), shared breaks ('together'), the now-board, your plan for the afternoon
+what onboarding skipped), **break requests**, shared breaks ('together'), the now-board, your plan for the afternoon
 (check-in), timetable changes, 'updated … ago'. The 'At school / At home' button sets the check-in.
 
 ## `Board`
@@ -46,6 +46,13 @@ The type of `t()` passed to the parts below.
 
 Puts the sections together; pull to refresh (the spinner only for your own pull).
 
+## `Requests`
+
+'Pauzeverzoeken': asked to you (Ja / Nee / Ander uur, which opens `BreakSheet` for another time), asked by you
+(waiting, planned, or nobody can: take it back or remove it), and the ones you said yes to (Toch niet). A no you gave
+is gone. Hidden when there are none.
+
 ## `Together`
 
-'Take your break with': shared breaks grouped per time slot (tap → Compare).
+'Take your break with': shared breaks grouped per time slot; tap one to ask "Pauze samen?" (`BreakSheet`, from now on
+when it's already going).

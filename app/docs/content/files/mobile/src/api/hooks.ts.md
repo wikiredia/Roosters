@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T05:27:10Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -16,6 +16,12 @@ Query keys per resource.
 ## `signOut`, `useDeleteAccount`, `exportData`
 
 Sign out here or everywhere (offline still forgets the tokens here), delete the account, download your data.
+
+## `useBreaks`, `useAskBreak`, `useAnswerBreak`, `useBreakWrite`, `BreakAnswer`
+
+Break requests (`/api/v1/breaks`): the list (off for guests), asking, and yes / no / another time / taking it
+back. Every write answers with the whole list: it replaces `keys.breaks` and Today asks again (Today carries the
+requests too, in its one request).
 
 ## `useAcceptInvite`, `useResetInvite`, `useFriendRequest`, `useAnswerRequest`, `useSetVisibility`, `useRemoveFriend`, `useBlock`
 

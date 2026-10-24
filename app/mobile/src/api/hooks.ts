@@ -4,6 +4,8 @@ import { api } from '@/lib/api';
 import { clearSession } from '@/lib/session';
 
 import type {
+  BreakMode,
+  BreakRequest,
   Campus,
   Checkin,
   Classmate,
@@ -39,6 +41,7 @@ export const keys = {
   classes: (school: number) => ['classes', school] as const,
   courses: (school: number, cls: number) => ['courses', school, cls] as const,
   classmates: ['classmates'] as const,
+  breaks: ['breaks'] as const,
 };
 
 // ---- Reading ------------------------------------------------------------------------
@@ -137,6 +140,15 @@ export function useCompare(ids: number[], day: string) {
     queryKey: keys.compare(ids, day),
     queryFn: () => api.get<Compare>(`/api/v1/compare?ids=${ids.join(',')}&day=${day}`),
     enabled: ids.length > 0,
+  });
+}
+
+/** Break requests from and to you (Today has them too, in its one request). */
+export function useBreaks() {
+  return useQuery({
+    queryKey: keys.breaks,
+    queryFn: () => api.get<{ breaks: BreakRequest[] }>('/api/v1/breaks').then((r) => r.breaks),
+    enabled: useSocial(),
   });
 }
 
@@ -327,6 +339,39 @@ export function useAnswerRequest() {
       qc.invalidateQueries({ queryKey: ['today'] });
     },
   });
+}
+
+type BreakAnswer = { breaks: BreakRequest[]; break: BreakRequest | null };
+
+/** Every break write answers with the whole list: it replaces ours, and Today asks again for its copy. */
+function useBreakWrite<V>(fn: (v: V) => Promise<BreakAnswer>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (r) => {
+      qc.setQueryData(keys.breaks, r.breaks);
+      qc.invalidateQueries({ queryKey: ['today'] });
+    },
+  });
+}
+
+/** "Pauze samen?" to one or more friends. */
+export function useAskBreak() {
+  return useBreakWrite((body: { to_ids: number[]; day: string; start: number; end: number; mode: BreakMode; place?: string | null; note?: string | null }) =>
+    api.post<BreakAnswer>('/api/v1/breaks', body),
+  );
+}
+
+/** Yes / no to a request you got, another time instead, or taking back your own. */
+export function useAnswerBreak() {
+  return useBreakWrite(
+    (a: { id: number; action: 'accepted' | 'declined' } | { id: number; action: 'counter'; start: number; end: number; place?: string | null; note?: string | null } | { id: number; action: 'cancel' }) =>
+      a.action === 'cancel'
+        ? api.post<BreakAnswer>(`/api/v1/breaks/${a.id}/cancel`)
+        : a.action === 'counter'
+          ? api.post<BreakAnswer>(`/api/v1/breaks/${a.id}/counter`, { start: a.start, end: a.end, place: a.place, note: a.note })
+          : api.post<BreakAnswer>(`/api/v1/breaks/${a.id}/respond`, { response: a.action }),
+  );
 }
 
 export function useSetVisibility() {

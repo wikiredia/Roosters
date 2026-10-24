@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { View } from 'react-native';
 
-import { useCheckin, useToday } from '@/api/hooks';
-import type { Checkin, Friend, Notification, Today } from '@/api/types';
+import { useAnswerBreak, useCheckin, useToday } from '@/api/hooks';
+import type { BreakRequest, Checkin, Friend, Notification, Today } from '@/api/types';
+import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { SetupSteps } from '@/components/SetupSteps';
 import { isOff } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, StatusOption, Tag } from '@/components/ui/Bits';
@@ -12,6 +14,7 @@ import { Reveal } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
+import { dayWord, howText, otherPeople } from '@/lib/breaks';
 import { currentLesson, isAway, joinNames, nextLesson, statusLine } from '@/lib/status';
 import { addDays, hhmm, isoDay, longDate, minutesAgo, parseDay, range, shortDate } from '@/lib/time';
 
@@ -25,6 +28,7 @@ export default function TodayScreen() {
   const d = today.data;
   const date = d ? parseDay(d.day) : new Date();
   const home = d?.me.checkin?.status === 'home' || d?.me.checkin?.status === 'absent';
+  const [sheet, setSheet] = useState<BreakTarget>(null);
 
   return (
     <Screen
@@ -58,9 +62,10 @@ export default function TodayScreen() {
           </Reveal>
           {/* Skipped in onboarding (e-mail, school, timetable, friends): finish it here */}
           <SetupSteps d={d} />
+          <Requests d={d} t={t} onOtherTime={(request) => setSheet({ kind: 'counter', request })} />
           {d.friends.length > 0 ? (
             <Reveal className="gap-6">
-              <Together d={d} t={t} />
+              <Together d={d} t={t} onAsk={(people) => setSheet({ kind: 'ask', day: d.day, people })} />
               <Board d={d} t={t} />
             </Reveal>
           ) : null}
@@ -71,6 +76,7 @@ export default function TodayScreen() {
           <Updated at={d.sources.updated_at} t={t} />
         </>
       )}
+      <BreakSheet target={sheet} onClose={() => setSheet(null)} />
     </Screen>
   );
 }
@@ -205,8 +211,8 @@ function TomorrowLine({ day, t, lang }: { day: string; t: T; lang: 'nl' | 'en' }
   );
 }
 
-/** "Pak je pauze met:" — shared breaks, grouped per time slot. */
-function Together({ d, t }: { d: Today; t: T }) {
+/** "Pak je pauze met:" — shared breaks, grouped per time slot. Tap one to ask "Pauze samen?". */
+function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & { start: number; end: number })[]) => void }) {
   const byId = new Map(d.friends.map((f) => [f.id, f]));
   const groups = new Map<string, { start: number; end: number; people: Friend[] }>();
   for (const s of d.together) {
@@ -243,12 +249,78 @@ function Together({ d, t }: { d: Today; t: T }) {
               sub={live ? t('today.nowUntil', { t: hhmm(g.end) }) : range(g.start, g.end)}
               left={<AvatarStack people={g.people.map((p) => ({ name: p.display_name, color: p.avatar_color }))} size="md" ring="together" />}
               chevron
-              onPress={() => router.push({ pathname: '/compare', params: { ids: g.people.map((p) => p.id).join(',') } })}
+              accessibilityHint={t('break.title')}
+              onPress={() => onAsk(g.people.map((p) => ({ ...p, start: Math.max(g.start, d.now), end: g.end })))}
             />
           );
         })}
       </TogetherCard>
     </Section>
+  );
+}
+
+/**
+ * "Pauzeverzoeken": asked to you (Ja / Nee / Ander uur), asked by you (waiting, planned, or nobody can: take it back
+ * or remove it). Today and the coming days, in time order; nothing when there's nothing.
+ */
+function Requests({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: BreakRequest) => void }) {
+  const { lang } = useT();
+  const answer = useAnswerBreak();
+  // A no you gave is done
+  const list = d.breaks.filter((b) => b.mine || b.my_response !== 'declined');
+  if (list.length === 0) return null;
+  const act = (b: BreakRequest, action: 'accepted' | 'declined' | 'cancel') => answer.mutate({ id: b.id, action });
+  return (
+    <Reveal className="gap-3">
+      <SectionHead title={t('break.requests')} left={<TogetherIcon />} />
+      <Card>
+        {list.map((b, i) => {
+          const names = joinNames(
+            (b.mine && b.state === 'planned' ? b.members.filter((m) => m.response === 'accepted') : otherPeople(b)).map((p) => p.display_name),
+            t('common.and'),
+          );
+          const when = `${dayWord(b.day, d.day, t, lang)} ${range(b.start, b.end)}`;
+          const incoming = !b.mine && b.my_response === 'pending';
+          const planned = b.state === 'planned' || b.my_response === 'accepted';
+          const title = incoming
+            ? t('break.asksYou', { name: b.from.display_name })
+            : planned
+              ? t('break.planned', { names })
+              : b.state === 'declined'
+                ? t('break.declined', { names })
+                : t('break.askedTo', { names });
+          const sub = [when, b.state === 'pending' && b.mine ? t('break.waiting') : howText(b, t)].join(' · ');
+          return (
+            <Row
+              key={b.id}
+              first={i === 0}
+              title={title}
+              sub={sub}
+              left={<AvatarStack people={otherPeople(b).map((p) => ({ name: p.display_name, color: p.avatar_color }))} size="md" ring="together" />}
+            >
+              {b.note ? (
+                <Text variant="sm" tone="ink2" numberOfLines={2}>
+                  “{b.note}”
+                </Text>
+              ) : null}
+              <View className="flex-row flex-wrap gap-2 pt-1.5">
+                {incoming ? (
+                  <>
+                    <Button variant="together" size="sm" label={t('break.yes')} accessibilityHint={t('break.canYou')} onPress={() => act(b, 'accepted')} />
+                    <Button variant="secondary" size="sm" label={t('break.no')} onPress={() => act(b, 'declined')} />
+                    <Button variant="ghost" size="sm" label={t('break.otherTime')} onPress={() => onOtherTime(b)} />
+                  </>
+                ) : !b.mine ? (
+                  <Button variant="secondary" size="sm" label={t('break.notAnymore')} onPress={() => act(b, 'declined')} />
+                ) : (
+                  <Button variant="secondary" size="sm" label={b.state === 'declined' ? t('break.remove') : t('break.cancel')} onPress={() => act(b, 'cancel')} />
+                )}
+              </View>
+            </Row>
+          );
+        })}
+      </Card>
+    </Reveal>
   );
 }
 

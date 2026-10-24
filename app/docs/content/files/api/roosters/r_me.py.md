@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T05:27:10Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -64,7 +64,8 @@ Soft-deletes the source, forgets its encrypted link and deletes its personal les
 
 ## `export`
 
-`GET /api/v1/me/export`: everything stored about you (GDPR art. 15/20) as JSON, without secrets (no encrypted links).
+`GET /api/v1/me/export`: everything stored about you (GDPR art. 15/20) as JSON, without secrets (no encrypted links),
+including the break requests you made and your answers.
 
 ## `my_notifications`, `ReadIn`, `read`
 
@@ -99,7 +100,8 @@ Summary for the app's banners: how many sources, oldest 'updated at', still sync
 
 `GET /api/v1/me/today?day=`: **one round trip** for the Today screen and each day column of the Rooster tab (slow wifi), with `loading` like `my_schedule`: your status now, your
 check-in, today's lessons, friends with their status on the now-board (sorted: on a break first),
-who you share breaks with (`logic.partners`), today's and upcoming changes, and the sources' state.
+who you share breaks with (`logic.partners`), today's and upcoming changes, your break requests (`breaks.list_for`:
+today and the coming days, none for guests) and the sources' state.
 With an ETag, so an unchanged screen costs a few bytes. Hidden (ghost) friends show as 'hidden' and are
 left out of shared breaks.
 

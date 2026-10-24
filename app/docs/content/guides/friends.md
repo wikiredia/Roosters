@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks and privacy
 position: 40
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-24T05:27:10Z
 ---
 
 ## Becoming friends
@@ -28,4 +28,12 @@ Every feature that shows one person's data to another must go through `friends.v
 - Today shows your partners (`logic.partners`) and the now-board (`logic.board_status`). Compare shows
   every group of 2+ people that shares a break (`logic.compare_matches`), with up to 3 friends for free.
 
-Tests: `api/tests/test_friends.py`, `api/tests/test_logic.py`, `api/tests/test_compare.py`.
+## Break requests (breaks.py)
+
+Tap a shared break and ask "Pauze samen?": I come, you come or meet somewhere, from–until, a note. Only friends
+who can see you; everyone must be free then; no asking the same people twice for the same time (from either side).
+They answer yes, no or another time; the asker can take it back. Unfriending or blocking makes requests disappear.
+Every step leaves an in-app notification (push is the next step). App: `components/BreakSheet.tsx`, Today's
+'Pauzeverzoeken'.
+
+Tests: `api/tests/test_friends.py`, `api/tests/test_logic.py`, `api/tests/test_compare.py`, `api/tests/test_breaks.py`.

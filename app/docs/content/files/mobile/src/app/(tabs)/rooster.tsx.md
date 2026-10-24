@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:00:04Z
+updated: 2026-10-24T05:27:10Z
 ---
 
 **Rooster**: your days side by side (1–7), one continuous strip you scroll through day by day, as far back or
@@ -30,7 +30,8 @@ Busy weekends go to the grid's swipe (a shared value, set in an effect) and to `
 computed with the data: render never reads a shared value.
 
 Data: whole weeks with shared breaks (`useWeeks`, `GET /me/schedule?together=1`), three or four weeks around what
-you see. Tapping a lesson opens `LessonSheet` with that day's shared breaks; tapping where lessons overlap first asks which
+you see. Tapping a shared break asks "Pauze samen?" (`BreakSheet`, with everyone in it and their own free window;
+a day that's over goes to Compare). Tapping a lesson opens `LessonSheet` with that day's shared breaks; tapping where lessons overlap first asks which
 one (`OverlapSheet`), then opens that one's sheet.
 
 ## `RoosterScreen`

@@ -87,6 +87,31 @@ export type Notification = {
   read: boolean;
 };
 
+export type BreakMode = 'i_come' | 'you_come' | 'meet';
+export type BreakResponse = 'pending' | 'accepted' | 'declined';
+export type BreakPerson = { id: number; display_name: string; avatar_color: number };
+
+/** A break request ("Pauze samen?", api/roosters/breaks.py). `mode` is as the one who asked put it (i_come: they
+ * come to the others). state: planned (someone said yes), declined (everyone said no), pending. */
+export type BreakRequest = {
+  id: number;
+  day: string;
+  start: number;
+  end: number;
+  mode: BreakMode;
+  place: string | null;
+  note: string | null;
+  /** An answer with another time: the request it answers */
+  counter_of: number | null;
+  from: BreakPerson;
+  mine: boolean;
+  members: (BreakPerson & { response: BreakResponse })[];
+  /** Yours when you were asked; null when you asked */
+  my_response: BreakResponse | null;
+  state: 'pending' | 'planned' | 'declined';
+  now: boolean;
+};
+
 export type SourcesState = { count: number; updated_at: string | null; syncing: boolean; errors: number[] };
 
 export type Today = {
@@ -98,6 +123,8 @@ export type Today = {
   board: { id: number; status: Status }[];
   together: Together[];
   changes: Notification[];
+  /** Break requests from and to you, today and the coming days */
+  breaks: BreakRequest[];
   sources: SourcesState;
 };
 

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-24T05:27:10Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -29,6 +29,11 @@ classes with the semesters they exist in plus the school year's semester dates (
 ## `StatusCode`, `Status`
 
 Now-board status codes and times.
+
+## `BreakRequest`, `BreakMode`, `BreakResponse`, `BreakPerson`
+
+A break request (`api/roosters/breaks.py`). `mode` is as the one who asked put it: `lib/breaks.howText` turns it
+into words from your side. Today carries them in `breaks`.
 
 ## `Today`, `Schedule`, `FriendSchedule`, `Compare`
 
