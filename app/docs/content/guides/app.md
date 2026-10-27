@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-24T13:50:00Z
+updated: 2026-10-27T12:00:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -36,7 +36,8 @@ tap; a no from the phone isn't asked again (it points to the phone's settings), 
 mirrored by the week strip above (`DayStrip.tsx`): they share the same animated values, so they move together.
 Drag the strip's dash, pinch or − / + for more or fewer days; double tap to zoom the hours; 'Vandaag' floats over
 the grid (`TodayPill.tsx`). Day math and where a swipe lands: `lib/days.ts`. Data comes a week at a time
-(`useWeeks`); every lesson kind has its own colour.
+(`useWeeks`); every lesson kind has its own colour. Why it's slow today and the plan to fix it (and sheets
+app-wide): the guide **Plan: a fast Rooster tab (and fast sheets)**.
 
 ## Push notifications
 
