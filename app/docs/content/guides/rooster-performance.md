@@ -1,7 +1,7 @@
 ---
 title: Plan: a fast Rooster tab (and fast sheets)
 position: 65
-updated: 2026-10-27T12:00:00Z
+updated: 2026-10-27T17:00:00Z
 ---
 
 **Status: plan, nothing implemented yet.** Written after a code review of the Rooster tab (no device profiling
@@ -134,9 +134,13 @@ used on every overlap band, every "asked" shared break, the `Legend` swatch for 
   re-wrap. After the fixes this costs "a few columns × a few blocks" per frame instead of "22 columns + 100
   restarted animations". It should hold 60 fps on recent phones; low-end Android at 7 days may still dip. The only
   way past that is drawing the grid on a canvas (react-native-skia), a rewrite we don't recommend now.
-- **Double tap vs. instant single tap is a trade-off.** While a double tap exists in the same place, a single tap
-  has to wait to know it isn't one. The plan below keeps double tap on empty space only, so taps on lessons are
-  instant. That's a (small) behaviour change: confirm it with the user.
+- **A single tap can't *know* it isn't a double tap for 200 ms.** That wait stays. Decided with the user: double tap
+  keeps working everywhere, as it does now, and the first tap is answered at once with a **peek**. The sheet slides
+  up a little straight away; a second tap sends it back down and zooms; no second tap and it opens fully (Phase
+  2.2). The sheet is only fully open about as late as now, but the tap *feels* instant, and nothing blocks the second
+  tap.
+- **The peek needs sheets without `Modal`.** A `Modal` covers the whole screen and takes every touch, so the second
+  tap would never reach the grid. The peek comes after the `SheetHost` (Phase 2.1).
 - **Opening a sheet still renders its content once.** Without `Modal` that's a few ms for these small sheets. The
   slide starts in the same frame (the existing layout-effect trick).
 - **Dropping `Modal` moves some things to us:** Android back closes the sheet (BackHandler), screen readers must
@@ -150,7 +154,7 @@ used on every overlap band, every "asked" shared break, the `Legend` swatch for 
 
 ## The plan
 
-Each phase is one PR. Phases 1 and 2 are independent; do 1 first because it's small and measurable.
+Each phase is one PR (Phase 2 may be two: the sheet host and peek, then the grid). Do 1 first: it is small and measurable, and the peek (2.2) builds on its item 1.5.
 
 ### Phase 0: baseline and instrumentation (small, do first)
 
@@ -170,7 +174,7 @@ Each phase is one PR. Phases 1 and 2 are independent; do 1 first because it's sm
 1. **No more layout transitions on blocks.** Remove `layout={layout}` from the free, block and overlap `AView`s in
    `DayColumn`. Keep `entering` only where it means something: a column's blocks fade in when its data arrives
    after the skeleton (`loading` → loaded) while the column is in view. Columns that mount offscreen don't animate.
-   Zoom (double tap) then jumps the hours; Phase 2.3 gives it a cheap animation back.
+   Zoom (double tap) then jumps the hours; Phase 2.4 gives it a cheap animation back.
 2. **`Hatch` as one pattern.** Use react-native-svg `<Defs><Pattern patternUnits="userSpaceOnUse" width={gap}
    height={gap} patternTransform="rotate(45)"><Line …/></Pattern></Defs><Rect fill="url(#id)" …/>` with a unique id
    per instance (`useId`). Check `Pattern` support in the installed react-native-svg 15.16 on both platforms. Keep
@@ -197,11 +201,10 @@ Each phase is one PR. Phases 1 and 2 are independent; do 1 first because it's sm
 4. **Memoize gesture objects** (`useMemo` with the right deps, or the Gesture Handler 3 hooks; the upgrade guide
    lists renames like `onStart`→`onActivate`). Callbacks that gestures pass to `scheduleOnRN` must be stable (the
    `latest` ref pattern), or the memo is useless.
-5. **Instant taps on lessons.** Add a "block tap" gesture before `doubleTap` in the `Exclusive` that hit-tests on
-   touch down against a shared value of tappable rects (like `useDragTargets` does) and fails at once on empty
-   space. On a lesson, break or overlap it fires on finger up with no 200 ms wait; on empty space the double tap
-   still zooms. Keep the 8 px `maxDistance` so a swipe never ends as a tap. **Ask the user** before changing this
-   (behaviour: double tap on a lesson no longer zooms, it opens the lesson).
+5. **Tappable rects on the UI thread** (groundwork for the peek, Phase 2.2). Keep a shared value of what a tap can
+   open per day (lessons, overlaps, shared breaks you can ask for, skipped classes), filled from the per-day cache
+   like `useDragTargets` does. Then the gesture can tell on the UI thread, without asking JS, whether a tap hit
+   something that opens a sheet. No behaviour change yet.
 6. **Hidden tabs don't render.** `freezeOnBlur: true` in the tabs' `screenOptions` (`app/(tabs)/_layout.tsx`);
    check that the option exists in expo-router 58's `Tabs`. Check the tab bar badge still updates: it lives in the
    tab bar, not in a screen.
@@ -211,7 +214,7 @@ Each phase is one PR. Phases 1 and 2 are independent; do 1 first because it's sm
    Bump `buster` if the shape changes.
 
 Done when: (b) and (c) are clearly smoother in a release build, a swipe re-renders at most the columns that mount
-(render counter), and a tap on a class starts the sheet without the 200 ms wait.
+(render counter), and opening a sheet re-renders only that sheet (the 200 ms wait goes in Phase 2.2).
 
 ### Phase 2: structural fixes (the bigger wins)
 
@@ -233,7 +236,36 @@ Done when: (b) and (c) are clearly smoother in a release build, a swipe re-rende
    An alternative is native form sheets through the router (`presentation: 'formSheet'`). It's fully native and
    smooth, but sheets would become routes, and the shared `progress`/`above` tricks in chat don't map. Not
    recommended for now.
-2. **Columns on transforms, and fewer of them**
+2. **Peek on the first tap** (needs 2.1; decided with the user). Double tap stays exactly as it is: zoom, anywhere on
+   the grid. A single tap on something that opens a sheet is answered **at once**:
+   - **The gesture.** The single-tap gesture no longer waits for the double tap to fail. It runs alongside it
+     (`Simultaneous`, still after `drag` and `pan` in the `Exclusive`, keeping the 8 px `maxDistance`). Its `onEnd`
+     **worklet** hit-tests against the rects from 1.5. On a hit it starts the peek **on the UI thread in the same
+     frame**: a shared `peek` value, no JS round trip. Then `scheduleOnRN` tells `Calendar` what was tapped, which
+     renders the sheet's content into the already-peeking sheet. An empty-space tap does nothing, as now.
+   - **The peek.** The sheet slides up from the bottom to a small height: the grabber, the title row and a bit of the
+     first card, about 90–120 px, quick ease-out (~120 ms). No scrim yet, or a very faint one. The sheet itself is
+     `pointerEvents="none"` while peeking, so a second tap anywhere, even on a lesson near the bottom that the peek
+     covers, reaches the grid.
+   - **Second tap** (the double tap activates within its `maxDelay`): the peek slides back down fast (~120 ms,
+     ease-in), `onDoubleTap` zooms, and the sheet is never opened. Clear the pending sheet in `Calendar`.
+   - **No second tap**: when the double-tap window closes (its `maxDelay`, or the gesture failing, whichever comes
+     first), the sheet continues from the peek to fully open **in one motion**, no stop or bounce at the peek
+     height. The scrim fades in and the sheet takes touches. Drive both stages with the one `progress` value
+     `Sheet` already has: peek = a fixed px height, open = 1.
+   - **Content can be a frame late.** If the content renders a frame after the peek starts, the peek shows the empty
+     chrome (grabber, an empty title line) for that frame. Fine at that size. Don't wait for it.
+   - **Everything that opens from a grid tap uses it:** `LessonSheet`, `OverlapSheet`, `BreakSheet` (a shared break),
+     a skipped class's sheet. Screen readers (`onAccessibilityTap`) open fully at once, no peek, because there is no
+     double tap there. With reduced motion (`useReducedMotion`): no slide, wait for the window, then a short fade-in.
+   - **`Sheet` API:** a way to open in the peek stage (e.g. `stage: 'peek' | 'open'`, or a `peek` shared value the
+     caller drives) next to `visible`. Other sheets in the app don't change and open as they do.
+   - **Tune by feel with the user:** peek height, peek speed, and the double-tap `maxDelay`. 200 ms now; a bit lower
+     makes the full open come sooner, too low makes double taps harder.
+
+   Done when: the peek starts in the frame the finger lifts, a double tap on a lesson zooms with the peek going back
+   down (and no sheet), and a single tap opens the sheet fully with no visible pause at the peek.
+3. **Columns on transforms, and fewer of them**
    - Position columns with `transform: [{ translateX: (day - offset) * colW }]` and `left: 0`. `width` stays an
      animated style, but only changes when `count` changes. A swipe is then transform-only, on the fast path.
      Better still: one track `AView` with a single translateX, if the coordinate math of the gestures stays simple.
@@ -245,18 +277,18 @@ Done when: (b) and (c) are clearly smoother in a release build, a swipe re-rende
    - Draw the vertical day separators in one SVG with the hour lines instead of one `Svg` per column.
    - `SkipDrag` (`useSkipGesture`, `DragLayer`) and `tapAt` compute positions from `offset`/`count`/`width`. Keep
      that math identical and test drag-to-skip, tap, overlap tap, pinch anchor and the strip's group drag.
-3. **Zoom with a cheap animation.** Animate the hour range as shared values (`h0`, `pxPerHour`) and place the
+4. **Zoom with a cheap animation.** Animate the hour range as shared values (`h0`, `pxPerHour`) and place the
    blocks of the **visible** columns with `top`/`height` from them for the ~250 ms of a zoom (at most 7 columns × a
    few blocks), or crossfade the grid. The `TimeAxis` uses the same values, so it moves with the blocks. It no
    longer jumps after them as it does now.
-4. **Reanimated feature flags and 120 Hz.** Turn on `IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS`,
+5. **Reanimated feature flags and 120 Hz.** Turn on `IOS_SYNCHRONOUSLY_UPDATE_UI_PROPS`,
    `ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS`, `USE_COMMIT_HOOK_ONLY_FOR_REACT_COMMITS` (check the names and format for
    4.7). Add `CADisableMinimumFrameDurationOnPhone` if needed. The docs warn that the synchronous flags affect touch
    detection on views with animated transforms: `TitleOrBack`, buttons with `usePressScale` and `TodayPill` must
    still be tappable everywhere they're drawn. Native change: tell the user a new development build is needed.
 
-Done when: (a)–(c) hold ~60 fps (120 on ProMotion) on a recent phone in release, and (d) and (e) start sliding
-within one or two frames of the finger lifting.
+Done when: (a)–(c) hold ~60 fps (120 on ProMotion) on a recent phone in release, (d) peeks in the frame the
+finger lifts, and (e) starts sliding within one or two frames.
 
 ### Phase 3: optional polish
 
@@ -279,9 +311,10 @@ transforms, stable props into memoized columns, no `Modal` for sheets.
 ## Which model
 
 - **Phase 0 and Phase 1: Sonnet is enough.** They're local, well-specified edits with clear done criteria, and
-  `tsc`/lint catch most mistakes. Item 1.5 (block tap gesture) is the one place to be careful; give it the
-  `useSkipGesture` code as the model to follow.
-- **Phase 2: use Opus.** It changes the coordinate system three gestures, the strip and the drag layer share,
+  `tsc`/lint catch most mistakes. Item 1.5 (tappable rects) is the one place to be careful; give it
+  `useDragTargets` as the model to follow.
+- **Phase 2: use Opus.** The peek (2.2) coordinates a gesture worklet, a shared value, a React render and a
+  two-stage sheet animation, and must stay out of the way of the double tap. It changes the coordinate system three gestures, the strip and the drag layer share,
   replaces `Modal` across 8 call sites with platform-specific back, keyboard and accessibility behaviour, and none of
   it can be checked from a cloud sandbox. The mistakes are subtle: a tap landing on the wrong day, a sheet a screen
   reader can see through, a pinch anchor that drifts. Opus is more likely to get them right without a device in
@@ -297,5 +330,5 @@ Release build. Fill in before and after each phase.
 | (a) swipe week to week, UI / JS fps | | | | |
 | (b) handle 1→7→1, UI / JS fps | | | | |
 | (c) pinch, UI / JS fps | | | | |
-| (d) tap class → sheet moving (ms) | | | | |
+| (d) tap class → peek moving / fully open (ms) | | | | |
 | (e) Today: open `BreakSheet` (ms) | | | | |
