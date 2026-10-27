@@ -10,7 +10,7 @@ Gestures (Gesture Handler, all on the grid):
 - **pan**: follows the finger; on release `days.snap` decides where it lands and `onTarget` tells the screen right
   away (dates and data update before the spring ends), then it springs there (`SWIPE`: calm, no bouncing through days);
 - **pinch**: more or fewer days, the day under your fingers stays put; settles on whole days;
-- **double tap**: `onDoubleTap` (the calendar resets its view);
+- **double tap**: `onDoubleTap` (the screen zooms the hours);
 - **tap**: finds the lesson (or shared break: `onPressTogether(day, span)`) under the finger. Taps go through the gesture system instead of a
   Pressable per lesson, so a swipe or a pinch never ends as a tap on the lesson it lets go of. Blocks are still
   buttons for screen readers.

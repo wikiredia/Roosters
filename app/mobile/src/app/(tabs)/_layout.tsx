@@ -1,65 +1,25 @@
 import { Redirect } from 'expo-router';
 import { Tabs, type BottomTabBarProps } from 'expo-router/tabs';
 import { useEffect } from 'react';
-import { Pressable, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAcceptInvite, useChats } from '@/api/hooks';
-import { Badge } from '@/components/ui/Bits';
-import { Icon, type IconName } from '@/components/ui/Icon';
-import { Text } from '@/components/ui/Text';
-import { useT, type Key } from '@/i18n';
-import { cn } from '@/lib/cn';
+import { useAcceptInvite } from '@/api/hooks';
+import { BottomTabs } from '@/components/BottomTabs';
 import { takePendingInvite } from '@/lib/invite';
 import { handlePushResponses, registerPush } from '@/lib/push';
 import { session } from '@/lib/session';
 
-const TABS: Record<string, { icon: IconName; label: Key }> = {
-  rooster: { icon: 'calendar', label: 'tabs.rooster' },
-  today: { icon: 'sun', label: 'tabs.today' },
-  chat: { icon: 'chat', label: 'tabs.chat' },
-  ik: { icon: 'user', label: 'tabs.me' },
-};
-
 function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
-  const { t } = useT();
-  const insets = useSafeAreaInsets();
-  const unread = useChats().data?.unread ?? 0;
+  const active = state.routes[state.index]?.name;
   return (
-    <View
-      accessibilityRole="tablist"
-      className="flex-row border-t border-line bg-surface px-2 pt-1.5"
-      style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-    >
-      {state.routes.map((route, i) => {
-        const tab = TABS[route.name];
-        if (!tab) return null;
-        // Comparing is part of Rooster: its tab stays lit
-        const on = state.routes[state.index]?.name === 'compare' ? route.name === 'rooster' : state.index === i;
-        const badge = route.name === 'chat' ? unread : 0;
-        return (
-          <Pressable
-            key={route.key}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={badge ? `${t(tab.label)}, ${t('chat.unreadLabel', { n: badge })}` : t(tab.label)}
-            onPress={() => {
-              const e = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-              if (!on && !e.defaultPrevented) navigateToTab(route.key);
-            }}
-            className="flex-1 items-center justify-center gap-0.5 min-h-[52px]"
-          >
-            <View className={cn('w-14 h-[30px] rounded-full items-center justify-center', on && 'bg-you-soft')}>
-              <Icon name={tab.icon} size={24} color={on ? 'you-ink' : 'ink-3'} />
-              {badge ? <Badge n={badge} className="absolute -top-0.5 right-2" /> : null}
-            </View>
-            <Text variant="xs" bold tone={on ? 'ink' : 'ink3'} style={{ lineHeight: 16 }}>
-              {t(tab.label)}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <BottomTabs
+      active={active}
+      onSelect={(name) => {
+        const route = state.routes.find((r) => r.name === name);
+        if (!route) return;
+        const e = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+        if (active !== name && !e.defaultPrevented) navigateToTab(route.key);
+      }}
+    />
   );
 }
 
@@ -80,13 +40,11 @@ export default function TabsLayout() {
 
   if (s.status === 'signedOut') return <Redirect href="/welcome" />;
   return (
-    <Tabs tabBar={(props) => <TabBar {...props} />} backBehavior="history" screenOptions={{ headerShown: false, animation: 'fade' }}>
+    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, animation: 'fade' }}>
       <Tabs.Screen name="rooster" />
       <Tabs.Screen name="today" />
       <Tabs.Screen name="chat" />
       <Tabs.Screen name="ik" />
-      {/* Vergelijken lives inside the tabs so the bar stays visible, but has no tab of its own */}
-      <Tabs.Screen name="compare" options={{ href: null }} />
     </Tabs>
   );
 }
