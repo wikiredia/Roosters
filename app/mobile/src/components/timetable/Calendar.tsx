@@ -316,7 +316,7 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     }
     return [...out];
   }, [stamp, start, want, onlyKey, breaks.data]);
-  // Anything else than the standard view (zoomed, other than 5 days, not starting on a Monday): the screen's title becomes 'Terug'
+  // Anything else than the standard view (zoomed, other than 5 days, not starting on a Monday): the screen's title becomes 'Reset'
   const custom = zoomed || want !== 5 || weekdayOf(start) !== 0;
   useEffect(() => {
     onView?.({ start, want, custom });
@@ -325,8 +325,8 @@ export function Calendar({ only, initialStart, remember = false, onView, control
 
   // Stable callbacks for the grid (memo): opening a sheet re-renders this screen, never the 20-odd day columns,
   // so a tap on a lesson answers at once
-  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip });
-  latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip };
+  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip, reset });
+  latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip, reset };
   const data = useCallback((d: number) => byDay.get(d), [byDay]);
   const onPressLesson = useCallback((lesson: Lesson, day: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), []);
   const onPressOverlap = useCallback((lessons: Lesson[], day: number) => setChoose({ lessons, day }), []);
@@ -337,7 +337,7 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     k.set(withSpring(Math.min(weekdayOf(s), 7 - n), RESIZE));
     latest.current.setDays(n, false);
   }, []);
-  const onDoubleTap = useCallback(() => setZoomed((z) => !z), []);
+  const onDoubleTap = useCallback(() => latest.current.reset(), []);
   const classAt = (day: number, start: number) => mergeLessons(latest.current.byDay.get(day)?.lessons ?? []).find((l) => l.start === start && !isFree(l));
   const onPickClass = useCallback((day: number, start: number) => setLifted(classAt(day, start) ?? null), []);
   const onDropClass = useCallback((day: number, start: number) => {

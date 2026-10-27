@@ -15,8 +15,8 @@ import { handlePushResponses, registerPush } from '@/lib/push';
 import { session } from '@/lib/session';
 
 const TABS: Record<string, { icon: IconName; label: Key }> = {
-  today: { icon: 'sun', label: 'tabs.today' },
   rooster: { icon: 'calendar', label: 'tabs.rooster' },
+  today: { icon: 'sun', label: 'tabs.today' },
   chat: { icon: 'chat', label: 'tabs.chat' },
   ik: { icon: 'user', label: 'tabs.me' },
 };
@@ -34,7 +34,8 @@ function TabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
       {state.routes.map((route, i) => {
         const tab = TABS[route.name];
         if (!tab) return null;
-        const on = state.index === i;
+        // Comparing is part of Rooster: its tab stays lit
+        const on = state.routes[state.index]?.name === 'compare' ? route.name === 'rooster' : state.index === i;
         const badge = route.name === 'chat' ? unread : 0;
         return (
           <Pressable
@@ -79,11 +80,13 @@ export default function TabsLayout() {
 
   if (s.status === 'signedOut') return <Redirect href="/welcome" />;
   return (
-    <Tabs tabBar={(props) => <TabBar {...props} />} screenOptions={{ headerShown: false, animation: 'fade' }}>
-      <Tabs.Screen name="today" />
+    <Tabs tabBar={(props) => <TabBar {...props} />} backBehavior="history" screenOptions={{ headerShown: false, animation: 'fade' }}>
       <Tabs.Screen name="rooster" />
+      <Tabs.Screen name="today" />
       <Tabs.Screen name="chat" />
       <Tabs.Screen name="ik" />
+      {/* Vergelijken lives inside the tabs so the bar stays visible, but has no tab of its own */}
+      <Tabs.Screen name="compare" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -14,7 +14,7 @@ import { dateAt, dayIndex, homeStart } from '@/lib/days';
 
 /**
  * Rooster: your days in the calendar (components/timetable/Calendar), with every friend's shared breaks. The title
- * turns into 'Terug' once you've changed the view; 'Vergelijk' (top right) picks friends and shows the same calendar
+ * turns into 'Reset' once you've changed the view; 'Vergelijk' (top right) picks friends and shows the same calendar
  * with only theirs.
  */
 export default function RoosterScreen() {
@@ -24,9 +24,9 @@ export default function RoosterScreen() {
   return (
     <Screen
       title={t('tabs.rooster')}
-      heading={<TitleOrBack title={t('tabs.rooster')} back={view.custom ? t('common.back') : null} hint={t('rooster.resetHint')} onBack={() => control.current?.reset()} />}
+      heading={<TitleOrBack title={t('tabs.rooster')} back={view.custom ? t('rooster.reset') : null} hint={t('rooster.resetHint')} onBack={() => control.current?.reset()} />}
       eyebrow={rangeLabel(dateAt(view.start), dateAt(view.start + view.want - 1), lang)}
-      right={<Button variant="secondary" size="sm" icon="users" label={t('rooster.compareShort')} accessibilityLabel={t('rooster.compare')} onPress={() => router.push('/compare')} />}
+      right={<Button size="sm" icon="users" label={t('rooster.compareShort')} accessibilityLabel={t('rooster.compare')} onPress={() => router.push('/compare')} />}
       scroll={false}
       contentClassName="flex-1 gap-2 pb-3"
     >
@@ -36,8 +36,8 @@ export default function RoosterScreen() {
 }
 
 /**
- * The large title, or 'Terug' (the arrow curling left) once you've changed the view: the one slides out as the
- * other slides in, in the same place. 'Terug' goes back to the standard view.
+ * The large title, or 'Reset' (the arrow curling left) once you've changed the view: the one slides out as the
+ * other slides in, in the same place. 'Reset' goes back to the standard view.
  */
 function TitleOrBack({ title, back, hint, onBack }: { title: string; back: string | null; hint: string; onBack: () => void }) {
   const press = usePressScale();

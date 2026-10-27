@@ -50,7 +50,7 @@ export async function afterSignIn(tokens: Tokens) {
   }
 }
 
-/** Skip the rest (or finish): marks onboarding done and goes to Today. */
+/** Skip the rest (or finish): marks onboarding done and goes to Rooster. */
 export function useFinishOnboarding() {
   const me = useMe();
   const update = useUpdateMe();
@@ -65,7 +65,7 @@ export function useFinishOnboarding() {
       const code = await takePendingInvite();
       if (code) accept.mutate(code);
     }
-    resetTo('/today');
+    resetTo('/rooster');
   }
   return { finish, busy: update.isPending };
 }
