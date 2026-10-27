@@ -296,6 +296,7 @@ export const nl = {
   'plan.note': 'Kies er één. Je vrienden zien het meteen. Morgen begin je weer zonder status.',
 
   'rooster.compare': 'Vergelijk met…',
+  'rooster.reset': 'Reset',
   'rooster.compareShort': 'Vergelijk',
   'rooster.daysLabel': '{n} dagen naast elkaar',
   'rooster.fewer': 'Minder dagen',
@@ -305,7 +306,7 @@ export const nl = {
   'rooster.today': 'Vandaag',
   'rooster.zoomHint': 'Dubbeltik op je rooster om in te zoomen op je lessen. Knijp om meer of minder dagen te zien.',
   'rooster.zoomOut': 'Alles tonen',
-  'rooster.resetHint': 'Terug naar deze week, maandag tot vrijdag, niet ingezoomd',
+  'rooster.resetHint': 'Reset naar deze week, maandag tot vrijdag, niet ingezoomd',
   'rooster.todayHint': 'Gaat terug naar vandaag. Sleep om te verplaatsen.',
   'rooster.nDays': '{n} dagen',
   'rooster.stripLabel': 'Je ziet {n} dagen',

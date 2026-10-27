@@ -65,7 +65,7 @@ export default function CodeLogin() {
   /** The mail is slow or stuck: go in as a guest now (or back to the app if you already are one) */
   async function later() {
     if (inApp) {
-      resetTo('/today');
+      resetTo('/rooster');
       return;
     }
     setBusy(true);

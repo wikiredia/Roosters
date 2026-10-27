@@ -2,7 +2,7 @@
 updated: 2026-10-24T12:55:00Z
 ---
 
-**The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
+**The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/(tabs)/compare.tsx`): your
 days side by side (1–7), one continuous strip you scroll through day by day, as far back or ahead as you like. The
 week strip on top (`DayStrip`), the grid's columns (`DayGrid`) and their widths share the same animated values
 (`offset`: the left edge in days, `count`: how many days, `k`: where that first day sits in the strip), so
@@ -14,7 +14,7 @@ everything moves together in the same frame, on the UI thread.
 - **How many days**: drag the dash on the strip, pinch the grid, or − / + (until you've used the dash:
   `days.learned`). With `remember` (Rooster) it's remembered (`rooster.days`), 7 when this week's weekend is
   busy; Vergelijken always starts on 5 days and no tips.
-- **Zoom**: double tap stretches the hours to your lessons; double tap again or the magnifier undoes it.
+- **Double tap** = the Rooster tab's 'Reset': back to the standard view (this week, Monday to Friday, hours not zoomed).
 - **Vandaag** (`TodayPill`) when you've moved away from today and from where it opened (`initialStart`).
 - **Shared breaks** are yellow blocks with who they're with (`Timetable.TogetherBlock`). With `only` just the
   friends you picked (Vergelijken). One that's over, or further ahead than you can ask (more than 13 days:
@@ -33,7 +33,7 @@ double tap (`DayGrid`), the sheet starts sliding in the frame it appears (`Sheet
 ## `Calendar`
 
 As above. `onView` tells the screen the first day, the number of days and whether it's not the standard view
-(the Rooster tab's 'Terug' and the eyebrow); `control.reset()` goes back to the standard view.
+(the Rooster tab's 'Reset' and the eyebrow); `control.reset()` goes back to the standard view.
 
 **Skipping**: drag a class into the bin (`SkipDrag`, the card and bin drawn over the grid) or 'Skip this class' in
 its sheet. `doSkip` keeps the day as it was (lessons and shared breaks) to say what changed, shows `SkipToast`
