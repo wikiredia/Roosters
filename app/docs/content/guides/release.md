@@ -1,7 +1,7 @@
 ---
 title: Releasing to TestFlight and Play
 position: 75
-updated: 2026-10-28T10:00:00Z
+updated: 2026-10-28T10:15:00Z
 ---
 
 From "it runs in Expo Go on my laptop" to testers installing Roosters+ from **TestFlight** (iOS) and **Google Play
@@ -110,9 +110,11 @@ curl -I https://roostersplus.be https://temp.roostersplus.be
 ```
 
 Without `COMPOSE_FILE` in `.env`, add `-f docker-compose.yml -f docker-compose.prod.yml` to every command.
-**Don't run `./server-restart.sh` (repo root) on the production server**: it passes `-f app/docker-compose.yml`
-explicitly, so it starts the laptop setup, and its `--remove-orphans` stops Caddy and the site. Run `git pull` and
-the `up` command above instead.
+**Every update after that: `./server-restart.sh`** (repo root). With `COMPOSE_FILE=…docker-compose.prod.yml` in
+`app/.env` it runs in production mode: `git pull`, creates `roosters-edge` if missing, rebuilds the old server when
+`server/.env` has `TLS_MODE=proxy`, brings up the prod stack, reloads the Caddyfile, waits for the API, and never
+starts Expo. Without `COMPOSE_FILE` it's the laptop setup (and its `--remove-orphans` would stop Caddy), so set
+that line before the first run on the server.
 Certificates renew by themselves as long as port 80/443 stay open; they live in the `caddy_data` volume (keep it:
 Let's Encrypt has rate limits). A changed `Caddyfile`: `docker compose exec caddy caddy reload --config
 /etc/caddy/Caddyfile`. A changed website (`site/`): nothing to do, Apache serves the mounted folder.
