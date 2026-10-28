@@ -66,7 +66,9 @@ restarts every service (new migrations run when the API starts), waits until the
 the app's dependencies changed, and starts Expo with a clean cache pointing at `http://94.226.242.154:8010`.
 Another address: `API_URL=http://<ip>:<port> ./server-restart.sh`; without Expo: `./server-restart.sh --no-expo`.
 On the production server (`COMPOSE_FILE` with `docker-compose.prod.yml` in `.env`) the same script restarts the
-prod stack, the old server behind Caddy and reloads Caddy, without Expo (release guide, step 1).
+prod stack, the old server behind Caddy and reloads Caddy; Expo then points at `PUBLIC_URL`
+(`https://api.roostersplus.be`), because the API port is loopback-only there (release guide, step 1). The laptop can be
+that server: the mode only changes what runs and where Expo points.
 
 ### The app
 
