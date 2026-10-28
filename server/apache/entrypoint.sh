@@ -24,7 +24,10 @@ pick_cert() {
 }
 
 ARGS=""
-if [ "$TLS_MODE" != "off" ]; then
+if [ "$TLS_MODE" = "proxy" ]; then
+  # Achter Caddy (app/infra/Caddyfile): Caddy doet https, Apache enkel http op 8080
+  ARGS="-D PROXY"
+elif [ "$TLS_MODE" != "off" ]; then
   ARGS="-D TLS"
   pick_cert
 fi

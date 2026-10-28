@@ -108,3 +108,33 @@ beginscherm en tikt daar het juiste getal aan (één poging, 5 minuten, enkel va
 
 Testen zonder certificaat: zet in `.env` `TLS_MODE=off` en `COMPOSE_PROFILES=` (leeg). Locatie delen en
 pushmeldingen werken dan niet (die vragen https).
+
+## Achter Caddy (temp.roostersplus.be)
+
+Draait Roosters+ (`app/`) op dezelfde server, dan neemt de Caddy van Roosters+ poort 80/443 over en zit deze
+server erachter: op `https://temp.roostersplus.be`, en op `https://api.roostersplus.be` voor alles buiten
+`/api/v1` (zie `app/infra/Caddyfile`). Het IP-certificaat (certbot) is dan niet meer nodig.
+
+1. Eenmalig: `docker network create roosters-edge`
+2. In `.env`:
+
+   ```bash
+   COMPOSE_FILE=docker-compose.yml:docker-compose.caddy.yml
+   TLS_MODE=proxy            # Caddy doet https; cookies en pushmeldingen gedragen zich als https
+   COMPOSE_PROFILES=         # leeg: geen certbot meer
+   PUBLIC_HOST=temp.roostersplus.be
+   ```
+
+3. De certbot-container weg en opnieuw starten:
+
+   ```bash
+   docker compose --profile letsencrypt rm -sf certbot
+   docker compose up -d --build
+   ```
+
+   Daarna Roosters+ met Caddy starten (`app/docs/content/guides/release.md`, stap 1).
+
+Apache luistert dan enkel op `127.0.0.1:8081` (testen: `curl http://127.0.0.1:8081/api/health`) en in het
+netwerk `roosters-edge` als `roosters-v1`. Het echte IP van bezoekers komt uit `X-Forwarded-For` van Caddy.
+Wie de app nog op `https://<jouw-ip>` heeft staan, moet ze opnieuw openen op het nieuwe adres (andere
+oorsprong: opnieuw inloggen, meldingen opnieuw aanzetten).

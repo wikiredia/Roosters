@@ -6,7 +6,7 @@
 #   Docs service    http://127.0.0.1:8095/docs/v1    (live architecture docs; DOCS_TOKEN to write)
 #   Slow school wifi: docker compose --profile slow up, then use port 8001 (see README)
 #
-# The same images run on the server later; only .env and the reverse proxy (Caddy) differ.
+# The same images run on the server; only .env and docker-compose.prod.yml (Caddy, the website) differ.
 name: roostersplus
 
 x-hardening: &hardening
@@ -136,6 +136,8 @@ services:
       - ./infra:/src/infra:ro
       - ./docker-compose.yml:/src/docker-compose.yml:ro
       - ./docker-compose.test.yml:/src/docker-compose.test.yml:ro
+      - ./docker-compose.prod.yml:/src/docker-compose.prod.yml:ro
+      - ./site:/src/site:ro
       - ./.env.example:/src/.env.example:ro
       - ./README.md:/src/README.md:ro
       - ./slow-wifi.sh:/src/slow-wifi.sh:ro

@@ -1,7 +1,7 @@
 ---
 title: Releasing to TestFlight and Play
 position: 75
-updated: 2026-10-24T19:03:00Z
+updated: 2026-10-28T09:00:00Z
 ---
 
 From "it runs in Expo Go on my laptop" to testers installing Roosters+ from **TestFlight** (iOS) and **Google Play
@@ -9,7 +9,7 @@ internal testing** (Android). Do the parts in this order: a store build needs a 
 anything else, and the Google client ids need the signing keys that the first builds create.
 
 ```
- 1. Server on HTTPS (Caddy)  ──> https://api.<your-domain>   baked into every store build
+ 1. Server on HTTPS (Caddy)  ──> https://api.<your-domain>   baked into every store build; + website, old server
  2. Expo account + EAS       ──> eas.json, environment variables, the project id (push)
  3. Apple                    ──> App Store Connect app, first build, TestFlight
  4. Xcode (optional)         ──> run and debug the native iOS project on your Mac
@@ -28,85 +28,47 @@ A development build finds the API by itself (the computer running `expo start`, 
 (App Transport Security), and the debug screen to change the address only exists in development builds (or with
 `EXPO_PUBLIC_DEBUG=1`). So: a domain name, HTTPS, then build.
 
-## 1. Caddy: the API on HTTPS
+## 1. Caddy: HTTPS for the API, the website and the old server
 
-Caddy is a web server that gets and renews Let's Encrypt certificates by itself. It sits in front of the `api`
-service; the admin API, the docs service and the database stay unreachable from outside.
+Caddy is a web server that gets and renews Let's Encrypt certificates by itself. On the server it owns ports 80
+and 443 and sends every address to the right place (`infra/Caddyfile`, started by `docker-compose.prod.yml`):
 
 ```
- phone ──HTTPS :443──> caddy ──HTTP──> api:8000 (frontend network)
-                                       admin :8090, docs :8095   127.0.0.1 only, never in Caddy
+                  ┌─ roostersplus.be ───────────────> site:8080     Apache, the website (site/)
+                  ├─ www.roostersplus.be ───────────> 301 to roostersplus.be
+ internet ─:443─> caddy ─ api.roostersplus.be ─ /api/v1/* ──> api:8000     Roosters+ (this API)
+   (:80 too)      │                             └ the rest ──> roosters-v1  the old Roosters (server/): web app + /api/*
+                  └─ temp.roostersplus.be ──────────> roosters-v1   the old Roosters, whole
+
+ admin :8090, docs :8095, api :8000   127.0.0.1 only, never in Caddy
 ```
+
+The two APIs don't collide: Roosters+ only uses `/api/v1/...`, the old server only `/api/...` without `v1`. The
+old server runs in its own compose project (`server/`); Caddy reaches its Apache over the shared Docker network
+`roosters-edge` under the name `roosters-v1` (`server/docker-compose.caddy.yml`). When it's down, only its addresses
+give a 502.
+
+**The old server's own HTTPS goes away.** It used to own 80/443 itself, with a Let's Encrypt **IP** certificate from
+its `certbot` container (or a self-signed one). Behind Caddy that's switched off with `TLS_MODE=proxy`: its Apache
+then speaks plain HTTP inside Docker only, certbot stops, and the old API still treats requests as HTTPS (secure
+cookies, push). Steps in `server/README.md` → "Achter Caddy". Bookmarks and installed web apps on `https://<ip>`
+must move to `https://temp.roostersplus.be` (another origin: sign in and allow notifications again).
 
 **DNS and ports.**
 
-1. Buy or use a domain. At its DNS provider add an **A record** `api` → the server's public IPv4 address
-   (and an **AAAA** record if the server has IPv6).
+1. At the DNS provider of `roostersplus.be` add **A records** → the server's public IPv4 for `@` (the bare domain),
+   `www`, `api` and `temp` (and **AAAA** records if the server has IPv6). Check: `dig +short api.roostersplus.be`.
 2. On the router (home server) or the firewall (Hetzner): forward/open **TCP 80, TCP 443 and UDP 443** to the
    server. Port 80 is needed for the certificate challenge and the redirect to HTTPS.
-3. Close everything else from outside, **especially 8000/8010**: when the API is reachable without Caddy, a
-   client can send its own `X-Forwarded-For` and dodge the per-IP rate limits (`api/roosters/r_auth.py`,
-   `_client_ip`). Check from outside (phone on 4G): `http://<ip>:8000` must not answer.
-
-**Files** (create them on the server, or ask for them to be committed): `app/infra/Caddyfile`
-
-```caddy
-{
-	email you@example.com
-}
-
-api.roostersplus.be {
-	encode zstd gzip
-	reverse_proxy api:8000
-}
-```
-
-and `app/docker-compose.prod.yml`, layered on top of `docker-compose.yml`: no `--reload`, no Mailpit, the API on
-loopback only, real SMTP, and Caddy.
-
-```yaml
-# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-x-prod-mail: &prod-mail
-  SMTP_HOST: ${SMTP_HOST:?set SMTP_HOST in .env}
-  SMTP_PORT: ${SMTP_PORT:-587}
-
-services:
-  migrate:
-    environment: *prod-mail
-  api:
-    command: ["uvicorn", "roosters.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
-    environment: *prod-mail
-    ports: !override
-      - "127.0.0.1:${API_PORT:-8000}:8000"   # health checks on the server itself; the world goes through Caddy
-  worker:
-    environment: *prod-mail
-  admin:
-    command: ["uvicorn", "roosters.admin:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
-    environment: *prod-mail
-  mailpit:
-    profiles: [dev]                          # not started in production
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    ports: ["80:80", "443:443", "443:443/udp"]
-    volumes:
-      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data                     # the certificates: keep this volume
-      - caddy_config:/config
-    networks: [frontend]
-    depends_on: [api]
-
-volumes:
-  caddy_data: {}
-  caddy_config: {}
-```
-
-(`docker-compose.yml` sets `SMTP_HOST: mailpit` for every app container; the override replaces it with the value
-from `.env`. `ports: !override` needs Docker Compose 2.24.4 or newer: `docker compose version`.)
+3. Close everything else from outside, **especially 8000/8010 and 8081**: when the API is reachable without Caddy,
+   a client can send its own `X-Forwarded-For` and dodge the per-IP rate limits (`api/roosters/r_auth.py`,
+   `_client_ip`). Caddy always replaces that header with the real address. Check from outside (phone on 4G):
+   `http://<ip>:8000` must not answer.
 
 **`app/.env` on the server** (every secret new: `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`):
 
 ```bash
+COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml   # plain `docker compose` = production
 ENV=prod                               # no /api/docs, no debug endpoints, no login codes in the log
 PUBLIC_URL=https://api.roostersplus.be
 CORS_ORIGINS=                          # the native app needs none
@@ -121,6 +83,10 @@ APPLE_CLIENT_IDS=be.roostersplus.app   # Sign in with Apple: the bundle id
 GOOGLE_CLIENT_IDS=                     # the Google WEB client id, part 5
 ```
 
+`docker-compose.prod.yml` drops `--reload`, keeps Mailpit out (profile `dev`), uses the SMTP settings above, puts
+the API on loopback only (`ports: !override` needs Docker Compose 2.24.4 or newer: `docker compose version`), and
+adds `site` and `caddy`.
+
 Login codes are the main way in, so the mail must arrive: at the mail provider, verify the domain and add the
 **SPF, DKIM and DMARC** records it gives you, then test with `docker compose exec api python -m roosters.cli
 test-mail you@example.com`.
@@ -128,14 +94,29 @@ test-mail you@example.com`.
 **Start and check.**
 
 ```bash
-cd app
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
-docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f caddy   # "certificate obtained successfully"
-curl https://api.roostersplus.be/api/v1/health                                  # from another machine
+docker network create roosters-edge          # once: the network Caddy shares with the old server
+cd server && docker compose --profile letsencrypt rm -sf certbot && docker compose up -d --build   # old server, TLS_MODE=proxy first
+cd ../app && docker compose up -d --build --remove-orphans                                        # with COMPOSE_FILE above
+docker compose logs -f caddy                                           # "certificate obtained successfully" ×4
+curl https://api.roostersplus.be/api/v1/health                         # from another machine: Roosters+
+curl https://api.roostersplus.be/api/health                            # the old server's API
+curl -I https://roostersplus.be https://temp.roostersplus.be
 ```
 
-`./server-restart.sh` (repo root) only uses `docker-compose.yml`, so on the production server run the command above
-after a `git pull` instead. Certificates renew by themselves as long as port 80/443 stay open.
+Without `COMPOSE_FILE` in `.env`, add `-f docker-compose.yml -f docker-compose.prod.yml` to every command.
+**Don't run `./server-restart.sh` (repo root) on the production server**: it passes `-f app/docker-compose.yml`
+explicitly, so it starts the laptop setup, and its `--remove-orphans` stops Caddy and the site. Run `git pull` and
+the `up` command above instead.
+Certificates renew by themselves as long as port 80/443 stay open; they live in the `caddy_data` volume (keep it:
+Let's Encrypt has rate limits). A changed `Caddyfile`: `docker compose exec caddy caddy reload --config
+/etc/caddy/Caddyfile`. A changed website (`site/`): nothing to do, Apache serves the mounted folder.
+
+**The website** (`site/`, static HTML, Dutch): home with the store buttons, contact (= the **support URL** for
+Apple), privacy policy (the **privacy policy URL** for both stores and Google sign-in branding), terms, and
+**account deletion** (Play's *Data safety → delete account URL*). Before submitting, fill in: the person or company
+responsible in `privacy.html`, a working `support@roostersplus.be` mailbox (or change the address in every page),
+and the App Store link in `index.html` once the app has its Apple ID. Set `EXPO_PUBLIC_LEGAL_URL` to
+`https://roostersplus.be/privacy.html` (part 2).
 
 ## 2. Expo account and EAS
 

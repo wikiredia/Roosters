@@ -1,9 +1,10 @@
 ---
-updated: 2026-10-23T23:05:00Z
+updated: 2026-10-28T09:00:00Z
 ---
 
 **The whole Roosters+ stack** (compose project `roostersplus`): `cd app && cp .env.example .env &&
-docker compose up --build`. The same images run on a server later; only `.env` and the reverse proxy differ.
+docker compose up --build`. The same images run on the server; only `.env` and `docker-compose.prod.yml` (Caddy,
+the website, no reload, real SMTP) differ.
 
 Hardening on every service (`x-hardening`): restart unless stopped, no-new-privileges, capped logs. The app
 services (`x-app`: api, worker, admin, migrate) also run read-only with all capabilities dropped.

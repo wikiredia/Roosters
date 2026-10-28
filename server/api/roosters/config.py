@@ -13,6 +13,7 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "")
 PUBLIC_IP = os.environ.get("PUBLIC_IP", "").strip()
 PUBLIC_HOST = os.environ.get("PUBLIC_HOST", "").strip() or PUBLIC_IP or "localhost"
 TLS_MODE = os.environ.get("TLS_MODE", "letsencrypt")
+# "proxy" = achter Caddy (https daar), dus ook secure
 SECURE = TLS_MODE != "off"
 BASE_URL = f"{'https' if SECURE else 'http'}://{PUBLIC_HOST}"
 

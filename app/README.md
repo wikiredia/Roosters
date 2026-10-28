@@ -9,8 +9,10 @@ app/
   mobile/         Expo app (iOS + Android; the web build is only for testing)
   docs/           Docs service: live architecture docs (hub, guides, every file and function), content/ in git
   design/         The Claude Design prompt and its result (claude-design/: boards, tokens.css, ui.css)
-  infra/          Server pieces (toxiproxy for "school wifi"; Caddy for production later)
+  infra/          Server pieces: toxiproxy ("school wifi"), Caddyfile and the website's Apache config (production)
+  site/           The website on roostersplus.be: home, contact, privacy, terms, account deletion
   docker-compose.yml        Everything on your laptop
+  docker-compose.prod.yml   On top of it on the server: Caddy (HTTPS), the website, no reload
   docker-compose.test.yml   Only MySQL + Valkey, for running the tests
 ```
 
@@ -200,4 +202,4 @@ listen on this laptop only: the admin API (`api/roosters/admin.py`, `ADMIN_TOKEN
    on Today's board and in Vergelijken), ~~the notifications step in onboarding~~ (done: `mobile/src/app/onboarding/notifications.tsx`,
    last step, and on Today's steps until the phone was asked)
 3. Premium (RevenueCat), widgets
-4. Server: Caddy (HTTPS, HTTP/3) + backups + monitoring on Hetzner
+4. Server: backups + monitoring on Hetzner (Caddy and the website: `docker-compose.prod.yml`)

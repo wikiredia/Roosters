@@ -1,0 +1,23 @@
+# De oude Roosters achter Caddy van Roosters+ (app/infra/Caddyfile): temp.roostersplus.be en alles op
+# api.roostersplus.be buiten /api/v1. Caddy heeft dan poort 80/443; Apache is enkel bereikbaar voor Caddy.
+#
+# Aanzetten in .env (dan gebruiken ./roosters.sh en docker compose dit bestand vanzelf):
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.caddy.yml
+#   TLS_MODE=proxy
+#   COMPOSE_PROFILES=
+#   PUBLIC_HOST=temp.roostersplus.be
+# Eenmalig: docker network create roosters-edge
+services:
+  web:
+    ports: !override
+      # Enkel op de server zelf, om te testen: curl http://127.0.0.1:8081/api/health
+      - "127.0.0.1:8081:8080"
+    networks:
+      frontend: {}
+      edge:
+        aliases: [roosters-v1]
+
+networks:
+  edge:
+    name: roosters-edge
+    external: true
