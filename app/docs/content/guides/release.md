@@ -1,7 +1,7 @@
 ---
 title: Releasing to TestFlight and Play
 position: 75
-updated: 2026-10-28T09:00:00Z
+updated: 2026-10-28T10:00:00Z
 ---
 
 From "it runs in Expo Go on my laptop" to testers installing Roosters+ from **TestFlight** (iOS) and **Google Play
@@ -86,6 +86,12 @@ GOOGLE_CLIENT_IDS=                     # the Google WEB client id, part 5
 `docker-compose.prod.yml` drops `--reload`, keeps Mailpit out (profile `dev`), uses the SMTP settings above, puts
 the API on loopback only (`ports: !override` needs Docker Compose 2.24.4 or newer: `docker compose version`), and
 adds `site` and `caddy`.
+
+**No SMTP provider yet?** Keep Mailpit for now: `COMPOSE_PROFILES=dev`, `SMTP_HOST=mailpit`, `SMTP_PORT=1025`,
+`SMTP_STARTTLS=0` (no `SMTP_USER`/`SMTP_PASSWORD`). Nothing reaches real inboxes: you read the codes yourself at
+http://localhost:8025 after `ssh -L 8025:127.0.0.1:8025 <server>` (the prod file publishes it on loopback only, so
+never open 8025 on the router). Fine for you and a few testers; Apple/Google sign-in and guest mode work as normal.
+Before TestFlight/Play testers who sign in by e-mail, switch to a real provider and remove `dev` from the profiles.
 
 Login codes are the main way in, so the mail must arrive: at the mail provider, verify the domain and add the
 **SPF, DKIM and DMARC** records it gives you, then test with `docker compose exec api python -m roosters.cli

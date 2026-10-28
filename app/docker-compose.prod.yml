@@ -24,8 +24,12 @@ services:
   admin:
     command: ["uvicorn", "roosters.admin:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
     environment: *prod-mail
+  # Off unless COMPOSE_PROFILES=dev (no SMTP provider yet: SMTP_HOST=mailpit, SMTP_PORT=1025). Then its inbox
+  # holds every login code, so it's on loopback only: read it through an SSH tunnel, never open it to the world.
   mailpit:
     profiles: [dev]
+    ports: !override
+      - "127.0.0.1:8025:8025"
 
   # roostersplus.be: the static site (site/) on Apache, reachable only through Caddy
   site:

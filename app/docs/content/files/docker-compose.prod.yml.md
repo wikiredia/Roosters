@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-28T09:00:00Z
+updated: 2026-10-28T10:00:00Z
 ---
 
 **Production on the server**, layered on top of `docker-compose.yml`: `docker compose -f docker-compose.yml -f
@@ -31,7 +31,9 @@ No `--reload`, real SMTP. Still loopback only, never in Caddy.
 
 ## `mailpit`
 
-Moved to profile `dev`: not started in production.
+Moved to profile `dev`: not started in production. Without an SMTP provider yet, `COMPOSE_PROFILES=dev` +
+`SMTP_HOST=mailpit` / `SMTP_PORT=1025` in `.env` keeps it as a stopgap: no mail leaves the server, and the inbox
+(every login code) is published on `127.0.0.1:8025` only, read through `ssh -L 8025:127.0.0.1:8025 <server>`.
 
 ## `site`
 
