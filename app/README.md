@@ -65,6 +65,8 @@ with `docker compose restart worker`. Start over with an empty database: `docker
 restarts every service (new migrations run when the API starts), waits until the API answers, runs `npm ci` when
 the app's dependencies changed, and starts Expo with a clean cache pointing at `http://94.226.242.154:8010`.
 Another address: `API_URL=http://<ip>:<port> ./server-restart.sh`; without Expo: `./server-restart.sh --no-expo`.
+On the production server (`COMPOSE_FILE` with `docker-compose.prod.yml` in `.env`) the same script restarts the
+prod stack, the old server behind Caddy and reloads Caddy, without Expo (release guide, step 1).
 
 ### The app
 

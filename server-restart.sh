@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Roosters+ on the laptop: fetch the latest code, rebuild and restart the server (app/docker-compose.yml), then
-# start Expo for the phone with a clean Metro cache.
+# Roosters+: fetch the latest code, rebuild and restart, then (on the laptop) start Expo with a clean Metro cache.
 #
-#   ./server-restart.sh                  pull, restart, Expo
+# Laptop or server is decided by app/.env:
+#   laptop      no COMPOSE_FILE: app/docker-compose.yml only, then Expo
+#   production  COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml: Caddy + website + the API; also restarts
+#               the old Roosters server (server/) when it runs behind Caddy (TLS_MODE=proxy), reloads the
+#               Caddyfile, and never starts Expo
+#
+#   ./server-restart.sh                  pull, restart, Expo (laptop)
 #   ./server-restart.sh --no-expo        pull and restart only
 #   API_URL=http://1.2.3.4:8010 ./server-restart.sh    another address for the app
 #
@@ -14,6 +19,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+# The last value of KEY in an .env file (empty when the file or the key is missing)
+envval() { grep -E "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"'"'"' ' || true; }
+# Plain `docker compose` inside app/: it reads app/.env, so COMPOSE_FILE (production) is honoured
+app_dc() { (cd "$ROOT/app" && docker compose "$@"); }
+
+prod=""
+case "$(envval app/.env COMPOSE_FILE)" in *docker-compose.prod.yml*) prod=1 ;; esac
 
 step "git pull"
 lock_before="$(git rev-parse HEAD:app/mobile/package-lock.json 2>/dev/null || true)"
@@ -21,11 +33,29 @@ lock_before="$(git rev-parse HEAD:app/mobile/package-lock.json 2>/dev/null || tr
 git pull --ff-only
 lock_after="$(git rev-parse HEAD:app/mobile/package-lock.json 2>/dev/null || true)"
 
-step "docker compose up --build (migrations run when the API starts)"
-docker compose -f app/docker-compose.yml up -d --build --remove-orphans
+if [ -n "$prod" ]; then
+  # Caddy reaches the old server over this network (app/infra/Caddyfile, server/docker-compose.caddy.yml)
+  docker network inspect roosters-edge >/dev/null 2>&1 || {
+    step "docker network create roosters-edge"
+    docker network create roosters-edge >/dev/null
+  }
+  if [ "$(envval server/.env TLS_MODE)" = "proxy" ]; then
+    step "old Roosters server (server/, behind Caddy)"
+    (cd "$ROOT/server" && docker compose up -d --build --remove-orphans)
+  fi
+fi
+
+step "docker compose up --build${prod:+ (production: Caddy, website)} (migrations run when the API starts)"
+app_dc up -d --build --remove-orphans
+
+if [ -n "$prod" ]; then
+  # The Caddyfile is mounted: `up` doesn't notice an edit, a reload does (no downtime)
+  step "caddy reload"
+  app_dc exec -T caddy caddy reload --config /etc/caddy/Caddyfile || echo "Caddy didn't reload; check: docker compose logs caddy" >&2
+fi
 
 # Wait for the API: the same port compose publishes (API_PORT in app/.env, default 8000)
-port="$(grep -E '^API_PORT=' app/.env 2>/dev/null | tail -1 | cut -d= -f2 | tr -d '"'"'"' ' || true)"
+port="$(envval app/.env API_PORT)"
 port="${port:-8000}"
 step "waiting for the API on port $port"
 for i in $(seq 1 60); do
@@ -35,13 +65,13 @@ for i in $(seq 1 60); do
   fi
   if [ "$i" -eq 60 ]; then
     echo "The API didn't answer within 2 minutes. Its log:" >&2
-    docker compose -f app/docker-compose.yml logs --tail 50 api >&2
+    app_dc logs --tail 50 api >&2
     exit 1
   fi
   sleep 2
 done
 
-if [ "${1:-}" = "--no-expo" ]; then
+if [ -n "$prod" ] || [ "${1:-}" = "--no-expo" ]; then
   exit 0
 fi
 

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-28T09:00:00Z
+updated: 2026-10-28T10:15:00Z
 ---
 
 **Production on the server**, layered on top of `docker-compose.yml`: `docker compose -f docker-compose.yml -f
@@ -14,7 +14,9 @@ external Docker network `roosters-edge` (create it once: `docker network create 
 `server/docker-compose.caddy.yml` gives its Apache the name `roosters-v1`. Only `caddy` joins that network, so the
 two projects' services (both have an `api`) never see each other's names.
 
-Never run `server-restart.sh` here: it uses `docker-compose.yml` alone, and `--remove-orphans` would stop Caddy.
+Updating: `./server-restart.sh` (repo root) sees `docker-compose.prod.yml` in `COMPOSE_FILE` and switches to
+production mode (old server too, Caddy reload, no Expo). Without that line in `.env` it starts the laptop setup,
+and `--remove-orphans` would stop Caddy.
 
 ## `migrate`, `worker`
 
@@ -31,7 +33,9 @@ No `--reload`, real SMTP. Still loopback only, never in Caddy.
 
 ## `mailpit`
 
-Moved to profile `dev`: not started in production.
+Moved to profile `dev`: not started in production. Without an SMTP provider yet, `COMPOSE_PROFILES=dev` +
+`SMTP_HOST=mailpit` / `SMTP_PORT=1025` in `.env` keeps it as a stopgap: no mail leaves the server, and the inbox
+(every login code) is published on `127.0.0.1:8025` only, read through `ssh -L 8025:127.0.0.1:8025 <server>`.
 
 ## `site`
 

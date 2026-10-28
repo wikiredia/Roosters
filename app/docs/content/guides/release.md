@@ -1,7 +1,7 @@
 ---
 title: Releasing to TestFlight and Play
 position: 75
-updated: 2026-10-28T09:00:00Z
+updated: 2026-10-28T10:15:00Z
 ---
 
 From "it runs in Expo Go on my laptop" to testers installing Roosters+ from **TestFlight** (iOS) and **Google Play
@@ -87,6 +87,12 @@ GOOGLE_CLIENT_IDS=                     # the Google WEB client id, part 5
 the API on loopback only (`ports: !override` needs Docker Compose 2.24.4 or newer: `docker compose version`), and
 adds `site` and `caddy`.
 
+**No SMTP provider yet?** Keep Mailpit for now: `COMPOSE_PROFILES=dev`, `SMTP_HOST=mailpit`, `SMTP_PORT=1025`,
+`SMTP_STARTTLS=0` (no `SMTP_USER`/`SMTP_PASSWORD`). Nothing reaches real inboxes: you read the codes yourself at
+http://localhost:8025 after `ssh -L 8025:127.0.0.1:8025 <server>` (the prod file publishes it on loopback only, so
+never open 8025 on the router). Fine for you and a few testers; Apple/Google sign-in and guest mode work as normal.
+Before TestFlight/Play testers who sign in by e-mail, switch to a real provider and remove `dev` from the profiles.
+
 Login codes are the main way in, so the mail must arrive: at the mail provider, verify the domain and add the
 **SPF, DKIM and DMARC** records it gives you, then test with `docker compose exec api python -m roosters.cli
 test-mail you@example.com`.
@@ -104,9 +110,11 @@ curl -I https://roostersplus.be https://temp.roostersplus.be
 ```
 
 Without `COMPOSE_FILE` in `.env`, add `-f docker-compose.yml -f docker-compose.prod.yml` to every command.
-**Don't run `./server-restart.sh` (repo root) on the production server**: it passes `-f app/docker-compose.yml`
-explicitly, so it starts the laptop setup, and its `--remove-orphans` stops Caddy and the site. Run `git pull` and
-the `up` command above instead.
+**Every update after that: `./server-restart.sh`** (repo root). With `COMPOSE_FILE=…docker-compose.prod.yml` in
+`app/.env` it runs in production mode: `git pull`, creates `roosters-edge` if missing, rebuilds the old server when
+`server/.env` has `TLS_MODE=proxy`, brings up the prod stack, reloads the Caddyfile, waits for the API, and never
+starts Expo. Without `COMPOSE_FILE` it's the laptop setup (and its `--remove-orphans` would stop Caddy), so set
+that line before the first run on the server.
 Certificates renew by themselves as long as port 80/443 stay open; they live in the `caddy_data` volume (keep it:
 Let's Encrypt has rate limits). A changed `Caddyfile`: `docker compose exec caddy caddy reload --config
 /etc/caddy/Caddyfile`. A changed website (`site/`): nothing to do, Apache serves the mounted folder.
