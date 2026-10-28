@@ -1,0 +1,49 @@
+# Caddy: HTTPS (Let's Encrypt, renewed by itself) for every roostersplus.be address, on ports 80/443 (+ HTTP/3).
+# Started by docker-compose.prod.yml; the DNS records and steps are in docs/content/guides/release.md (step 1).
+#
+#   roostersplus.be        the website (app/site, Apache: service `site`)
+#   www.roostersplus.be    → roostersplus.be
+#   api.roostersplus.be    /api/v1/*  → Roosters+ API (service `api`)
+#                          the rest   → the old Roosters server (server/, Apache "roosters-v1"): its web app + /api/*
+#   temp.roostersplus.be   the old Roosters server, whole
+#
+# roosters-v1 is the old server's Apache on the shared Docker network `roosters-edge`
+# (server/docker-compose.caddy.yml). When it isn't running, only those addresses give a 502.
+{
+	# Optional: an address for Let's Encrypt expiry mails
+	# email you@example.com
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}
+
+roostersplus.be {
+	import common
+	reverse_proxy site:8080
+}
+
+www.roostersplus.be {
+	redir https://roostersplus.be{uri} permanent
+}
+
+api.roostersplus.be {
+	import common
+	# Roosters+ (v2). Keep this the ONLY path to the new API: the admin API and the docs never go through Caddy.
+	handle /api/v1/* {
+		reverse_proxy api:8000
+	}
+	# Everything else: the old Roosters (v1 uses /api/..., never /api/v1/...)
+	handle {
+		reverse_proxy roosters-v1:8080
+	}
+}
+
+temp.roostersplus.be {
+	import common
+	reverse_proxy roosters-v1:8080
+}

@@ -1,0 +1,72 @@
+# Production on the server, layered on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
+# (or put COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml in .env and use plain `docker compose`)
+#
+# No --reload, no Mailpit, real SMTP, the API on loopback only, and in front of it all Caddy (infra/Caddyfile):
+# HTTPS for roostersplus.be (the site), api.roostersplus.be (this API + the old server) and temp.roostersplus.be.
+# Once, before the first start: docker network create roosters-edge   (shared with the old server, server/)
+# Steps, DNS and .env: docs/content/guides/release.md, step 1.
+x-prod-mail: &prod-mail
+  SMTP_HOST: ${SMTP_HOST:?set SMTP_HOST in .env}
+  SMTP_PORT: ${SMTP_PORT:-587}
+
+services:
+  migrate:
+    environment: *prod-mail
+  api:
+    command: ["uvicorn", "roosters.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
+    environment: *prod-mail
+    ports: !override
+      # Health checks on the server itself; the world goes through Caddy
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+  worker:
+    environment: *prod-mail
+  admin:
+    command: ["uvicorn", "roosters.admin:app", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
+    environment: *prod-mail
+  mailpit:
+    profiles: [dev]
+
+  # roostersplus.be: the static site (site/) on Apache, reachable only through Caddy
+  site:
+    restart: unless-stopped
+    image: httpd:2.4
+    user: "33:33"
+    read_only: true
+    tmpfs: [/tmp, /usr/local/apache2/logs]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+    volumes:
+      - ./infra/site-httpd.conf:/usr/local/apache2/conf/httpd.conf:ro
+      - ./site:/usr/local/apache2/htdocs:ro
+    networks: [frontend]
+
+  caddy:
+    restart: unless-stopped
+    image: caddy:2
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "3" }
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./infra/Caddyfile:/etc/caddy/Caddyfile:ro
+      # The certificates: keep this volume (deleting it means new certificates, and Let's Encrypt has rate limits)
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [frontend, edge]
+    depends_on: [api, site]
+
+networks:
+  edge:
+    name: roosters-edge
+    external: true
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
