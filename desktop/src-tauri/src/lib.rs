@@ -27,7 +27,11 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_positioner::{Position, WindowExt};
 
+mod power;
+
 const TRAY: &str = "roosters";
+#[cfg(target_os = "macos")]
+const POWER_TRAY: &str = "power";
 const WIDTH: f64 = 390.0;
 const HEIGHT: f64 = 640.0;
 /// Hoekstraal van het venster op Mac (zelfde als --win-radius in server/web/css/compact.css)
@@ -336,6 +340,30 @@ fn build_tray(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Tweede icoon (enkel Mac): bliksem + watt zolang je Mac laadt, anders onzichtbaar
+#[cfg(target_os = "macos")]
+fn start_power_tray(app: &AppHandle) -> tauri::Result<()> {
+    let tray = TrayIconBuilder::with_id(POWER_TRAY)
+        .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/power-template.png"))?)
+        .icon_as_template(true)
+        .build(app)?;
+    tray.set_visible(false)?;
+    std::thread::spawn(move || {
+        let mut last = None;
+        loop {
+            let now = power::read();
+            if now != last {
+                let _ = tray.set_title(now.as_ref().map(|p| p.title()));
+                let _ = tray.set_tooltip(now.as_ref().map(|p| p.tooltip()));
+                let _ = tray.set_visible(now.is_some());
+                last = now;
+            }
+            std::thread::sleep(Duration::from_secs(3));
+        }
+    });
+    Ok(())
+}
+
 /// ⌥⌘R op Mac, Ctrl+Alt+R op Windows
 fn shortcut() -> Shortcut {
     if cfg!(target_os = "macos") {
@@ -374,6 +402,8 @@ pub fn run() {
             *app.state::<AppState>().server.lock().unwrap() = load_server(&handle);
             let w = create_window(&handle)?;
             build_tray(&handle)?;
+            #[cfg(target_os = "macos")]
+            start_power_tray(&handle)?;
             let _ = handle.global_shortcut().register(shortcut());
             // Eerste keer: meteen het instelscherm tonen
             if app.state::<AppState>().server.lock().unwrap().is_none() {
