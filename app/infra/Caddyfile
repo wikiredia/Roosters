@@ -6,6 +6,7 @@
 #   api.roostersplus.be    /api/v1/*  → Roosters+ API (service `api`)
 #                          the rest   → the old Roosters server (server/, Apache "roosters-v1"): its web app + /api/*
 #   temp.roostersplus.be   the old Roosters server, whole
+#   94.226.242.154         the old address (bare IP): everyone is sent on, see the block at the bottom
 #
 # roosters-v1 is the old server's Apache on the shared Docker network `roosters-edge`
 # (server/docker-compose.caddy.yml). When it isn't running, only those addresses give a 502.
@@ -46,4 +47,41 @@ api.roostersplus.be {
 temp.roostersplus.be {
 	import common
 	reverse_proxy roosters-v1:8080
+}
+
+# The old address: the old Roosters ran on https://<ip> (an IP certificate from its certbot). Links, bookmarks and
+# installed web apps still point there. Let's Encrypt gives IPs only short-lived certificates (~6 days, the
+# `shortlived` profile); Caddy renews them by itself. A new public IP? Change it here, and in the DNS records.
+94.226.242.154 {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+	header -Server
+
+	# The installed old web app keeps its service worker and shows its cached copy. Browsers re-fetch /sw.js
+	# on every visit: this one replaces it, wipes the cache, unregisters itself and sends open windows on.
+	handle /sw.js {
+		header Content-Type "text/javascript; charset=utf-8"
+		header Cache-Control "no-store"
+		respond <<JS
+			self.addEventListener("install", () => self.skipWaiting());
+			self.addEventListener("activate", (e) => e.waitUntil((async () => {
+				for (const k of await caches.keys()) await caches.delete(k);
+				await self.registration.unregister();
+				for (const c of await self.clients.matchAll({ type: "window" })) c.navigate("https://roostersplus.be/");
+			})()));
+			JS 200
+	}
+
+	# Calendar subscriptions (/api/feed/...ics) and anything else of the old API: same path on the old server
+	handle /api/* {
+		redir https://temp.roostersplus.be{uri} 308
+	}
+
+	# Every other old link (the old app's deep links are #/... and never reach the server): the new site
+	handle {
+		redir https://roostersplus.be/ 302
+	}
 }
