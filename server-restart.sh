@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# Roosters+: fetch the latest code, rebuild and restart, then (on the laptop) start Expo with a clean Metro cache.
+# Roosters+: fetch the latest code, rebuild and restart, then start Expo with a clean Metro cache.
 #
 # Laptop or server is decided by app/.env:
-#   laptop      no COMPOSE_FILE: app/docker-compose.yml only, then Expo
+#   laptop      no COMPOSE_FILE: app/docker-compose.yml only; Expo talks to http://<ip>:<API_PORT>
 #   production  COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml: Caddy + website + the API; also restarts
-#               the old Roosters server (server/) when it runs behind Caddy (TLS_MODE=proxy), reloads the
-#               Caddyfile, and never starts Expo
+#               the old Roosters server (server/) when it runs behind Caddy (TLS_MODE=proxy) and reloads the
+#               Caddyfile. The API is then on 127.0.0.1 only, so Expo talks to PUBLIC_URL (https://api...)
+#   The same machine can be both (the laptop is the server): the mode only decides what runs and where Expo points.
 #
-#   ./server-restart.sh                  pull, restart, Expo (laptop)
+#   ./server-restart.sh                  pull, restart, Expo
 #   ./server-restart.sh --no-expo        pull and restart only
 #   API_URL=http://1.2.3.4:8010 ./server-restart.sh    another address for the app
 #
 # Stops when something goes wrong (local changes that block the pull, Docker not running, the API not coming up).
 set -euo pipefail
 
-API_URL="${API_URL:-http://94.226.242.154:8010}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
@@ -26,6 +26,11 @@ app_dc() { (cd "$ROOT/app" && docker compose "$@"); }
 
 prod=""
 case "$(envval app/.env COMPOSE_FILE)" in *docker-compose.prod.yml*) prod=1 ;; esac
+# Where the app on the phone finds the API: through Caddy in production (the port is loopback-only there)
+if [ -n "$prod" ]; then
+  API_URL="${API_URL:-$(envval app/.env PUBLIC_URL)}"
+fi
+API_URL="${API_URL:-http://94.226.242.154:8010}"
 
 step "git pull"
 lock_before="$(git rev-parse HEAD:app/mobile/package-lock.json 2>/dev/null || true)"
@@ -71,7 +76,7 @@ for i in $(seq 1 60); do
   sleep 2
 done
 
-if [ -n "$prod" ] || [ "${1:-}" = "--no-expo" ]; then
+if [ "${1:-}" = "--no-expo" ]; then
   exit 0
 fi
 

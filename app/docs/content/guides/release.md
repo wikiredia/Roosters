@@ -1,7 +1,7 @@
 ---
 title: Releasing to TestFlight and Play
 position: 75
-updated: 2026-10-28T10:15:00Z
+updated: 2026-10-28T10:30:00Z
 ---
 
 From "it runs in Expo Go on my laptop" to testers installing Roosters+ from **TestFlight** (iOS) and **Google Play
@@ -112,8 +112,10 @@ curl -I https://roostersplus.be https://temp.roostersplus.be
 Without `COMPOSE_FILE` in `.env`, add `-f docker-compose.yml -f docker-compose.prod.yml` to every command.
 **Every update after that: `./server-restart.sh`** (repo root). With `COMPOSE_FILE=…docker-compose.prod.yml` in
 `app/.env` it runs in production mode: `git pull`, creates `roosters-edge` if missing, rebuilds the old server when
-`server/.env` has `TLS_MODE=proxy`, brings up the prod stack, reloads the Caddyfile, waits for the API, and never
-starts Expo. Without `COMPOSE_FILE` it's the laptop setup (and its `--remove-orphans` would stop Caddy), so set
+`server/.env` has `TLS_MODE=proxy`, brings up the prod stack, reloads the Caddyfile, waits for the API, and starts
+Expo against `PUBLIC_URL` (the API port is loopback-only now, so the phone goes through Caddy too). The laptop can be
+this server: same script, same repo. Testing from a phone on the **same home wifi** needs the router to support
+"NAT loopback" (hairpinning) for `api.roostersplus.be`; if it doesn't, test over 4G. Without `COMPOSE_FILE` it's the laptop setup (and its `--remove-orphans` would stop Caddy), so set
 that line before the first run on the server.
 Certificates renew by themselves as long as port 80/443 stay open; they live in the `caddy_data` volume (keep it:
 Let's Encrypt has rate limits). A changed `Caddyfile`: `docker compose exec caddy caddy reload --config
