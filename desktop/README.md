@@ -18,10 +18,6 @@ Gemaakt met [Tauri 2](https://tauri.app): de app gebruikt de webweergave van je 
 - **⌥⌘R** (Mac) of **Ctrl+Alt+R** (Windows): venster open/dicht van overal.
 - **Naast het icoon** (Mac) of in de tooltip (Windows): wat er nu of straks is, bv. `☕ Kayra tot 12:00`,
   `📚 tot 12:30` of `📚 13:30`.
-- **⚡ 45 W** (enkel Mac): een tweede icootje met hoeveel watt er nu je Mac in gaat. Het verschijnt
-  zodra de lader erin zit en er stroom binnenkomt, en verdwijnt weer als je hem uittrekt. Ga erop
-  staan voor de lader en je batterij (bv. `Laadt met 45 W (lader 96 W) · batterij 81%`). Op een Mac
-  met Apple-chip is dat wat er echt uit de lader komt; op een Intel-Mac wat er de batterij in gaat.
 - **Rechtsklik op het icoon**: Vernieuwen, Openen in je browser, Start bij inloggen, Serveradres wijzigen, Stoppen.
 - Links naar buiten (les-links, *Openen in je browser*) gaan naar je standaardbrowser; het venster
   zelf toont enkel je eigen server.
