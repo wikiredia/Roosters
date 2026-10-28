@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-28T10:30:00Z
+updated: 2026-10-28T13:45:00Z
 ---
 
 **Production on the server**, layered on top of `docker-compose.yml`: `docker compose -f docker-compose.yml -f
@@ -9,7 +9,8 @@ release guide, step 1.
 
 Caddy (`infra/Caddyfile`) is the only thing on ports 80/443 and serves four addresses: `roostersplus.be` (the
 website, service `site`), `www.` (redirect), `api.roostersplus.be` (`/api/v1/*` → `api`, the rest → the old
-Roosters server from `server/`) and `temp.roostersplus.be` (the old server). The old server is reached over the
+Roosters server from `server/`) and `temp.roostersplus.be` (the old server), plus the old bare-IP address, which only redirects (old links,
+calendar feeds) and retires the old web app's service worker. The old server is reached over the
 external Docker network `roosters-edge` (create it once: `docker network create roosters-edge`), where
 `server/docker-compose.caddy.yml` gives its Apache the name `roosters-v1`. Only `caddy` joins that network, so the
 two projects' services (both have an `api`) never see each other's names.

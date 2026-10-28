@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-28T09:00:00Z
+updated: 2026-10-28T13:45:00Z
 ---
 
 The one stylesheet of the website on roostersplus.be (`site/`, served by the `site` service in
@@ -10,5 +10,5 @@ shipped: visitors without Atkinson Hyperlegible / Bricolage Grotesque get the sy
 The pages next to it are plain HTML (not scanned by the docs): `index.html` (store buttons), `contact.html`
 (Apple's support URL), `privacy.html` (privacy policy URL for both stores), `voorwaarden.html`,
 `account-verwijderen.html` (Google Play's account deletion URL) and `404.html`. They share the same header and
-footer; a new page copies those. The Content-Security-Policy in `infra/site-httpd.conf` allows no scripts and
+footer (the footer links to the old Roosters on `temp.roostersplus.be`, the home page says so too); a new page copies those. The Content-Security-Policy in `infra/site-httpd.conf` allows no scripts and
 nothing from other sites, so keep the pages static and self-contained.

@@ -1,7 +1,7 @@
 ---
 title: Releasing to TestFlight and Play
 position: 75
-updated: 2026-10-28T10:30:00Z
+updated: 2026-10-28T13:45:00Z
 ---
 
 From "it runs in Expo Go on my laptop" to testers installing Roosters+ from **TestFlight** (iOS) and **Google Play
@@ -38,7 +38,10 @@ and 443 and sends every address to the right place (`infra/Caddyfile`, started b
                   ├─ www.roostersplus.be ───────────> 301 to roostersplus.be
  internet ─:443─> caddy ─ api.roostersplus.be ─ /api/v1/* ──> api:8000     Roosters+ (this API)
    (:80 too)      │                             └ the rest ──> roosters-v1  the old Roosters (server/): web app + /api/*
-                  └─ temp.roostersplus.be ──────────> roosters-v1   the old Roosters, whole
+                  ├─ temp.roostersplus.be ──────────> roosters-v1   the old Roosters, whole
+                  └─ 94.226.242.154 (the old address) ─> /sw.js: kills the old web app's service worker
+                                                         /api/*: 308 to temp.roostersplus.be (calendar feeds)
+                                                         the rest: 302 to roostersplus.be
 
  admin :8090, docs :8095, api :8000   127.0.0.1 only, never in Caddy
 ```
@@ -51,8 +54,13 @@ give a 502.
 **The old server's own HTTPS goes away.** It used to own 80/443 itself, with a Let's Encrypt **IP** certificate from
 its `certbot` container (or a self-signed one). Behind Caddy that's switched off with `TLS_MODE=proxy`: its Apache
 then speaks plain HTTP inside Docker only, certbot stops, and the old API still treats requests as HTTPS (secure
-cookies, push). Steps in `server/README.md` → "Achter Caddy". Bookmarks and installed web apps on `https://<ip>`
-must move to `https://temp.roostersplus.be` (another origin: sign in and allow notifications again).
+cookies, push). Steps in `server/README.md` → "Achter Caddy". Old links to `https://<ip>` keep working through Caddy's
+last block: it gets a short-lived Let's Encrypt **IP** certificate itself (profile `shortlived`, ~6 days, renewed
+automatically), sends calendar subscriptions (`/api/feed/…`) on to `temp.roostersplus.be`, and everything else to
+`roostersplus.be` (which links to `temp.`). An installed old web app would keep showing its cached copy, so `/sw.js`
+there is a service worker that wipes the cache, unregisters itself and sends the window to `roostersplus.be`; the
+browser picks it up on the next visit. On `temp.roostersplus.be` people sign in and allow notifications again (a new
+origin). The public IP is written in the `Caddyfile`: change it there when it changes.
 
 **DNS and ports.**
 
