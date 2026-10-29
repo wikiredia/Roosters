@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T02:00:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -25,7 +25,8 @@ everything moves together in the same frame, on the UI thread.
 - **An empty weekend** at the right end of the view (nothing on Saturday and/or Sunday): an arrow in that empty space
   with the day it goes to ("MA 27"). It moves the view so that day is on the left, same number of days: Sunday when
   Sunday has something (and isn't on screen yet), otherwise Monday.
-- Tapping a lesson opens `LessonSheet`; where lessons overlap, `OverlapSheet` first.
+- Tapping a lesson opens `LessonSheet`; where lessons overlap, `OverlapSheet` first. A tap is answered **at once with a
+  peek** (see below), and a double tap still zooms everywhere.
 
 **Fast, because little renders** (guide 'Plan: a fast Rooster tab', Phase 1):
 - `Calendar` is `memo`, so the Rooster screen changing its header (`onView`) doesn't render it a second time.
@@ -42,8 +43,19 @@ everything moves together in the same frame, on the UI thread.
   or get their data, not in state: the direction used to be a prop of every column.
 - **`now`** (`nowMin()`) is read at each render and only today's column gets it.
 
-The single tap still waits 200 ms for a possible double tap (`DayGrid`); the sheet starts sliding in the frame it appears
-(`Sheet`). Both change in Phase 2.
+**A grid tap peeks first** (guide 'Plan: a fast Rooster tab', Phase 2). `Calendar` makes a `Sheet.SheetPeek` for each of
+the three grid sheets (`peeks`: `GridPeeks`) and gives it to the sheet and to `DayGrid`. The grid starts the right one's
+peek on the UI thread as the finger lifts, then calls `onPressLesson`/`onPressOverlap`/`onPressTogether` with `peek`:
+`answer(kind, peek)` sets that sheet's content but keeps it `peeking` (shown, not open: no scrim, no touches) and puts any
+other peek away (`putAway`). When the double tap's window runs out the grid opens it fully and calls `onPeekOpen`:
+`peeking` goes to null, the sheet is `visible`. A double tap instead: `onDoubleTap` zooms and forgets the pending sheet.
+`answered` (a ref, not state) is what the last grid tap turned out to be: the UI thread's next step can come before React
+has rendered the answer. Screen readers (no `peek`) and the `OverlapSheet` → `LessonSheet` hand-off open fully at once.
+
+**The hours glide** (`GridZoom`): `zoomH0`/`zoomPph` are the hours as they are on screen. A layout effect (before the first
+paint, so the first frame still shows the old hours) animates them to React's new hours in 250 ms (`ZOOM`) when the hours
+change (a zoom, a swipe to a day with an earlier lesson), and sets them directly when only the size changes. `zoomRange`
+(the days in view) is set on every move. `DayGrid`'s blocks, its hour lines and the `TimeAxis` follow them.
 
 ## `Calendar`
 
@@ -66,6 +78,10 @@ What `onView` reports, and what `control` can do.
 ## `Tip`
 
 A small dark tip with 'Oké', over the content but never the whole screen.
+
+## `putAway`
+
+A grid sheet that shouldn't be there (peeking, or opened by the UI thread while JS found nothing to show): out of sight.
 
 ## `HOURS`, `AXIS_W`, `DEFAULT_LEGEND`, `hoursFor`
 

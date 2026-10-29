@@ -1,5 +1,6 @@
 import { memo, type ReactNode, useId } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
+import { type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import Svg, { Defs, Line, Pattern, Rect } from 'react-native-svg';
 import { useCSSVariable } from 'uniwind';
 
@@ -289,10 +290,23 @@ export function axisWidth(compact?: boolean) {
   return compact ? 24 : 44;
 }
 
-/** The hours on the left of a grid, with the 'now' time when it's on screen. */
-export const TimeAxis = memo(function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOUR] }: { pxPerHour?: number; compact?: boolean; hours?: [number, number] }) {
+/** The hours on the left of a grid, with the 'now' time when it's on screen. With `zoom` (the Rooster grid's hours
+ * as they are on screen, see DayGrid `GridZoom`) every hour of the day is there and glides with the blocks when the
+ * hours change; the ones outside what's on screen are hidden. */
+export const TimeAxis = memo(function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOUR], zoom }: { pxPerHour?: number; compact?: boolean; hours?: [number, number]; zoom?: { h0: SharedValue<number>; pph: SharedValue<number> } }) {
   const [h0, h1] = hours;
   const height = (h1 - h0) * pxPerHour;
+  if (zoom) {
+    return (
+      <View style={{ width: axisWidth(compact), height }}>
+        {Array.from({ length: 25 }, (_, h) => h)
+          .filter((h) => !compact || (h - h0) % 2 === 0)
+          .map((h) => (
+            <AxisHour key={h} h={h} span={h1 - h0} pxPerHour={pxPerHour} zoom={zoom} compact={compact} />
+          ))}
+      </View>
+    );
+  }
   return (
     <View style={{ width: axisWidth(compact), height }}>
       {Array.from({ length: h1 - h0 + 1 }, (_, i) => h0 + i)
@@ -305,6 +319,23 @@ export const TimeAxis = memo(function TimeAxis({ pxPerHour = 48, compact, hours 
     </View>
   );
 });
+
+function AxisHour({ h, span, pxPerHour, zoom, compact }: { h: number; span: number; pxPerHour: number; zoom: { h0: SharedValue<number>; pph: SharedValue<number> }; compact?: boolean }) {
+  const style = useAnimatedStyle(() => {
+    const a = zoom.h0.get();
+    const p = zoom.pph.get();
+    // The last hour on screen: the grid's height (React's hours) in today's pixels per hour
+    const b = a + (span * pxPerHour) / p;
+    return { top: (h - a) * p - 9, opacity: h >= a - 0.01 && h <= b + 0.01 ? 1 : 0 };
+  });
+  return (
+    <AView className="absolute" style={style}>
+      <Text variant="xs" bold tone="ink3" style={{ fontSize: compact ? 11 : 12 }}>
+        {compact ? String(h) : `${String(h).padStart(2, '0')}:00`}
+      </Text>
+    </AView>
+  );
+}
 
 /** Time axis on the left, one or more day columns, a "now" line. Columns resize smoothly when their
  * number changes (layout animation), so going from 2 to 3 days glides instead of jumping. */

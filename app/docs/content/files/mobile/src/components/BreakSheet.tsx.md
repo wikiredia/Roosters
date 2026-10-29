@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T02:00:00Z
 ---
 
 **"Pauze samen?"** (`memo`, so a screen that re-renders without a new `target` or `onClose` doesn't render it): the sheet that asks friends to spend a shared break together, opened by tapping a shared break on
@@ -17,7 +17,8 @@ arrow in the title row:
 
 **'Ander uur'** on a request you got uses the same sheet from page 2: any time that day, sent with
 `useAnswerBreak` (`counter`). API: `api/roosters/breaks.py`. Shared breaks you can't ask for (over, too far ahead)
-never open it: they're hatched in the calendar.
+never open it: they're hatched in the calendar. From the Rooster grid it opens in two stages (`peek`, `peeking`, as
+`LessonSheet`); on Today it opens like any other sheet.
 
 ## `BreakSheet`, `BreakTarget`, `BreakPick`
 

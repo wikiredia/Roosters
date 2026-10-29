@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:30:00Z
+updated: 2026-10-30T02:00:00Z
 ---
 
 **Motion in one place**, so everything moves the same way: short, soft, never in the way. Reanimated
@@ -18,6 +18,11 @@ Spring and timing settings: a press (firm in, a little bounce out), things that 
 ## `enter`, `exit`, `layout`
 
 Layout animations for things that appear, disappear or move (`entering={enter}`, `layout={layout}`).
+
+**When not to use `layout`**: on anything whose size or place changes every frame of a gesture, or on many views at once
+(the Rooster grid's blocks, a list that re-lays out while you pinch): every change restarts a layout animation per view.
+The grid moves its columns with transforms and glides its blocks on shared values instead (`timetable/DayGrid`). Use
+`layout` for a few views that move now and then (a row that comes and goes, a tip).
 
 ## `Reveal`
 

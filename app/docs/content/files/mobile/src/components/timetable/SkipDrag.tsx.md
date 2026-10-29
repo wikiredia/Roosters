@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T02:00:00Z
 ---
 
 **Dragging a class into the bin to skip it.** The gesture lives in `DayGrid` (first in its gesture tree, so the swipe
@@ -12,6 +12,10 @@ direction rule in `useSkipGesture` and test both on a phone.
 The gesture is `useMemo`'d (made again only when the grid's size, hours or the callbacks change), so `onPick` and `onDrop`
 must keep their identity, and `useSkipDrag` returns one object for the life of the component for the same reason (a new
 object on every render used to defeat `DayGrid`'s memo). `enabled: false` makes the gesture fail at once.
+
+Positions are worked out from `offset`, `count` and the grid's width only (`(day - offset) × width/count`), the same math
+as the grid's tap and pinch. How `DayGrid` places its columns (a transform since Phase 2 of the guide) doesn't enter into
+it; keep it that way, or a drag lands on the wrong day.
 
 ## `useSkipGesture`, `GestureProps`
 
