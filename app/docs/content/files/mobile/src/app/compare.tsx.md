@@ -10,12 +10,12 @@ updated: 2026-10-24T13:40:00Z
    most breaks with), 3 in all or every pinned one, with how many breaks you share in that week. Only those show a
    count: seeing it for everyone is what comparing is for. The rest below in the API's order (pinned first, by name).
 2. **The week**: the same calendar as the Rooster tab (`components/timetable/Calendar.tsx`, every feature: swipe,
-   pinch, double tap = reset, tap a shared break to ask) with only the shared breaks with the friends you picked. It opens
+   pinch, double tap, tap a shared break to ask) with only the shared breaks with the friends you picked. It opens
    on the current **lesson week**, Monday to Friday, or the next one when your lessons of this week are over
    (Friday afternoon, the weekend): `lessonWeek`. The row on top ('Jij en Kayra · Wijzig') and the back button go
    back to step 1.
 
-It lives inside the tabs (hidden tab, `href: null`) so the bottom bar stays visible; Rooster stays lit.
+It is a pushed screen that renders `components/BottomTabs.tsx` itself (Rooster lit), so the bottom bar stays visible; a tab press goes back to the tabs.
 
 With `ids` (a friend's page, the chat's +) it opens on step 2 straight away.
 

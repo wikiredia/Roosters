@@ -149,7 +149,7 @@ used on every overlap band, every "asked" shared break, the `Legend` swatch for 
   'modal'` screens today; if one is added later, a sheet opened from it needs a host inside that screen.
 - **Lessons arriving from the network** still cause one render of the affected columns. Unavoidable, and cheap once 4
   is fixed.
-- **`Calendar` is also Vergelijken** (`app/(tabs)/compare.tsx`), and `Sheet` is used on 8 screens. Every change here
+- **`Calendar` is also Vergelijken** (`app/compare.tsx`), and `Sheet` is used on 8 screens. Every change here
   touches those. Test them too.
 
 ## The plan

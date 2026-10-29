@@ -1,6 +1,8 @@
 import { type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue, withSpring } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { useBreaks, useFriends, useSkip, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
@@ -337,7 +339,12 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     k.set(withSpring(Math.min(weekdayOf(s), 7 - n), RESIZE));
     latest.current.setDays(n, false);
   }, []);
-  const onDoubleTap = useCallback(() => latest.current.reset(), []);
+  const onDoubleTap = useCallback(() => setZoomed((z) => !z), []);
+  // Double tap on the strip above the grid = the screen's 'Reset'
+  const stripDoubleTap = useMemo(
+    () => Gesture.Tap().numberOfTaps(2).maxDelay(250).onEnd((_e, ok) => ok && scheduleOnRN(() => latest.current.reset())),
+    [],
+  );
   const classAt = (day: number, start: number) => mergeLessons(latest.current.byDay.get(day)?.lessons ?? []).find((l) => l.start === start && !isFree(l));
   const onPickClass = useCallback((day: number, start: number) => setLifted(classAt(day, start) ?? null), []);
   const onDropClass = useCallback((day: number, start: number) => {
@@ -349,6 +356,8 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     <>
       {/* Above the grid (zIndex): tips may hang over it */}
       <View style={{ zIndex: 10, elevation: 10 }} onLayout={(e) => setStripW(e.nativeEvent.layout.width)}>
+        <GestureDetector gesture={stripDoubleTap}>
+        <View collapsable={false}>
         <DayStrip
           offset={offset}
           count={count}
@@ -376,6 +385,8 @@ export function Calendar({ only, initialStart, remember = false, onView, control
           }}
           nudge={hint === 'days'}
         />
+        </View>
+        </GestureDetector>
         {!learned ? (
           <AView entering={enter} exiting={exit} layout={layout} className="flex-row items-center justify-center gap-3 pt-2" accessibilityLabel={t('rooster.daysLabel', { n: want })}>
             <Button variant="secondary" size="sm" icon="minus" accessibilityLabel={t('rooster.fewer')} className="w-24" disabled={want <= 1} onPress={() => step(-1)} />

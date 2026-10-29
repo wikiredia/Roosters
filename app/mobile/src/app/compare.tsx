@@ -1,4 +1,4 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { type Href, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { SlideInLeft, SlideInRight } from 'react-native-reanimated';
@@ -11,6 +11,7 @@ import { Avatar, AvatarStack, Check, PinMark } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
 import { AView } from '@/components/ui/Motion';
+import { BottomTabs } from '@/components/BottomTabs';
 import { Empty, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
@@ -107,8 +108,12 @@ export default function CompareScreen() {
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }
 
+  // Vergelijken keeps the tab bar (Rooster lit); a tab goes back to the tabs
+  const tabs = <BottomTabs active="rooster" onSelect={(name) => router.navigate(`/${name}` as Href)} />;
+
   if (step === 'week') {
     return (
+      <View className="flex-1 bg-bg">
       <Screen
         back
         onBack={() => setStep('who')}
@@ -139,10 +144,13 @@ export default function CompareScreen() {
           <Calendar key={`${start}:${ids.join()}`} only={ids} initialStart={start} />
         </AView>
       </Screen>
+      {tabs}
+      </View>
     );
   }
 
   return (
+    <View className="flex-1 bg-bg">
     <Screen
       back
       navTitle={t('compare.title')}
@@ -193,5 +201,7 @@ export default function CompareScreen() {
         </AView>
       )}
     </Screen>
+    {tabs}
+    </View>
   );
 }

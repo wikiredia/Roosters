@@ -34,7 +34,7 @@ tap; a no from the phone isn't asked again (it points to the phone's settings), 
 
 1–7 days side by side, one continuous strip you scroll through day by day (`components/timetable/DayGrid.tsx`),
 mirrored by the week strip above (`DayStrip.tsx`): they share the same animated values, so they move together.
-Drag the strip's dash, pinch or − / + for more or fewer days; double tap resets the view; 'Vandaag' floats over
+Drag the strip's dash, pinch or − / + for more or fewer days; double tap the grid to zoom the hours, double tap the day strip to reset the view; 'Vandaag' floats over
 the grid (`TodayPill.tsx`). Day math and where a swipe lands: `lib/days.ts`. Data comes a week at a time
 (`useWeeks`); every lesson kind has its own colour. Why it's slow today and the plan to fix it (and sheets
 app-wide): the guide **Plan: a fast Rooster tab (and fast sheets)**.
