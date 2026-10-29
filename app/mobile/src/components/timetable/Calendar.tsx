@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { memo, type RefObject, useCallback, useEffect, useImperativeHandle, useInsertionEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useSharedValue, withSpring } from 'react-native-reanimated';
@@ -13,25 +13,43 @@ import { AView, enter, exit, layout } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { dateAt, dayIndex, homeStart, MAX_DAYS, mondayOf, weekdayOf } from '@/lib/days';
-import { slotState } from '@/lib/breaks';
-import { joinNames } from '@/lib/status';
+import { useStable } from '@/lib/latest';
+import { PerfProfile } from '@/lib/perf';
 import { skipChanges, skipTarget, type SkipTarget } from '@/lib/skips';
 import { prefs } from '@/lib/storage';
+import { createStore } from '@/lib/store';
 import { isoDay, nowMin, parseDay, weekdayShort } from '@/lib/time';
 
-import { type DayData, DayGrid, LABEL_H, RESIZE, SWIPE } from './DayGrid';
+import { type DayData, useDays } from './DayCache';
+import { DayGrid, LABEL_H, RESIZE, SWIPE } from './DayGrid';
 import { DayStrip } from './DayStrip';
 import { LessonSheet, OverlapSheet } from './LessonSheet';
 import { DragLayer, useSkipDrag } from './SkipDrag';
 import { type SkipNote, SkipToast } from './SkipToast';
-import { isFree, kindsOf, Legend, type LegendItem, lessonKind, mergeLessons, TimeAxis } from './Timetable';
+import { isFree, Legend, type LegendItem, TimeAxis } from './Timetable';
 import { TodayPill } from './TodayPill';
 
 /** Hours always on screen; earlier or later lessons stretch them. */
 const HOURS: [number, number] = [8, 18];
 const AXIS_W = 30;
-/** Asking for a break works for today and the 13 days after it (api breaks.MAX_DAYS_AHEAD) */
-const ASK_DAYS = 13;
+/** What the legend shows when there's nothing to show yet */
+const DEFAULT_LEGEND: LegendItem[] = ['theory', 'lab'];
+
+/** The hours the days show: the standard ones, or (zoomed) only those of the lessons; earlier or later lessons stretch them */
+function hoursFor(days: (DayData | undefined)[], zoomed: boolean): [number, number] {
+  const spans = days.flatMap((d) => (d?.bounds ? [d.bounds] : []));
+  if (zoomed && spans.length) {
+    const a = Math.floor(Math.min(...spans.map((b) => b.start)) / 60);
+    const b = Math.ceil(Math.max(...spans.map((b) => b.end)) / 60);
+    return [a, Math.max(b, a + 2)];
+  }
+  let [h0, h1] = HOURS;
+  for (const b of spans) {
+    h0 = Math.min(h0, Math.floor(b.start / 60));
+    h1 = Math.max(h1, Math.ceil(b.end / 60));
+  }
+  return [h0, h1];
+}
 
 /** "19 – 23 okt", "28 okt – 3 nov", "di 20 okt": always short enough for one line. */
 export function rangeLabel(a: Date, b: Date, lang: Lang) {
@@ -67,15 +85,24 @@ type Props = {
  * bin on the right (or 'Skip' in its sheet) to skip it: a short summary of what that changes, with Undo, comes up
  * at the bottom (SkipToast).
  * The Rooster tab and Vergelijken (with `only`: the friends you picked) both show this.
+ * Memo, and built so that a state change here renders as little as possible: every child is memo with props that keep
+ * their identity (callbacks read the newest state through `latest`), so a swipe, a sheet or a header change on the
+ * screen above re-renders only what it concerns.
  */
-export function Calendar({ only, initialStart, remember = false, onView, control }: Props) {
+export const Calendar = memo(function Calendar({ only, initialStart, remember = false, onView, control }: Props) {
   const { t, lang } = useT();
   const friends = useFriends();
   const breaks = useBreaks();
   const today = dayIndex(new Date());
   const [want, setWant] = useState(5);
   const [start, setStart] = useState(() => initialStart ?? homeStart(5, today, () => true));
-  const [enterFrom, setEnterFrom] = useState<1 | -1>(1);
+  // Where the columns can look up which way you went and where you are, without rendering when it changes
+  const [view] = useState(() => createStore<{ dir: 1 | -1; start: number; want: number }>({ dir: 1, start, want: 5 }));
+  useInsertionEffect(() => {
+    view.set((v) => (v.start === start && v.want === want ? v : { ...v, start, want }));
+  }, [view, start, want]);
+  /** Which way a move to `target` goes: the lessons of the columns that arrive slide in from that side */
+  const heading = useCallback((target: number) => view.set((v) => ({ ...v, dir: target >= v.start ? 1 : -1 })), [view]);
   const [zoomed, setZoomed] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [stripW, setStripW] = useState(0);
@@ -108,49 +135,18 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     return out;
   }, [from, to]);
   const weeks = useWeeks(mondays);
-  const stamp = weeks.map((w) => w.dataUpdatedAt).join();
   const names = useMemo(() => new Map((friends.data ?? []).map((f) => [f.id, f.display_name])), [friends.data]);
-  const onlyKey = only?.join();
-  const byDay = useMemo(() => {
-    const out = new Map<number, DayData & { raw: Together[] }>();
-    const now = nowMin();
-    weeks.forEach((w, wi) => {
-      const monday = mondayOf(from) + wi * 7;
-      for (let d = 0; d < 7; d++) {
-        const day = monday + d;
-        const iso = isoDay(dateAt(day));
-        const raw = (w.data?.together?.[iso] ?? []).filter((s) => !only || only.includes(s.id));
-        // Overlapping shared breaks become one yellow block, with everyone you share it with
-        const slots: { start: number; end: number; ids: number[] }[] = [];
-        for (const s of [...raw].sort((a, b) => a.start - b.start)) {
-          const lastSlot = slots[slots.length - 1];
-          if (lastSlot && s.start < lastSlot.end) {
-            lastSlot.end = Math.max(lastSlot.end, s.end);
-            if (!lastSlot.ids.includes(s.id)) lastSlot.ids.push(s.id);
-          } else slots.push({ start: s.start, end: s.end, ids: [s.id] });
-        }
-        out.set(day, {
-          lessons: (w.data?.lessons ?? []).filter((l) => l.day === iso),
-          together: slots.map((g) => {
-            const who = g.ids.map((id) => names.get(id) ?? '?');
-            return {
-              start: g.start,
-              end: g.end,
-              label: t('rooster.with', { names: joinNames(who, t('common.and')) }),
-              names: who,
-              // Asked, planned or declined: its own colour and pattern
-              state: slotState(breaks.data, g.ids, iso, g.start, g.end),
-              // Over, or further ahead than you can ask: faded, and a tap does nothing
-              muted: day < today || day > today + ASK_DAYS || (day === today && g.end <= now),
-            };
-          }),
-          loading: !w.data || !!w.data.loading,
-          raw,
-        });
-      }
-    });
-    return out;
-  }, [stamp, names, from, onlyKey, breaks.data]);
+  // Every day with what's derived from it (merged lessons, blocks, overlaps, free gaps, ...), built once per week
+  // that comes in: moving `start` reuses the weeks still in the window (DayCache)
+  const byDay = useDays(
+    weeks.map((w) => w.data),
+    mondayOf(from),
+    names,
+    breaks.data,
+    only,
+    today,
+    lang,
+  );
 
   // Weekends with something on them: a swipe doesn't skip those
   // (also kept here on the JS side: render code never reads a shared value)
@@ -164,31 +160,11 @@ export function Calendar({ only, initialStart, remember = false, onView, control
   }, [busySats, busyWeekends]);
   const emptyWeekend = (sat: number) => !busySats.includes(sat);
   // The dots under the strip's dates
-  const kinds = useMemo(() => new Map([...byDay].map(([day, d]) => [day, kindsOf(d.lessons)])), [byDay]);
-
-  // Remember how many days you like; without a choice: 5, or 7 when this week's weekend has something on it
-  useEffect(() => {
-    if (!remember) return;
-    prefs.get<number | null>('rooster.days', null).then((n) => {
-      if (n) {
-        chosen.current = true;
-        moveTo(homeStart(n, today, () => true), n, false);
-      }
-    });
-    prefs.get('hint.days', false).then((seen) => setHint(seen ? null : 'days'));
-    prefs.get('days.learned', false).then((l) => {
-      setLearned(l);
-      if (l) prefs.get('hint.zoom', false).then((seen) => !seen && setHint((h) => h ?? 'zoom'));
-    });
-  }, []);
-  const weekendBusy = byDay.get(mondayOf(today) + 5)?.lessons.length || byDay.get(mondayOf(today) + 6)?.lessons.length;
-  useEffect(() => {
-    if (remember && !chosen.current && weekendBusy && want === 5) moveTo(mondayOf(today), 7, false);
-  }, [weekendBusy]);
+  const kinds = useMemo(() => new Map([...byDay].map(([day, d]) => [day, d.kinds])), [byDay]);
 
   /** Go to a view: the grid slides there (from the side you came from), the strip follows. */
   function moveTo(target: number, n = want, animate = true) {
-    setEnterFrom(target >= start ? 1 : -1);
+    heading(target);
     setStart(target);
     setWant(n);
     const kk = Math.min(weekdayOf(target), 7 - n);
@@ -204,7 +180,7 @@ export function Calendar({ only, initialStart, remember = false, onView, control
   }
 
   function onTarget(target: number) {
-    setEnterFrom(target >= start ? 1 : -1);
+    heading(target);
     setStart(target);
     k.set(withSpring(Math.min(weekdayOf(target), 7 - want), SWIPE));
   }
@@ -233,6 +209,26 @@ export function Calendar({ only, initialStart, remember = false, onView, control
     k.set(withSpring(Math.min(weekdayOf(start), 7 - n), RESIZE));
     setDays(n, false);
   }
+
+  // Remember how many days you like; without a choice: 5, or 7 when this week's weekend has something on it
+  useEffect(() => {
+    if (!remember) return;
+    prefs.get<number | null>('rooster.days', null).then((n) => {
+      if (n) {
+        chosen.current = true;
+        moveTo(homeStart(n, today, () => true), n, false);
+      }
+    });
+    prefs.get('hint.days', false).then((seen) => setHint(seen ? null : 'days'));
+    prefs.get('days.learned', false).then((l) => {
+      setLearned(l);
+      if (l) prefs.get('hint.zoom', false).then((seen) => !seen && setHint((h) => h ?? 'zoom'));
+    });
+  }, []);
+  const weekendBusy = byDay.get(mondayOf(today) + 5)?.lessons.length || byDay.get(mondayOf(today) + 6)?.lessons.length;
+  useEffect(() => {
+    if (remember && !chosen.current && weekendBusy && want === 5) moveTo(mondayOf(today), 7, false);
+  }, [weekendBusy]);
 
   /** A shared break tapped: "Pauze samen?" with everyone in it, each with their own free window (today from now
    * on). Hatched ones (over, too far ahead) never get here. */
@@ -295,65 +291,115 @@ export function Calendar({ only, initialStart, remember = false, onView, control
   while (firstEmpty > 0 && weekdayOf(visible[firstEmpty - 1]) >= 5 && empty(visible[firstEmpty - 1])) firstEmpty--;
   const sunday = firstEmpty < visible.length ? mondayOf(visible[firstEmpty]) + 6 : 0;
   const onward = firstEmpty < visible.length ? (!visible.includes(sunday) && byDay.get(sunday) && !empty(sunday) ? sunday : sunday + 1) : null;
-  const hours = useMemo<[number, number]>(() => {
-    const ls = visible.flatMap((d) => byDay.get(d)?.lessons ?? []);
-    if (zoomed && ls.length) {
-      const a = Math.floor(Math.min(...ls.map((l) => l.start)) / 60);
-      const b = Math.ceil(Math.max(...ls.map((l) => l.end)) / 60);
-      return [a, Math.max(b, a + 2)];
-    }
-    let [h0, h1] = HOURS;
-    for (const l of ls) {
-      h0 = Math.min(h0, Math.floor(l.start / 60));
-      h1 = Math.max(h1, Math.ceil(l.end / 60));
-    }
-    return [h0, h1];
-  }, [zoomed, stamp, start, want]);
-  const legend = useMemo<LegendItem[]>(() => {
-    const out = new Set<LegendItem>();
-    for (const d of visible) {
-      const day = byDay.get(d);
-      for (const s of day?.together ?? []) out.add(s.state ?? 'together');
-      for (const l of day?.lessons ?? []) out.add(l.state === 'cancelled' || l.state === 'removed' ? 'cancelled' : l.skipped ? 'skipped' : lessonKind(l));
-    }
-    return [...out];
-  }, [stamp, start, want, onlyKey, breaks.data]);
+  // The hours are an array with the same identity while the two numbers are the same (the columns and the axis are memo)
+  const span = hoursFor(
+    visible.map((d) => byDay.get(d)),
+    zoomed,
+  );
+  const hoursKey = `${span[0]}:${span[1]}`;
+  const hours = useMemo(() => hoursKey.split(':').map(Number) as [number, number], [hoursKey]);
+  const legendItems = new Set<LegendItem>();
+  for (const d of visible) for (const i of byDay.get(d)?.legend ?? []) legendItems.add(i);
+  const legendKey = [...legendItems].join();
+  const legend = useMemo<LegendItem[]>(() => (legendKey ? (legendKey.split(',') as LegendItem[]) : DEFAULT_LEGEND), [legendKey]);
   // Anything else than the standard view (zoomed, other than 5 days, not starting on a Monday): the screen's title becomes 'Reset'
   const custom = zoomed || want !== 5 || weekdayOf(start) !== 0;
   useEffect(() => {
     onView?.({ start, want, custom });
   }, [start, want, custom]);
   const pxPerHour = size.h ? (size.h - LABEL_H) / (hours[1] - hours[0]) : 40;
+  const now = nowMin();
 
-  // Stable callbacks for the grid (memo): opening a sheet re-renders this screen, never the 20-odd day columns,
-  // so a tap on a lesson answers at once
-  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip, reset });
-  latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip, reset };
+  // Stable callbacks for everything below (all of it memo): opening a sheet re-renders this component and that
+  // sheet, never the 20-odd day columns, the strip or the other sheets, so a tap on a lesson answers at once. They
+  // read the newest state through `latest`, which is up to date before any event handler runs.
+  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today });
+  useInsertionEffect(() => {
+    latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today };
+  });
   const data = useCallback((d: number) => byDay.get(d), [byDay]);
   const onPressLesson = useCallback((lesson: Lesson, day: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), []);
   const onPressOverlap = useCallback((lessons: Lesson[], day: number) => setChoose({ lessons, day }), []);
   const onPressTogether = useCallback((day: number, span: { start: number; end: number }) => latest.current.askBreak(day, span), []);
   const onTargetCb = useCallback((s: number) => latest.current.onTarget(s), []);
-  const onCount = useCallback((n: number, s: number) => {
-    setStart(s);
-    k.set(withSpring(Math.min(weekdayOf(s), 7 - n), RESIZE));
-    latest.current.setDays(n, false);
-  }, []);
+  const onCount = useCallback(
+    (n: number, s: number) => {
+      setStart(s);
+      k.set(withSpring(Math.min(weekdayOf(s), 7 - n), RESIZE));
+      latest.current.setDays(n, false);
+    },
+    [k],
+  );
   const onDoubleTap = useCallback(() => setZoomed((z) => !z), []);
-  // Double tap on the strip above the grid = the screen's 'Reset'
-  const stripDoubleTap = useMemo(
-    () => Gesture.Tap().numberOfTaps(2).maxDelay(250).onEnd((_e, ok) => ok && scheduleOnRN(() => latest.current.reset())),
+  // The strip above the grid
+  const onStripPick = useCallback(
+    (day: number) => {
+      const { want, moveTo } = latest.current;
+      moveTo(want >= 5 ? Math.max(mondayOf(day), Math.min(day, mondayOf(day) + 7 - want)) : day);
+    },
     [],
   );
-  const classAt = (day: number, start: number) => mergeLessons(latest.current.byDay.get(day)?.lessons ?? []).find((l) => l.start === start && !isFree(l));
+  const onStripMove = useCallback(
+    (s: number) => {
+      heading(s);
+      setStart(s);
+    },
+    [heading],
+  );
+  const onStripResizeEnd = useCallback(
+    (n: number, s?: number) => {
+      if (s !== undefined && s !== latest.current.start) {
+        heading(s);
+        setStart(s);
+      }
+      latest.current.setDays(n, true);
+    },
+    [heading],
+  );
+  // Double tap on the strip above the grid = the screen's 'Reset'
+  const onStripReset = useStable(reset);
+  const stripDoubleTap = useMemo(() => Gesture.Tap().numberOfTaps(2).maxDelay(250).onEnd((_e, ok) => ok && scheduleOnRN(onStripReset)), [onStripReset]);
+  const classAt = (day: number, start: number) => latest.current.byDay.get(day)?.merged.find((l) => l.start === start && !isFree(l));
   const onPickClass = useCallback((day: number, start: number) => setLifted(classAt(day, start) ?? null), []);
   const onDropClass = useCallback((day: number, start: number) => {
     const l = classAt(day, start);
     if (l) latest.current.doSkip(l);
   }, []);
+  const onTodayPress = useCallback(() => latest.current.moveTo(latest.current.home), []);
+  const onToastDone = useCallback(() => setNote(null), []);
+  const onToastUndo = useCallback(() => {
+    if (lastSkip.current) latest.current.unskip(lastSkip.current);
+  }, []);
+  // The sheets
+  const closeChoice = useCallback(() => setChoose(null), []);
+  const pickChoice = useCallback(
+    (lesson: Lesson) => {
+      const day = latest.current.choose?.day ?? latest.current.today;
+      setChoose(null);
+      // One sheet at a time: the next opens once this one is on its way out
+      setTimeout(() => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), 200);
+    },
+    [],
+  );
+  const closeAsk = useCallback(() => setAsk(null), []);
+  const closeLesson = useCallback(() => setOpen(null), []);
+  const skipFromSheet = useCallback(
+    (l: Lesson) => {
+      setOpen(null);
+      latest.current.doSkip(l);
+    },
+    [],
+  );
+  const unskipFromSheet = useCallback(
+    (l: Lesson) => {
+      setOpen(null);
+      latest.current.unskip(skipTarget(l));
+    },
+    [],
+  );
 
   return (
-    <>
+    <PerfProfile id="Calendar">
       {/* Above the grid (zIndex): tips may hang over it */}
       <View style={{ zIndex: 10, elevation: 10 }} onLayout={(e) => setStripW(e.nativeEvent.layout.width)}>
         <GestureDetector gesture={stripDoubleTap}>
@@ -368,21 +414,12 @@ export function Calendar({ only, initialStart, remember = false, onView, control
           to={to}
           today={today}
           lang={lang}
-          kinds={(day) => kinds.get(day) ?? []}
-          onTarget={onTarget}
-          onMove={(s) => {
-            setEnterFrom(s >= start ? 1 : -1);
-            setStart(s);
-          }}
-          onPick={(day) => moveTo(want >= 5 ? Math.max(mondayOf(day), Math.min(day, mondayOf(day) + 7 - want)) : day)}
-          onResize={(n) => setWant(n)}
-          onResizeEnd={(n, s) => {
-            if (s !== undefined && s !== start) {
-              setEnterFrom(s >= start ? 1 : -1);
-              setStart(s);
-            }
-            setDays(n, true);
-          }}
+          kinds={kinds}
+          onTarget={onTargetCb}
+          onMove={onStripMove}
+          onPick={onStripPick}
+          onResize={setWant}
+          onResizeEnd={onStripResizeEnd}
           nudge={hint === 'days'}
         />
         </View>
@@ -412,6 +449,7 @@ export function Calendar({ only, initialStart, remember = false, onView, control
           <TimeAxis pxPerHour={pxPerHour} hours={hours} compact />
         </View>
         {size.w ? (
+          <PerfProfile id="DayGrid">
           <DayGrid
             offset={offset}
             count={count}
@@ -423,8 +461,8 @@ export function Calendar({ only, initialStart, remember = false, onView, control
             data={data}
             hours={hours}
             today={today}
-            nowMin={nowMin()}
-            enterFrom={enterFrom}
+            nowMin={now}
+            view={view}
             compact={size.w / want < 120}
             lang={lang}
             onPressLesson={onPressLesson}
@@ -437,6 +475,7 @@ export function Calendar({ only, initialStart, remember = false, onView, control
             onPickClass={onPickClass}
             onDropClass={onDropClass}
           />
+          </PerfProfile>
         ) : null}
         {size.w ? (
           <View pointerEvents="none" style={{ position: 'absolute', left: AXIS_W, top: 0, width: size.w, height: size.h }}>
@@ -473,14 +512,8 @@ export function Calendar({ only, initialStart, remember = false, onView, control
             </Pressable>
           </AView>
         ) : null}
-        {!showsToday && size.w ? <TodayPill width={size.w + AXIS_W} height={size.h} top={LABEL_H} onPress={() => moveTo(home)} /> : null}
-        <SkipToast
-          note={note}
-          onDone={() => setNote(null)}
-          onUndo={() => {
-            if (lastSkip.current) unskip(lastSkip.current);
-          }}
-        />
+        {!showsToday && size.w ? <TodayPill width={size.w + AXIS_W} height={size.h} top={LABEL_H} onPress={onTodayPress} /> : null}
+        <SkipToast note={note} onDone={onToastDone} onUndo={onToastUndo} />
         {hint === 'zoom' ? (
           <View className="absolute left-8 right-2" style={{ top: LABEL_H + 4 }}>
             <Tip
@@ -496,36 +529,14 @@ export function Calendar({ only, initialStart, remember = false, onView, control
         ) : null}
       </AView>
       <AView layout={layout}>
-        <Legend items={legend.length ? legend : ['theory', 'lab']} />
+        <Legend items={legend} />
       </AView>
-      <OverlapSheet
-        choice={choose}
-        onClose={() => setChoose(null)}
-        onPick={(lesson) => {
-          const day = choose?.day ?? today;
-          setChoose(null);
-          // One sheet at a time: the next opens once this one is on its way out
-          setTimeout(() => setOpen({ lesson, together: byDay.get(day)?.raw ?? [] }), 200);
-        }}
-      />
-      <BreakSheet target={ask} onClose={() => setAsk(null)} />
-      <LessonSheet
-        lesson={open?.lesson ?? null}
-        onClose={() => setOpen(null)}
-        friends={friends.data}
-        together={open?.together}
-        onSkip={(l) => {
-          setOpen(null);
-          doSkip(l);
-        }}
-        onUnskip={(l) => {
-          setOpen(null);
-          unskip(skipTarget(l));
-        }}
-      />
-    </>
+      <OverlapSheet choice={choose} onClose={closeChoice} onPick={pickChoice} />
+      <BreakSheet target={ask} onClose={closeAsk} />
+      <LessonSheet lesson={open?.lesson ?? null} onClose={closeLesson} friends={friends.data} together={open?.together} onSkip={skipFromSheet} onUnskip={unskipFromSheet} />
+    </PerfProfile>
   );
-}
+});
 
 /** A small dark tip with an arrow, over the content but never the whole screen. */
 function Tip({ text, ok, onOk, below }: { text: string; ok: string; onOk: () => void; below?: boolean }) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { FadeIn, FadeInDown, FadeOut, FadeOutDown, ZoomIn } from 'react-native-reanimated';
 
@@ -21,8 +21,9 @@ export type SkipNote = { id: number; kind: 'skipped' | 'undone' | 'failed'; cour
  * The small dark card at the bottom of the calendar after a skip: "Skipped DevOps", a countdown (just 5, 4, 3, 2, 1)
  * with Undo, and below it what the skip changes for you (longer breaks, new ones with friends). It covers only the
  * last hours of the grid, never takes the whole screen, and goes by itself; a tap sends it away sooner.
+ * Memo: it renders when the note changes or the countdown ticks, not with the calendar (keep `onUndo` and `onDone` stable).
  */
-export function SkipToast({ note, onUndo, onDone }: { note: SkipNote | null; onUndo: () => void; onDone: () => void }) {
+export const SkipToast = memo(function SkipToast({ note, onUndo, onDone }: { note: SkipNote | null; onUndo: () => void; onDone: () => void }) {
   const { t } = useT();
   const [left, setLeft] = useState(UNDO_SECONDS);
   const id = note?.id;
@@ -84,4 +85,4 @@ export function SkipToast({ note, onUndo, onDone }: { note: SkipNote | null; onU
       </Pressable>
     </AView>
   );
-}
+});

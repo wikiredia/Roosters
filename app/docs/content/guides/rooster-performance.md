@@ -1,10 +1,10 @@
 ---
 title: Plan: a fast Rooster tab (and fast sheets)
 position: 65
-updated: 2026-10-27T17:00:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
-**Status: plan, nothing implemented yet.** Written after a code review of the Rooster tab (no device profiling
+**Status: Phase 0 and Phase 1 are in the code (see their status notes below); the measurements and Phase 2 are open.** Written after a code review of the Rooster tab (no device profiling
 yet). The user reported: low fps while changing how many days you see, slow bottom sheets with a class's details,
 and every action on the Rooster screen feeling heavy. Sheets are slow across the whole app. This guide says
 **why**, **what to change**, in **what order**, and **what we can't avoid**. It is written for the agent who
@@ -12,7 +12,7 @@ implements it. Each phase is its own PR, and each PR updates the file docs it to
 "For agents"). When a phase lands, mark it done here; when everything has landed, fold the lasting rules into the
 file docs and the guide **The mobile app**, then delete this guide.
 
-Line numbers are from commit `1cce711` and will drift.
+Line numbers are from commit `1cce711` and will drift. The diagnosis below describes the code **before** Phase 1.
 
 ## How the Rooster tab is built (the parts that matter for speed)
 
@@ -158,6 +158,15 @@ Each phase is one PR (Phase 2 may be two: the sheet host and peek, then the grid
 
 ### Phase 0: baseline and instrumentation (small, do first)
 
+**Status: code done; the numbers (item 4) are for the user.** The overlay is in the root layout (`components/PerfOverlay.tsx`,
+state and helpers in `lib/perf.tsx`), switched on at **Server & debug → Performance**. It is gated by `debugEnabled`, not
+by `__DEV__`, so it also works in a release build that was made with `EXPO_PUBLIC_DEBUG=1` (a `preview` profile with that
+variable; a production build never has it). The `<Profiler>` logs (`[perf] Calendar update 12.3 ms …`) and the first cache
+write log are development-only, because React's profiler is off in release. The overlay also shows the size of the saved
+cache and the time of its last `JSON.stringify` (it keeps measuring in a release build). The UI-fps line is an animated
+`TextInput`; the technique is standard but this repo could not run it on a device, so if it shows nothing, the JS line and the
+column counter still work.
+
 1. A **dev-only perf overlay**, behind a toggle in `app/debug.tsx` or `app/dev.tsx`: a UI-thread fps meter
    (`useFrameCallback`, frame times → fps, as text in an animated text) and a JS-thread fps meter
    (`requestAnimationFrame`). Off by default and never in production UI.
@@ -170,6 +179,35 @@ Each phase is one PR (Phase 2 may be two: the sheet host and peek, then the grid
    Write them in the table at the end of this guide.
 
 ### Phase 1: quick wins in the grid (low risk)
+
+**Status: code done, except item 6 (see below); not yet measured on a device.** What changed, per item:
+1. Layout transitions removed from the blocks. Lessons fade in (from the side you went) only when a column's data arrives
+   after its skeleton while that day is in view (`DayGrid.DayColumn`; the view comes from a small store `Calendar` keeps).
+2. `Hatch` is one SVG `Pattern` in one `Rect`, a unique id per instance (`useId`). The tile is `gap/√2` across, not `gap`:
+   the old stripes were `gap` apart *horizontally*, and a 45° tile `gap` wide would have spaced them `gap/√2` further apart. Direction,
+   stroke width and opacity are as before. react-native-svg 15.16 has `Pattern` with `patternTransform` on iOS and Android in its
+   source; it has **not been looked at on a device**: check an overlap band, an 'asked' break, the legend swatch and the skip bin.
+3. The memo chain: `components/timetable/DayCache.ts` builds each week's days once (keyed by the week's data object, names,
+   breaks, `only`, today, language; no `dataUpdatedAt`) with merged lessons, blocks, overlaps, free gaps, kinds, legend,
+   bounds, skippable classes and tap stretches; `hours` is memoised on `"h0:h1"`; `DayColumn` gets its props explicitly, `nowMin`
+   only on today, no `enterFrom`; `DayStrip`, `Legend`, `TimeAxis`, `DragLayer`, `SkipToast`, `TodayPill` and the three sheets are
+   `memo` with stable props; `Calendar` is `memo`. `useSkipDrag` now returns one object (before, a new one every render defeated `DayGrid`'s memo).
+4. The gestures of `DayGrid`, `DayStrip`, `useSkipGesture`, `Sheet` and `TodayPill` are `useMemo`'d (the builder API of Gesture Handler 3.3,
+   not the new hooks), with stable callbacks (`lib/latest.ts`).
+5. `TapTargets.ts`: the tappable stretches per day in a shared value; the tap gesture asks it first, so a tap on nothing never reaches JS.
+   That is the only behaviour change. The JS `tapAt` still decides which sheet and was checked to agree with the stretches
+   (a script compared them for 300 000 random day/minute points).
+6. **Not done: `freezeOnBlur` does nothing in Expo Router 58.** Its `Tabs` type still has the option, but it is marked
+   'Deprecated: This option has no effect in Expo Router' in the SDK 58 docs, and the bottom-tabs view hard-codes
+   `freezeOnBlur: false` on the screens. Setting it would change nothing. The tab bar badge is not at risk (it lives in the bar). Options
+   if hidden tabs still cost too much after the other items (the Rooster tab re-renders far less now): wrap a tab screen's content in
+   `react-freeze`'s `<Freeze>` or React's `<Activity mode="hidden">` driven by `useIsFocused()`. `Activity` re-runs mount effects when
+   shown again (`Calendar` would jump back to its home view), so `Freeze` is the one to try first; neither has been tried.
+7. Lighter cache writes: `shouldPersist` (`lib/query.ts`) keeps me, today, friends, requests, breaks, chats, sources and the schedule
+   weeks from one before this week to three after; the throttle is 5 s instead of 2 s. These were chosen **without the Phase 0
+   numbers**: look at the overlay's cache line in a release build and tighten or relax. The cache shape didn't change, so `buster` stayed.
+
+Not in the list, still open: the layout transitions on the wrappers in `Calendar` (the grid area and the legend), see 'Smaller things'.
 
 1. **No more layout transitions on blocks.** Remove `layout={layout}` from the free, block and overlap `AView`s in
    `DayColumn`. Keep `entering` only where it means something: a column's blocks fade in when its data arrives

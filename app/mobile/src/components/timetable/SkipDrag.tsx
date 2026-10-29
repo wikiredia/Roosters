@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import { Gesture } from 'react-native-gesture-handler';
 import Animated, {
@@ -56,18 +56,18 @@ export type SkipDrag = {
   gone: SharedValue<number>;
 };
 
+/** One object for the life of the component (so memoised children and gestures that take it stay as they are) */
 export function useSkipDrag(): SkipDrag {
-  return {
-    phase: useSharedValue(0),
-    rect: useSharedValue({ x: 0, y: 0, w: 0, h: 0 }),
-    grab: useSharedValue({ x: 0, y: 0 }),
-    tx: useSharedValue(0),
-    ty: useSharedValue(0),
-    rot: useSharedValue(0),
-    lift: useSharedValue(0),
-    over: useSharedValue(0),
-    gone: useSharedValue(0),
-  };
+  const phase = useSharedValue(0);
+  const rect = useSharedValue({ x: 0, y: 0, w: 0, h: 0 });
+  const grab = useSharedValue({ x: 0, y: 0 });
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const rot = useSharedValue(0);
+  const lift = useSharedValue(0);
+  const over = useSharedValue(0);
+  const gone = useSharedValue(0);
+  return useMemo(() => ({ phase, rect, grab, tx, ty, rot, lift, over, gone }), [phase, rect, grab, tx, ty, rot, lift, over, gone]);
 }
 
 type GestureProps = {
@@ -86,6 +86,8 @@ type GestureProps = {
   onPick: (day: number, start: number) => void;
   /** It landed in the bin */
   onDrop: (day: number, start: number) => void;
+  /** Without: a finger never picks a class up (default on) */
+  enabled?: boolean;
 };
 
 /**
@@ -93,124 +95,131 @@ type GestureProps = {
  * It decides itself when it starts (manual activation): a finger on a class that rests a moment, or moves more up or
  * down than sideways, picks the card up at once (no long press needed); a quick sideways swipe stays a swipe through
  * the days, and a tap stays a tap. Let go over the bin, or throw it to the right, and it's skipped.
+ * The gesture is made again only when one of its inputs changes (the grid's size, hours, or the callbacks: keep those
+ * stable), as Reanimated advises; a new gesture on every render would be re-attached every time.
  */
 export function useSkipGesture(p: GestureProps) {
-  const { drag, targets, offset, count, width, height } = p;
+  const { drag, targets, offset, count, width, height, min0, min1, pxPerHour, labelH, onPick, onDrop, enabled = true } = p;
   const down = useSharedValue({ x: 0, y: 0, at: 0, day: 0, start: 0 });
   const vxLast = useSharedValue(0);
 
-  return Gesture.Pan()
-    .manualActivation(true)
-    .onTouchesDown((e, m) => {
-      // A second finger while dragging: ignore it (a card still flying or going back is simply taken over)
-      if (drag.phase.get() === 2) return;
-      if (e.numberOfTouches > 1) {
-        m.fail();
-        return;
-      }
-      const touch = e.allTouches[0];
-      const colW = width / count.get();
-      const off = offset.get();
-      const day = Math.floor(off + touch.x / colW);
-      const min = p.min0 + ((touch.y - p.labelH) / p.pxPerHour) * 60;
-      const hit = targets.get().find((g) => g.day === day && g.start <= min && min < g.end);
-      if (!hit) {
-        m.fail();
-        return;
-      }
-      const y = (v: number) => p.labelH + ((v - p.min0) / 60) * p.pxPerHour;
-      const top = y(Math.max(hit.start, p.min0));
-      const rect = { x: (day - off) * colW + 2, y: top, w: colW - 4, h: Math.max(y(Math.min(hit.end, p.min1)) - top - 3, 16) };
-      drag.rect.set(rect);
-      drag.grab.set({ x: touch.x - rect.x, y: touch.y - rect.y });
-      drag.tx.set(0);
-      drag.ty.set(0);
-      drag.rot.set(0);
-      drag.over.set(0);
-      drag.gone.set(0);
-      drag.phase.set(1);
-      drag.lift.set(withDelay(LIFT_AFTER, withSpring(1, SWING)));
-      down.set({ x: touch.x, y: touch.y, at: Date.now(), day, start: hit.start });
-      scheduleOnRN(p.onPick, day, hit.start);
-    })
-    .onTouchesMove((e, m) => {
-      if (drag.phase.get() !== 1) return;
-      const touch = e.allTouches[0];
-      const d = down.get();
-      const dx = touch.x - d.x;
-      const dy = touch.y - d.y;
-      if (dx * dx + dy * dy < 36) return;
-      if (Date.now() - d.at >= HOLD || Math.abs(dy) > Math.abs(dx) * 0.8) m.activate();
-      else {
-        drag.lift.set(withTiming(0, { duration: 100 }));
-        drag.phase.set(0);
-        m.fail();
-      }
-    })
-    .onTouchesUp((_e, m) => {
-      if (drag.phase.get() !== 1) return;
-      drag.lift.set(withTiming(0, { duration: 120 }));
-      drag.phase.set(0);
-      m.fail();
-    })
-    .onFinalize(() => {
-      // Never picked up (a tap, a swipe, a second finger): put the lift away
-      if (drag.phase.get() !== 1) return;
-      drag.lift.set(withTiming(0, { duration: 120 }));
-      drag.phase.set(0);
-    })
-    .onStart(() => {
-      drag.phase.set(2);
-      drag.lift.set(withSpring(1, SWING));
-    })
-    .onUpdate((e) => {
-      drag.tx.set(e.translationX);
-      drag.ty.set(e.translationY);
-      // Smooth the speed a little, so the swing doesn't jitter with every touch event
-      const vx = vxLast.get() * 0.6 + e.velocityX * 0.4;
-      vxLast.set(vx);
-      const r = drag.rect.get();
-      const below = drag.grab.get().y < r.h / 2 ? 1 : -1;
-      const fingerX = down.get().x + e.translationX;
-      const isOver = fingerX > width - BIN_W ? 1 : 0;
-      if (isOver !== Math.round(drag.over.get())) drag.over.set(withTiming(isOver, { duration: 140 }));
-      drag.rot.set(withSpring(Math.max(-18, Math.min(18, vx / 55)) * below + isOver * 6, SWING));
-    })
-    .onEnd((e) => {
-      const fingerX = down.get().x + e.translationX;
-      const over = fingerX > width - BIN_W;
-      const thrown = e.velocityX > THROW_V && fingerX + e.velocityX * 0.2 > width - BIN_W * 0.5;
-      const r = drag.rect.get();
-      if (over || thrown) {
-        drag.phase.set(3);
-        drag.over.set(withTiming(1, { duration: 100 }));
-        const fly = { duration: thrown && !over ? 200 : 240, easing: Easing.in(Easing.quad) };
-        drag.tx.set(withTiming(width - BIN_W / 2 - (r.x + r.w / 2), fly));
-        drag.ty.set(withTiming(height / 2 - (r.y + r.h / 2), fly));
-        drag.rot.set(withTiming(drag.rot.get() + 30, fly));
-        drag.gone.set(
-          withTiming(1, fly, (done) => {
-            if (!done) return;
+  return useMemo(
+    () =>
+      Gesture.Pan()
+        .manualActivation(true)
+        .onTouchesDown((e, m) => {
+          // A second finger while dragging: ignore it (a card still flying or going back is simply taken over)
+          if (drag.phase.get() === 2) return;
+          if (e.numberOfTouches > 1) {
+            m.fail();
+            return;
+          }
+          const touch = e.allTouches[0];
+          const colW = width / count.get();
+          const off = offset.get();
+          const day = Math.floor(off + touch.x / colW);
+          const min = min0 + ((touch.y - labelH) / pxPerHour) * 60;
+          const hit = targets.get().find((g) => g.day === day && g.start <= min && min < g.end);
+          if (!hit) {
+            m.fail();
+            return;
+          }
+          const y = (v: number) => labelH + ((v - min0) / 60) * pxPerHour;
+          const top = y(Math.max(hit.start, min0));
+          const rect = { x: (day - off) * colW + 2, y: top, w: colW - 4, h: Math.max(y(Math.min(hit.end, min1)) - top - 3, 16) };
+          drag.rect.set(rect);
+          drag.grab.set({ x: touch.x - rect.x, y: touch.y - rect.y });
+          drag.tx.set(0);
+          drag.ty.set(0);
+          drag.rot.set(0);
+          drag.over.set(0);
+          drag.gone.set(0);
+          drag.phase.set(1);
+          drag.lift.set(withDelay(LIFT_AFTER, withSpring(1, SWING)));
+          down.set({ x: touch.x, y: touch.y, at: Date.now(), day, start: hit.start });
+          scheduleOnRN(onPick, day, hit.start);
+        })
+        .onTouchesMove((e, m) => {
+          if (drag.phase.get() !== 1) return;
+          const touch = e.allTouches[0];
+          const d = down.get();
+          const dx = touch.x - d.x;
+          const dy = touch.y - d.y;
+          if (dx * dx + dy * dy < 36) return;
+          if (Date.now() - d.at >= HOLD || Math.abs(dy) > Math.abs(dx) * 0.8) m.activate();
+          else {
+            drag.lift.set(withTiming(0, { duration: 100 }));
             drag.phase.set(0);
-            drag.over.set(withDelay(160, withTiming(0, { duration: 200 })));
-          }),
-        );
-        const d = down.get();
-        scheduleOnRN(p.onDrop, d.day, d.start);
-      } else {
-        drag.phase.set(4);
-        drag.over.set(withTiming(0, { duration: 140 }));
-        drag.rot.set(withSpring(0, BACK));
-        drag.lift.set(withSpring(0, BACK));
-        drag.tx.set(withSpring(0, { ...BACK, velocity: e.velocityX }));
-        drag.ty.set(
-          withSpring(0, { ...BACK, velocity: e.velocityY }, (done) => {
-            if (done && drag.phase.get() === 4) drag.phase.set(0);
-          }),
-        );
-      }
-      vxLast.set(0);
-    });
+            m.fail();
+          }
+        })
+        .onTouchesUp((_e, m) => {
+          if (drag.phase.get() !== 1) return;
+          drag.lift.set(withTiming(0, { duration: 120 }));
+          drag.phase.set(0);
+          m.fail();
+        })
+        .onFinalize(() => {
+          // Never picked up (a tap, a swipe, a second finger): put the lift away
+          if (drag.phase.get() !== 1) return;
+          drag.lift.set(withTiming(0, { duration: 120 }));
+          drag.phase.set(0);
+        })
+        .onStart(() => {
+          drag.phase.set(2);
+          drag.lift.set(withSpring(1, SWING));
+        })
+        .onUpdate((e) => {
+          drag.tx.set(e.translationX);
+          drag.ty.set(e.translationY);
+          // Smooth the speed a little, so the swing doesn't jitter with every touch event
+          const vx = vxLast.get() * 0.6 + e.velocityX * 0.4;
+          vxLast.set(vx);
+          const r = drag.rect.get();
+          const below = drag.grab.get().y < r.h / 2 ? 1 : -1;
+          const fingerX = down.get().x + e.translationX;
+          const isOver = fingerX > width - BIN_W ? 1 : 0;
+          if (isOver !== Math.round(drag.over.get())) drag.over.set(withTiming(isOver, { duration: 140 }));
+          drag.rot.set(withSpring(Math.max(-18, Math.min(18, vx / 55)) * below + isOver * 6, SWING));
+        })
+        .onEnd((e) => {
+          const fingerX = down.get().x + e.translationX;
+          const over = fingerX > width - BIN_W;
+          const thrown = e.velocityX > THROW_V && fingerX + e.velocityX * 0.2 > width - BIN_W * 0.5;
+          const r = drag.rect.get();
+          if (over || thrown) {
+            drag.phase.set(3);
+            drag.over.set(withTiming(1, { duration: 100 }));
+            const fly = { duration: thrown && !over ? 200 : 240, easing: Easing.in(Easing.quad) };
+            drag.tx.set(withTiming(width - BIN_W / 2 - (r.x + r.w / 2), fly));
+            drag.ty.set(withTiming(height / 2 - (r.y + r.h / 2), fly));
+            drag.rot.set(withTiming(drag.rot.get() + 30, fly));
+            drag.gone.set(
+              withTiming(1, fly, (done) => {
+                if (!done) return;
+                drag.phase.set(0);
+                drag.over.set(withDelay(160, withTiming(0, { duration: 200 })));
+              }),
+            );
+            const d = down.get();
+            scheduleOnRN(onDrop, d.day, d.start);
+          } else {
+            drag.phase.set(4);
+            drag.over.set(withTiming(0, { duration: 140 }));
+            drag.rot.set(withSpring(0, BACK));
+            drag.lift.set(withSpring(0, BACK));
+            drag.tx.set(withSpring(0, { ...BACK, velocity: e.velocityX }));
+            drag.ty.set(
+              withSpring(0, { ...BACK, velocity: e.velocityY }, (done) => {
+                if (done && drag.phase.get() === 4) drag.phase.set(0);
+              }),
+            );
+          }
+          vxLast.set(0);
+        })
+        .enabled(enabled),
+    [drag, targets, offset, count, width, height, min0, min1, pxPerHour, labelH, onPick, onDrop, enabled, down, vxLast],
+  );
 }
 
 /**
@@ -220,7 +229,7 @@ export function useSkipGesture(p: GestureProps) {
  * card is over it. The bin and its word sit on a patch, so the lines stop around them. `lesson`: the class under your
  * finger (Calendar keeps it).
  */
-export function DragLayer({ drag, lesson, width, height, compact }: { drag: SkipDrag; lesson: Lesson | null; width: number; height: number; compact: boolean }) {
+export const DragLayer = memo(function DragLayer({ drag, lesson, width, height, compact }: { drag: SkipDrag; lesson: Lesson | null; width: number; height: number; compact: boolean }) {
   const { t } = useT();
   const lines = String(useCSSVariable('--color-ink-3') ?? '#6E6A62');
   const show = useDerivedValue(() => withSpring(drag.phase.get() === 2 || drag.phase.get() === 3 ? 1 : 0, SWING));
@@ -298,7 +307,7 @@ export function DragLayer({ drag, lesson, width, height, compact }: { drag: Skip
       </Animated.View>
     </View>
   );
-}
+});
 
 /** Keeps the grid's draggable classes in a shared value, for the gesture on the UI thread. */
 export function useDragTargets(list: DragTarget[]) {

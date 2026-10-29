@@ -10,10 +10,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
+import { PerfOverlay } from '@/components/PerfOverlay';
 import { loadLanguage } from '@/i18n';
 import { fonts } from '@/lib/fonts';
 import { startNetworkWatch } from '@/lib/net';
-import { persister, queryClient, startFocusWatch } from '@/lib/query';
+import { persister, queryClient, shouldPersist, startFocusWatch } from '@/lib/query';
 import { loadServer } from '@/lib/server';
 import { resetTo } from '@/lib/nav';
 import { loadSession, session } from '@/lib/session';
@@ -52,7 +53,8 @@ export default function RootLayout() {
       <PersistQueryClientProvider
         client={queryClient}
         // Bump `buster` when cached shapes change, so old caches are thrown away
-        persistOptions={{ persister, maxAge: 7 * 24 * 60 * 60_000, buster: 'v2-2' }}
+        // Only what the next cold start needs is written (lib/query.shouldPersist)
+        persistOptions={{ persister, maxAge: 7 * 24 * 60 * 60_000, buster: 'v2-2', dehydrateOptions: { shouldDehydrateQuery: shouldPersist } }}
       >
         <StatusBar style="auto" />
         {/* The same native push on iOS and Android, with the swipe back */}
@@ -61,6 +63,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ gestureEnabled: false, animation: 'fade' }} />
           <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
         </Stack>
+        {/* Development and EXPO_PUBLIC_DEBUG builds only, and only when switched on (Server & debug) */}
+        <PerfOverlay />
       </PersistQueryClientProvider>
     </SafeAreaProvider>
     </GestureHandlerRootView>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -16,6 +16,8 @@ const H = 40;
 /** Settles in its corner with a small bounce. */
 const SNAP = { damping: 15, stiffness: 210, mass: 0.8 };
 
+const saveCorner = (c: Corner) => prefs.set('today.corner', c);
+
 function cornerXY(c: Corner, w: number, h: number, top: number) {
   'worklet';
   return { x: c[1] === 'l' ? MARGIN : w - W - MARGIN, y: c[0] === 't' ? top + MARGIN : h - H - MARGIN };
@@ -26,7 +28,7 @@ function cornerXY(c: Corner, w: number, h: number, top: number) {
  * there from where you were). Drag it anywhere; it settles in the nearest corner with a little bounce, and stays
  * in that corner next time (`prefs` `today.corner`).
  */
-export function TodayPill({ width, height, top, onPress }: { width: number; height: number; top: number; onPress: () => void }) {
+export const TodayPill = memo(function TodayPill({ width, height, top, onPress }: { width: number; height: number; top: number; onPress: () => void }) {
   const { t } = useT();
   const x = useSharedValue(width - W - MARGIN);
   const y = useSharedValue(height - H - MARGIN);
@@ -41,33 +43,36 @@ export function TodayPill({ width, height, top, onPress }: { width: number; heig
     });
   }, [width, height, top]);
 
-  const save = (c: Corner) => prefs.set('today.corner', c);
-  const drag = Gesture.Pan()
-    .onBegin(() => {
-      sx.set(x.get());
-      sy.set(y.get());
-    })
-    .onUpdate((e) => {
-      x.set(sx.get() + e.translationX);
-      y.set(sy.get() + e.translationY);
-    })
-    .onEnd((e) => {
-      // Where it would go with its speed, then the nearest corner
-      const px = x.get() + e.velocityX * 0.15 + W / 2;
-      const py = y.get() + e.velocityY * 0.15 + H / 2;
-      const c = `${py < (top + height) / 2 ? 't' : 'b'}${px < width / 2 ? 'l' : 'r'}` as Corner;
-      const p = cornerXY(c, width, height, top);
-      x.set(withSpring(p.x, { ...SNAP, velocity: e.velocityX }));
-      y.set(withSpring(p.y, { ...SNAP, velocity: e.velocityY }));
-      scheduleOnRN(save, c);
+  // Made again only when the grid's size changes (or `onPress`: keep that stable)
+  const gesture = useMemo(() => {
+    const drag = Gesture.Pan()
+      .onBegin(() => {
+        sx.set(x.get());
+        sy.set(y.get());
+      })
+      .onUpdate((e) => {
+        x.set(sx.get() + e.translationX);
+        y.set(sy.get() + e.translationY);
+      })
+      .onEnd((e) => {
+        // Where it would go with its speed, then the nearest corner
+        const px = x.get() + e.velocityX * 0.15 + W / 2;
+        const py = y.get() + e.velocityY * 0.15 + H / 2;
+        const c = `${py < (top + height) / 2 ? 't' : 'b'}${px < width / 2 ? 'l' : 'r'}` as Corner;
+        const p = cornerXY(c, width, height, top);
+        x.set(withSpring(p.x, { ...SNAP, velocity: e.velocityX }));
+        y.set(withSpring(p.y, { ...SNAP, velocity: e.velocityY }));
+        scheduleOnRN(saveCorner, c);
+      });
+    const tap = Gesture.Tap().onEnd((_e, ok) => {
+      if (ok) scheduleOnRN(onPress);
     });
-  const tap = Gesture.Tap().onEnd((_e, ok) => {
-    if (ok) scheduleOnRN(onPress);
-  });
+    return Gesture.Exclusive(drag, tap);
+  }, [x, y, sx, sy, width, height, top, onPress]);
   const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }, { translateY: y.get() }] }));
 
   return (
-    <GestureDetector gesture={Gesture.Exclusive(drag, tap)}>
+    <GestureDetector gesture={gesture}>
       <AView
         entering={enter}
         exiting={exit}
@@ -84,4 +89,4 @@ export function TodayPill({ width, height, top, onPress }: { width: number; heig
       </AView>
     </GestureDetector>
   );
-}
+});

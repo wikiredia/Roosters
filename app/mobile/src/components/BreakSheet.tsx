@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { View } from 'react-native';
 import { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 
@@ -45,7 +45,7 @@ const ORDER: Step[] = ['who', 'how', 'note'];
  * the second page: any time that day. The server checks that everyone is free and nobody was asked already;
  * what's wrong shows on the last page.
  */
-export function BreakSheet({ target, onClose }: { target: BreakTarget; onClose: () => void }) {
+export const BreakSheet = memo(function BreakSheet({ target, onClose }: { target: BreakTarget; onClose: () => void }) {
   const { t, lang } = useT();
   // Keep showing the last target while the sheet slides away; a new one starts on its first page
   const [last, setLast] = useState(target);
@@ -93,7 +93,7 @@ export function BreakSheet({ target, onClose }: { target: BreakTarget; onClose: 
       ) : null}
     </Sheet>
   );
-}
+});
 
 function Form({ target, step, dir, go, onDone }: { target: NonNullable<BreakTarget>; step: Step; dir: 1 | -1; go: (s: Step) => void; onDone: () => void }) {
   const { t, lang } = useT();

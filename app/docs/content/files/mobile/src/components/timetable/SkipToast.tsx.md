@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 The **summary after a skip**: a small dark card at the bottom of the calendar (`Calendar` shows it), so it never
@@ -9,6 +9,7 @@ answers). It goes by itself; a tap sends it away sooner. Also says when a skip w
 
 ## `SkipToast`, `SkipNote`
 
+Memo: it renders when the note changes or the countdown ticks, not with the calendar (keep `onUndo` and `onDone` stable).
 `note.id` changes per toast, so a new skip restarts the countdown. Undo goes to `Calendar`, which takes the last
 skip back (`useSkip` with `skipped: false`).
 

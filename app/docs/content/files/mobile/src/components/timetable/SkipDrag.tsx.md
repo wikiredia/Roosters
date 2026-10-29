@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 **Dragging a class into the bin to skip it.** The gesture lives in `DayGrid` (first in its gesture tree, so the swipe
@@ -8,6 +8,10 @@ They share one `SkipDrag` of shared values, so the card follows the finger on th
 
 Watch out: the hard part is telling a drag apart from a swipe through the days and from a tap. Change `HOLD` or the
 direction rule in `useSkipGesture` and test both on a phone.
+
+The gesture is `useMemo`'d (made again only when the grid's size, hours or the callbacks change), so `onPick` and `onDrop`
+must keep their identity, and `useSkipDrag` returns one object for the life of the component for the same reason (a new
+object on every render used to defeat `DayGrid`'s memo). `enabled: false` makes the gesture fail at once.
 
 ## `useSkipGesture`, `GestureProps`
 

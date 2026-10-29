@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { type SharedValue, useAnimatedStyle, useFrameCallback, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
@@ -19,6 +19,7 @@ const EDGE = 0.3;
 /** Scrolling speed at the edge, days per second: starts calm, faster the further you push */
 const SCROLL_MIN = 2.5;
 const SCROLL_MAX = 9;
+const NO_DOTS: LessonKind[] = [];
 
 type Props = {
   /** Shared with the grid: the left edge of what you see (days), how many days, and where in the strip that
@@ -34,7 +35,7 @@ type Props = {
   today: number;
   lang: Lang;
   /** The kinds of lessons on a day: a small dot each under the date. */
-  kinds: (day: number) => LessonKind[];
+  kinds: ReadonlyMap<number, LessonKind[]>;
   onPick: (day: number) => void;
   /** The group was let go: the first day you see from now on (as the grid's `onTarget`). */
   onTarget: (start: number) => void;
@@ -59,8 +60,10 @@ type Props = {
  * dates scroll further in time (faster the further you push). Let go and it settles on a whole day. Swiping the
  * dates themselves does nothing; swipe the grid instead (the strip follows). Under each date a small dot per kind of
  * lesson that day. Tap a day to start there.
+ * Memo, and its gestures are made once: give it stable callbacks and the `kinds` Map (Calendar does), so it renders when its
+ * days or size change, not with every swipe or sheet.
  */
-export function DayStrip({ offset, count, n, k, width, from, to, today, lang, kinds, onPick, onTarget, onMove, onResize, onResizeEnd, nudge }: Props) {
+export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, from, to, today, lang, kinds, onPick, onTarget, onMove, onResize, onResizeEnd, nudge }: Props) {
   const { t } = useT();
   const cell = width / 7;
   const startCount = useSharedValue(1);
@@ -87,85 +90,107 @@ export function DayStrip({ offset, count, n, k, width, from, to, today, lang, ki
     wiggle.set(nudge ? withRepeat(withSequence(withTiming(0, { duration: 1400 }), withSpring(9, { damping: 8, stiffness: 300 }), withSpring(0, RESIZE)), -1) : withTiming(0));
   }, [nudge, wiggle]);
 
-  const pan = Gesture.Pan()
-    .hitSlop({ left: 16, right: 16, top: 10, bottom: 10 })
-    .activeOffsetX([-4, 4])
-    .onBegin(() => {
-      startCount.set(count.get());
-      startK.set(k.get());
-      startOffset.set(offset.get());
-      pulled.set(false);
-      last.set(Math.round(count.get()));
-    })
-    .onUpdate((e) => {
-      let live = startCount.get() + e.translationX / cell;
-      if (live < 1) {
-        // Past the first day: one day, and that day follows your finger back in time (the white cell slides
-        // left; at the strip's edge the dates slide right under it instead)
-        const back = 1 - live;
-        count.set(1);
-        k.set(Math.max(0, startK.get() - back));
-        offset.set(startOffset.get() - back);
-        pulled.set(true);
-        live = 1;
-      } else {
-        // Rubber band past 7
-        if (live > MAX_DAYS) live = MAX_DAYS + (live - MAX_DAYS) / 4;
-        count.set(live);
-        if (pulled.get()) {
-          offset.set(startOffset.get());
-          pulled.set(false);
-        }
-        // The band stays inside the strip: when it grows past Sunday the dates slide left under it
-        k.set(Math.max(0, Math.min(startK.get(), 7 - live)));
-      }
-      const r = Math.max(1, Math.min(MAX_DAYS, Math.round(live)));
-      if (r !== last.get()) {
-        last.set(r);
-        scheduleOnRN(onResize, r);
-      }
-    })
-    .onFinalize(() => {
-      const days = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
-      count.set(withSpring(days, RESIZE));
-      k.set(withSpring(Math.max(0, Math.min(Math.round(k.get()), 7 - days)), RESIZE));
-      if (pulled.get()) {
-        const start = Math.round(offset.get());
-        offset.set(withSpring(start, SWIPE));
-        scheduleOnRN(onResizeEnd, days, start);
-      } else scheduleOnRN(onResizeEnd, days, undefined);
-    });
+  // Taps through the gesture system too: a swipe never ends as a tap on the day under your finger.
+  // The three gestures are made again only when the strip's size changes (Calendar keeps the callbacks stable).
+  const tap = useMemo(
+    () =>
+      Gesture.Tap()
+        .maxDistance(8)
+        .onEnd((e, ok) => {
+          if (ok) scheduleOnRN(onPick, Math.floor(offset.get() - k.get() + e.x / cell));
+        }),
+    [offset, k, cell, onPick],
+  );
 
   // Picking up the group: it follows the finger over the dates (they stay put, so offset moves with k)
-  const move = Gesture.Pan()
-    .activeOffsetX([-6, 6])
-    .failOffsetY([-14, 14])
-    .onBegin(() => {
-      startK.set(k.get());
-      win.set(offset.get() - k.get());
-      told.set(Math.round(offset.get()));
-    })
-    .onStart(() => {
-      dragging.set(true);
-      lifted.set(withSpring(1, RESIZE));
-    })
-    .onUpdate((e) => {
-      const wanted = startK.get() + e.translationX / cell;
-      const kk = Math.max(0, Math.min(7 - count.get(), wanted));
-      push.set(wanted - kk);
-      k.set(kk);
-      offset.set(win.get() + kk);
-    })
-    .onFinalize(() => {
-      if (!dragging.get()) return;
-      dragging.set(false);
-      push.set(0);
-      lifted.set(withSpring(0, RESIZE));
-      const start = Math.round(offset.get());
-      offset.set(withSpring(start, SWIPE));
-      k.set(withSpring(Math.round(k.get()), SWIPE));
-      scheduleOnRN(onTarget, start);
-    });
+  const move = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-6, 6])
+        .failOffsetY([-14, 14])
+        .onBegin(() => {
+          startK.set(k.get());
+          win.set(offset.get() - k.get());
+          told.set(Math.round(offset.get()));
+        })
+        .onStart(() => {
+          dragging.set(true);
+          lifted.set(withSpring(1, RESIZE));
+        })
+        .onUpdate((e) => {
+          const wanted = startK.get() + e.translationX / cell;
+          const kk = Math.max(0, Math.min(7 - count.get(), wanted));
+          push.set(wanted - kk);
+          k.set(kk);
+          offset.set(win.get() + kk);
+        })
+        .onFinalize(() => {
+          if (!dragging.get()) return;
+          dragging.set(false);
+          push.set(0);
+          lifted.set(withSpring(0, RESIZE));
+          const start = Math.round(offset.get());
+          offset.set(withSpring(start, SWIPE));
+          k.set(withSpring(Math.round(k.get()), SWIPE));
+          scheduleOnRN(onTarget, start);
+        }),
+    [k, win, offset, told, dragging, lifted, push, startK, count, cell, onTarget],
+  );
+
+  // The dash wins over moving the group and over a tap
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .hitSlop({ left: 16, right: 16, top: 10, bottom: 10 })
+        .activeOffsetX([-4, 4])
+        .onBegin(() => {
+          startCount.set(count.get());
+          startK.set(k.get());
+          startOffset.set(offset.get());
+          pulled.set(false);
+          last.set(Math.round(count.get()));
+        })
+        .onUpdate((e) => {
+          let live = startCount.get() + e.translationX / cell;
+          if (live < 1) {
+            // Past the first day: one day, and that day follows your finger back in time (the white cell slides
+            // left; at the strip's edge the dates slide right under it instead)
+            const back = 1 - live;
+            count.set(1);
+            k.set(Math.max(0, startK.get() - back));
+            offset.set(startOffset.get() - back);
+            pulled.set(true);
+            live = 1;
+          } else {
+            // Rubber band past 7
+            if (live > MAX_DAYS) live = MAX_DAYS + (live - MAX_DAYS) / 4;
+            count.set(live);
+            if (pulled.get()) {
+              offset.set(startOffset.get());
+              pulled.set(false);
+            }
+            // The band stays inside the strip: when it grows past Sunday the dates slide left under it
+            k.set(Math.max(0, Math.min(startK.get(), 7 - live)));
+          }
+          const r = Math.max(1, Math.min(MAX_DAYS, Math.round(live)));
+          if (r !== last.get()) {
+            last.set(r);
+            scheduleOnRN(onResize, r);
+          }
+        })
+        .onFinalize(() => {
+          const days = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
+          count.set(withSpring(days, RESIZE));
+          k.set(withSpring(Math.max(0, Math.min(Math.round(k.get()), 7 - days)), RESIZE));
+          if (pulled.get()) {
+            const start = Math.round(offset.get());
+            offset.set(withSpring(start, SWIPE));
+            scheduleOnRN(onResizeEnd, days, start);
+          } else scheduleOnRN(onResizeEnd, days, undefined);
+        })
+        .blocksExternalGesture(move, tap),
+    [startCount, startK, startOffset, pulled, last, count, k, offset, cell, onResize, onResizeEnd, move, tap],
+  );
 
   // Pushed against an edge: the dates scroll under the group, every frame (the group stays at the edge)
   useFrameCallback((frame) => {
@@ -182,15 +207,6 @@ export function DayStrip({ offset, count, n, k, width, from, to, today, lang, ki
     }
   });
 
-  // Taps through the gesture system too: a swipe never ends as a tap on the day under your finger
-  const tap = Gesture.Tap()
-    .maxDistance(8)
-    .onEnd((e, ok) => {
-      if (ok) scheduleOnRN(onPick, Math.floor(offset.get() - k.get() + e.x / cell));
-    });
-  // The dash wins over moving the group and over a tap
-  pan.blocksExternalGesture(move, tap);
-
   const days: number[] = [];
   for (let i = from; i <= to; i++) days.push(i);
 
@@ -205,7 +221,7 @@ export function DayStrip({ offset, count, n, k, width, from, to, today, lang, ki
               {days.map((day) => {
                 const d = dateAt(day);
                 const weekend = day % 7 >= 5;
-                const dots = kinds(day);
+                const dots = kinds.get(day) ?? NO_DOTS;
                 return (
                   // Touches go to the strip's tap gesture; screen readers activate the day itself
                   <View
@@ -260,4 +276,4 @@ export function DayStrip({ offset, count, n, k, width, from, to, today, lang, ki
       </View>
     </GestureDetector>
   );
-}
+});

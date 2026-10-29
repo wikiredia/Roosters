@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T07:47:21Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 The **week strip** above the timetable: seven equal cells. What you see in the grid is a white cell (the first day)
@@ -25,13 +25,15 @@ dash an 'adjustable' control.
 
 ## `DayStrip`, `Props`
 
-As above. `onResize` fires every time the dash covers another number of days, `onResizeEnd` when it's let go (with
-the new first day when you pulled it back, else `undefined`); `kinds(day)` gives the dots, `onTarget` where the
+As above. Memo, and its three gestures (`tap`, `move`, `pan`) are made once and again only when its size changes: give it
+callbacks that keep their identity and the `kinds` Map (`Calendar` does), so it renders when its days or width change, not with a swipe or a sheet.
+`onResize` fires every time the dash covers another number of days, `onResizeEnd` when it's let go (with
+the new first day when you pulled it back, else `undefined`); `kinds.get(day)` gives the dots, `onTarget` where the
 group was let go, `onMove` the first day while it scrolls at the edge;
 `nudge` makes the dash wiggle (first-time tip). `n` is the number of days as React knows it, for the
 screen reader label and the adjustable action: render never reads the shared `count` (Reanimated warns about that).
 
-## `H`, `EDGE`, `SCROLL_MIN`, `SCROLL_MAX`
+## `H`, `EDGE`, `SCROLL_MIN`, `SCROLL_MAX`, `NO_DOTS`
 
 The strip's height; how far (cells) the group must be pushed past the edge before the dates scroll, and the
-scrolling speed there (days per second, from calm to fast).
+scrolling speed there (days per second, from calm to fast); and the one empty list of dots a day without lessons uses.

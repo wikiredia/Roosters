@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 A **bottom sheet**: scrim, grabber, a title row with a close button. The one shadow in the app.
@@ -16,7 +16,7 @@ under the sheet, so it isn't dimmed (the chat lifts the message you long-pressed
 
 ## `Props`, `Sheet`
 
-As above.
+As above. The drag-down gesture is made once (`useMemo`, with `onClose` behind `lib/latest.useStable`), not on every render.
 
 ## `OPEN`, `CLOSE`, `DISMISS_DISTANCE`, `DISMISS_VELOCITY`
 
