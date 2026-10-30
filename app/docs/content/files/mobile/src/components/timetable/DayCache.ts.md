@@ -36,7 +36,7 @@ start and latest end, or null), `skippable` (merged classes that could be skippe
 (`TapTargets`; your own break with nobody is `free` minus every shared break, hatched ones too, and only from today on:
 a past day has none, like its muted shared breaks). `id` is a counter: `useDays` uses it to see that nothing changed.
 
-## `DayPlan`, `HOURS`, `withPlan`, `planned`
+## `DayPlan`, `HOURS`, `withPlan`
 
 **Today's plan shapes your own breaks today** (Today's check-in, `Checkin`; `Calendar` turns it into a `DayPlan` and
 keeps the object while its values are the same):

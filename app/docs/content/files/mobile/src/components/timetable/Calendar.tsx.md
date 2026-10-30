@@ -87,6 +87,6 @@ A small dark tip with 'Oké', over the content but never the whole screen.
 
 ## `AXIS_W`, `MIN_SPAN`, `DEFAULT_LEGEND`, `hoursFor`
 
-The hours always on screen are `DayCache.HOURS` (8–18, lessons stretch them), the width of the hours on the left, the fewest hours the axis can be
+The hours always on screen are `DayCache.HOURS` (8–18, lessons stretch them); `AXIS_W` is the width of the hours on the left, the fewest hours the axis can be
 dragged down to (`MIN_SPAN`), and what the legend shows before anything is loaded. `hoursFor`: the hours of the visible days, from their `bounds` (zoomed: only those of the lessons).
 How far ahead a shared break can be asked for (`ASK_DAYS`) moved to `DayCache`.
