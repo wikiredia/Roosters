@@ -65,8 +65,12 @@ def connect(c, a: int, b: int):
 
 
 def disconnect(c, a: int, b: int):
+    """Unfriending (and blocking): the friendship goes, and open access requests between them are cancelled
+    (access.py; their cards and break requests are hidden anyway while they're not friends)."""
     db.run("DELETE FROM friendships WHERE (user_id=%s AND friend_id=%s) OR (user_id=%s AND friend_id=%s)",
            (a, b, b, a), c)
+    db.run("UPDATE access_requests SET status='cancelled', decided_at=UTC_TIMESTAMP() WHERE status='pending' "
+           "AND ((from_id=%s AND to_id=%s) OR (from_id=%s AND to_id=%s))", (a, b, b, a), c)
 
 
 def block(c, a: int, b: int):

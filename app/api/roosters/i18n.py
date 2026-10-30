@@ -49,6 +49,8 @@ ERRORS = {
     "break_dup": ("Daarover loopt al een vraag.", "There's already a request for that."),
     "break_gone": ("Dit verzoek bestaat niet meer.", "This request doesn't exist anymore."),
     "break_over": ("Deze pauze is al voorbij.", "This break is already over."),
+    "access_has": ("Die vriend toont je dat al.", "That friend already shows you that."),
+    "access_dup": ("Je vraag staat al open.", "Your request is still open."),
     "chat_gone": ("Dit gesprek bestaat niet (meer) voor jou.", "This chat doesn't exist (anymore) for you."),
     "chat_name": ("Geef je groep een naam.", "Give your group a name."),
     "chat_people": ("Kies wie er in de groep komt.", "Choose who's in the group."),

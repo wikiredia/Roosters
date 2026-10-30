@@ -2,7 +2,8 @@
 
 Two ways in, both a job (a slow or unreachable push service must never make a request wait):
 - `notifications.enqueue` stores an in-app notification and queues `push` for that user; the job pushes what
-  hasn't been pushed yet (break requests and answers, timetable changes), several changes of one day as one push.
+  hasn't been pushed yet (break and access requests and answers, timetable changes), several changes of one day
+  as one push. A request's push opens the chat with its card (`chat` in the notification's payload).
 - `chat.send` queues `push_chat` for the message: everyone in the chat with the bell on gets it.
 
 What reaches a phone: its session's token (`sessions.push_token`, set by the app via PUT /me/push-token), only
@@ -35,7 +36,8 @@ TOKEN = re.compile(r"^Expo(nent)?PushToken\[[A-Za-z0-9_-]{8,180}\]$")
 
 # Notification kind -> category in Meldingen (also the Android channel the app creates)
 CATEGORY = {"break_request": "requests", "break_counter": "requests", "break_answer": "requests",
-            "break_cancelled": "requests", "schedule_change": "changes"}
+            "break_cancelled": "requests", "access_request": "requests", "access_answer": "requests",
+            "schedule_change": "changes"}
 CATEGORIES = ("requests", "changes", "chat")
 DEFAULTS = {"requests": True, "changes": True, "chat": True, "quiet_from": None, "quiet_until": None}
 
@@ -102,6 +104,23 @@ def break_text(kind: str, p: dict, day: dt.date, name: str, lang: str, today: dt
             ("Break called off", f"{name} called off the break {when}."))
 
 
+def access_text(kind: str, p: dict, name: str, lang: str) -> tuple[str, str]:
+    """(title, body) of an access request ("Mag ik je rooster zien?") or the answer to it."""
+    nl = lang == "nl"
+    full = p.get("visibility") == "full"
+    if kind == "access_request":
+        what = ("je volledige rooster" if full else "je rooster (zonder lokalen)") if nl else \
+            ("your full timetable" if full else "your timetable (without rooms)")
+        return (("Mag ik je rooster zien?", f"{name} vraagt om {what} te zien.") if nl else
+                ("Can I see your timetable?", f"{name} asks to see {what}."))
+    if p.get("response") == "accepted":
+        what = ("het volledige rooster" if full else "het rooster (zonder lokalen)") if nl else \
+            ("their full timetable" if full else "their timetable (without rooms)")
+        return ("Rooster gedeeld", f"{name} toont je nu {what}.") if nl else ("Timetable shared", f"{name} now shows you {what}.")
+    return (("Geen toegang", f"{name} deelt het rooster liever niet.") if nl else
+            ("No access", f"{name} would rather not share their timetable."))
+
+
 def _moved(ch: dict, lang: str) -> list[str]:
     """What changed about a lesson: 10:30 → 13:00, B204 → C102, di → wo."""
     old = ch.get("old") or {}
@@ -156,11 +175,18 @@ def build(notes: list[dict], names: dict[int, str], lang: str, today: dt.date) -
         if kind == "schedule_change":
             changes.setdefault(p["day"], []).append(p)
             continue
-        if kind not in CATEGORY or n["day"] is None:
+        name = names.get(p.get("from"), "?")
+        if kind in ("access_request", "access_answer"):
+            title, body = access_text(kind, p, name, lang)
+        elif kind in CATEGORY and n["day"] is not None:
+            title, body = break_text(kind, p, n["day"], name, lang, today)
+        else:
             continue
-        title, body = break_text(kind, p, n["day"], names.get(p.get("from"), "?"), lang, today)
+        # Opens the chat with the request's card (older notifications without one: Today)
+        chat = p.get("chat")
         m = {"title": title, "body": body, "channelId": "requests", "priority": "high", "sound": "default",
-             "data": {"kind": kind, "request": p.get("request"), "url": "/today"}}
+             "data": {"kind": kind, "request": p.get("request"), "chat": chat,
+                      "url": f"/chat/{chat}" if chat else "/today"}}
         if kind in ("break_request", "break_counter"):
             # Ja / Nee / Ander uur on the notification (the app registers this category)
             m["categoryId"] = "break_request"

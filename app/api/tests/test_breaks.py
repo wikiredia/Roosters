@@ -156,3 +156,63 @@ def test_unfriending_and_deleting_hide_requests(client, mails, school):
     client.delete("/api/v1/me", headers=reda["headers"])
     assert db.one("SELECT COUNT(*) AS n FROM break_requests")["n"] == 0
     assert db.one("SELECT COUNT(*) AS n FROM break_request_members")["n"] == 0
+
+
+def test_busy_in_the_breaks_cant_be_asked():
+    i = info([(9, 10), (12, 13)], {"break_status": "busy"})
+    assert conflict(i, 10 * H + 30, 11 * H) == "busy"
+    # After school is still fine
+    assert conflict(i, 13 * H, 14 * H) is None
+
+
+# ---- Cards in the chat -------------------------------------------------------------
+
+def test_the_card_goes_in_the_direct_chat(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    r = _ask(client, reda, kayra)
+    d = client.post("/api/v1/chats/direct", headers=reda["headers"], json={"user_id": kayra["user_id"]}).json()["chat"]
+    assert r.json()["chats"] == [d["id"]]
+    b = r.json()["break"]
+    note = next(n for n in client.get("/api/v1/me/notifications", headers=kayra["headers"]).json()["notifications"]
+                if n["kind"] == "break_request")
+    assert note["payload"]["chat"] == d["id"]
+    # "Ander uur": its own card, in the same chat
+    c = client.post(f"/api/v1/breaks/{b['id']}/counter", headers=kayra["headers"], json={"start": 660, "end": 705}).json()
+    assert c["chats"] == [d["id"]]
+    cards = [m["payload"]["request"] for m in client.get(f"/api/v1/chats/{d['id']}/messages",
+                                                         headers=reda["headers"]).json()["messages"]]
+    assert cards == [b["id"], c["break"]["id"]]
+    # Kayra takes hers back: Reda hears it, with the chat
+    client.post(f"/api/v1/breaks/{c['break']['id']}/respond", headers=reda["headers"], json={"response": "accepted"})
+    client.post(f"/api/v1/breaks/{c['break']['id']}/cancel", headers=kayra["headers"])
+    gone = next(n for n in client.get("/api/v1/me/notifications", headers=reda["headers"]).json()["notifications"]
+                if n["kind"] == "break_cancelled")
+    assert gone["payload"]["chat"] == d["id"]
+
+
+def test_a_group_of_exactly_them_gets_one_card(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    lotte = login(client, "lotte@example.com", mails)
+    onboard(client, lotte, school, school["classes"][0])
+    befriend(client, reda, lotte)
+    befriend(client, kayra, lotte)
+    g = client.post("/api/v1/chats", headers=kayra["headers"],
+                    json={"name": "Bende", "user_ids": [reda["user_id"], lotte["user_id"]]}).json()["chat"]
+    r = client.post("/api/v1/breaks", headers=reda["headers"],
+                    json={"to_ids": [kayra["user_id"], lotte["user_id"]], "day": DAY.isoformat(), "start": 630, "end": 720})
+    assert r.status_code == 201, r.text
+    assert r.json()["chats"] == [g["id"]]
+    assert db.one("SELECT COUNT(*) AS n FROM chat_messages WHERE kind='request'")["n"] == 1
+    # Both answers point at the group
+    for who in (kayra, lotte):
+        client.post(f"/api/v1/breaks/{r.json()['break']['id']}/respond", headers=who["headers"], json={"response": "declined"})
+    answers = [n["payload"]["chat"] for n in client.get("/api/v1/me/notifications", headers=reda["headers"]).json()["notifications"]
+               if n["kind"] == "break_answer"]
+    assert answers == [g["id"], g["id"]]
+    # Only one of them: the direct chat, not the group
+    one = _ask(client, reda, lotte, start=640, end=700).json()
+    assert one["chats"] != [g["id"]] and len(one["chats"]) == 1
+    # Lotte and Reda aren't friends any more: in the group, the card shows Lotte nothing
+    client.delete(f"/api/v1/friends/{reda['user_id']}", headers=lotte["headers"])
+    card = client.get(f"/api/v1/chats/{g['id']}/messages", headers=lotte["headers"]).json()["messages"][-1]
+    assert card["kind"] == "request" and card["request"] is None

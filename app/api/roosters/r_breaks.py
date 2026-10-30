@@ -11,10 +11,14 @@ from .deps import Ctx, parse_day, verified
 router = APIRouter(prefix="/api/v1/breaks", tags=["breaks"])
 
 
-def _answer(ctx: Ctx, rid: int | None = None) -> dict:
-    """Every write answers with your whole list (the app replaces its copy), and the request it was about."""
+def _answer(ctx: Ctx, rid: int | None = None, chats: list[int] | None = None) -> dict:
+    """Every write answers with your whole list (the app replaces its copy), and the request it was about.
+    A new request (ask, counter) also says which chats its card went to (`chats`): the app opens that chat."""
     items = breaks.list_for(ctx.user)
-    return {"breaks": items, "break": next((b for b in items if b["id"] == rid), None)}
+    out = {"breaks": items, "break": next((b for b in items if b["id"] == rid), None)}
+    if chats is not None:
+        out["chats"] = chats
+    return out
 
 
 @router.get("")
@@ -39,8 +43,8 @@ def ask(body: BreakIn, ctx: Ctx = Depends(verified)):
     redisx.rate_limit(f"break-request:{ctx.uid}", 30, 3600)
     day = parse_day(body.day, schedule.local_now(ctx.user).date())
     with db.tx() as c:
-        rid = breaks.create(c, ctx.user, body.to_ids, day, body.start, body.end, body.mode, body.place, body.note)
-    return _answer(ctx, rid)
+        rid, chats = breaks.create(c, ctx.user, body.to_ids, day, body.start, body.end, body.mode, body.place, body.note)
+    return _answer(ctx, rid, chats)
 
 
 class RespondIn(BaseModel):
@@ -66,8 +70,8 @@ def counter(request_id: int, body: CounterIn, ctx: Ctx = Depends(verified)):
     """'Ander uur': no to this one, and a new request back at the time you propose."""
     redisx.rate_limit(f"break-request:{ctx.uid}", 30, 3600)
     with db.tx() as c:
-        rid = breaks.counter(c, ctx.user, request_id, body.start, body.end, body.place, body.note)
-    return _answer(ctx, rid)
+        rid, chats = breaks.counter(c, ctx.user, request_id, body.start, body.end, body.place, body.note)
+    return _answer(ctx, rid, chats)
 
 
 @router.post("/{request_id}/cancel")

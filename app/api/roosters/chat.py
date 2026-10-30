@@ -1,5 +1,6 @@
-"""Chat: one-to-one with a friend, and groups of friends ("De bende"). Text messages, and events the app turns
-into a sentence ("Lotte en Amir pakken samen pauze om 12:30"). Read up to where (unread counts, "gelezen"),
+"""Chat: one-to-one with a friend, and groups of friends ("De bende"). Text messages, events the app turns
+into a sentence ("Lotte en Amir pakken samen pauze om 12:30"), and request cards: a break request (breaks.py) or an
+access request (access.py) as a message of kind 'request' that always shows the request as it is now. Read up to where (unread counts, "gelezen"),
 pinned chats, and moderation: report a message (the writer never knows), block the writer, take back your own.
 The routes are in r_chat.py; the moderators' side (open reports) is in admin.py.
 
@@ -11,7 +12,14 @@ Who sees what:
 
 Push: the bell per chat (`chat_members.push`, off by default); `send` queues push.py's `push_chat` job.
 
-Tables: chats, chat_members, chat_messages, chat_reports (migrations/0009_chat.sql, 0013_push.sql)."""
+Request cards: `post_request` puts one in the direct chat with each person asked, or, when a group of exactly the
+asker and those people exists, once in that group. The message only points at the request (`payload`
+{type, request}); `messages` and `list_for` add the live request (`request`, the viewer's view, null when it's not
+for them any more), so the ETag of those answers changes with it. `requests` in the chat list: open requests in
+that chat that involve you (the yellow "Verzoek" tag).
+
+Tables: chats, chat_members, chat_messages, chat_reports (migrations/0009_chat.sql, 0013_push.sql,
+0016_request_cards.sql)."""
 import datetime as dt
 import re
 
@@ -96,10 +104,11 @@ def _visible(uid: int, chat: dict, members: list[dict], mates: set[int]) -> bool
     return len(others) == 1 and others[0] in mates
 
 
-def _summary(uid: int, chat: dict, members: list[dict], mine: dict, last: dict | None, unread: int) -> dict:
+def _summary(uid: int, chat: dict, members: list[dict], mine: dict, last: dict | None, unread: int,
+             requests: int = 0) -> dict:
     others = [m for m in members if m["id"] != uid]
     out = {"id": chat["id"], "kind": chat["kind"], "pinned": bool(mine["pinned"]), "push": bool(mine["push"]), "unread": unread,
-           "last_read_id": mine["last_read_id"], "last": message_out(last) if last else None,
+           "requests": requests, "last_read_id": mine["last_read_id"], "last": message_out(last) if last else None,
            "members": [_person(m) for m in others], "count": len(members)}
     if chat["kind"] == "direct":
         out["name"] = others[0]["display_name"] if others else None
@@ -111,9 +120,51 @@ def _summary(uid: int, chat: dict, members: list[dict], mine: dict, last: dict |
     return out
 
 
-def list_for(uid: int) -> dict:
-    """Your chats, pinned first, then the latest message first; with what's unread and the newest message you can see.
-    -> {"chats": [...], "unread": total unread messages}"""
+def _ref(m: dict) -> tuple[str, int] | None:
+    """(type, request id) of a request card."""
+    p = m.get("payload") or {}
+    if m["kind"] != "request" or p.get("type") not in ("break", "access") or not isinstance(p.get("request"), int):
+        return None
+    return p["type"], p["request"]
+
+
+def with_requests(user: dict, msgs: list[dict]) -> list[dict]:
+    """Adds `request` to the request cards among these messages: the request as it is now, from `user`'s side
+    (breaks.cards / access.cards), or None when it isn't for them any more."""
+    from . import access, breaks  # they post cards through this module
+    refs = [r for m in msgs if (r := _ref(m))]
+    if not refs:
+        return msgs
+    found = {("break", k): v for k, v in breaks.cards(user, [i for t, i in refs if t == "break"]).items()}
+    found |= {("access", k): v for k, v in access.cards(user["id"], [i for t, i in refs if t == "access"]).items()}
+    for m in msgs:
+        if m["kind"] == "request":
+            r = _ref(m)
+            m["request"] = found.get(r) if r else None
+    return msgs
+
+
+def _open_requests(user: dict, chat_ids: list[int]) -> dict[int, int]:
+    """Per chat: how many request cards in it are still open and involve you. A break request: still pending and
+    not over, and you asked or haven't answered yet; an access request: pending (you asked, or it's for you)."""
+    from . import access, breaks
+    open_ = {("break", b["id"]) for b in breaks.list_for(user)
+             if b["state"] == "pending" and (b["mine"] or b["my_response"] == "pending")}
+    open_ |= {("access", i) for i in access.open_ids(user["id"])}
+    if not open_ or not chat_ids:
+        return {}
+    ph, args = db.in_list(chat_ids)
+    out: dict[int, int] = {}
+    for r in db.rows(f"SELECT chat_id, kind, payload FROM chat_messages WHERE chat_id IN ({ph}) AND kind='request'", args):
+        if _ref({**r, "payload": db.unjs(r["payload"], None)}) in open_:
+            out[r["chat_id"]] = out.get(r["chat_id"], 0) + 1
+    return out
+
+
+def list_for(user: dict) -> dict:
+    """Your chats, pinned first, then the latest message first; with what's unread, the open requests in it and the
+    newest message you can see. -> {"chats": [...], "unread": total unread messages}"""
+    uid = user["id"]
     rows = db.rows("SELECT c.*, m.last_read_id, m.pinned, m.push FROM chat_members m JOIN chats c ON c.id=m.chat_id "
                    "WHERE m.user_id=%s", (uid,))
     members = _members([r["id"] for r in rows])
@@ -134,7 +185,10 @@ def list_for(uid: int) -> dict:
         f"AND m.user_id=%s WHERE msg.chat_id IN ({ph}) AND msg.id > m.last_read_id AND msg.kind='text' "
         f"AND msg.deleted_at IS NULL AND msg.user_id <> %s{nb} GROUP BY msg.chat_id",
         [uid] + args + [uid] + nbargs)}
-    out = [_summary(uid, r, members[r["id"]], r, lasts.get(r["id"]), unread.get(r["id"], 0)) for r in rows]
+    requests = _open_requests(user, ids)
+    out = [_summary(uid, r, members[r["id"]], r, lasts.get(r["id"]), unread.get(r["id"], 0), requests.get(r["id"], 0))
+           for r in rows]
+    with_requests(user, [s["last"] for s in out if s["last"]])
     out.sort(key=lambda s: (not s["pinned"], -(s["last"]["id"] if s["last"] else 0), -s["id"]))
     return {"chats": out, "unread": sum(s["unread"] for s in out)}
 
@@ -163,9 +217,11 @@ def chat_out(uid: int, chat_id: int) -> dict:
     return s
 
 
-def messages(uid: int, chat_id: int, after: int = 0, before: int = 0, limit: int = PAGE) -> dict:
+def messages(user: dict, chat_id: int, after: int = 0, before: int = 0, limit: int = PAGE) -> dict:
     """Oldest first. after: only newer ones (asking every few seconds while the chat is open); before: the page
-    above (scrolling up); neither: the newest page. -> {"messages", "more": older ones exist}"""
+    above (scrolling up); neither: the newest page. Request cards carry the live request (`with_requests`).
+    -> {"messages", "more": older ones exist}"""
+    uid = user["id"]
     _load(uid, chat_id)
     limit = max(1, min(limit, 100))
     nb, nbargs = _not_blocked("user_id", friends.blocked_by(uid))
@@ -174,13 +230,13 @@ def messages(uid: int, chat_id: int, after: int = 0, before: int = 0, limit: int
     if after:
         rows = db.rows(f"SELECT * FROM chat_messages WHERE {where} AND id > %s ORDER BY id LIMIT %s",
                        args + [after, limit])
-        return {"messages": [message_out(r) for r in rows], "more": False}
+        return {"messages": with_requests(user, [message_out(r) for r in rows]), "more": False}
     if before:
         where += " AND id < %s"
         args.append(before)
     rows = db.rows(f"SELECT * FROM chat_messages WHERE {where} ORDER BY id DESC LIMIT %s", args + [limit + 1])
     more = len(rows) > limit
-    return {"messages": [message_out(r) for r in reversed(rows[:limit])], "more": more}
+    return {"messages": with_requests(user, [message_out(r) for r in reversed(rows[:limit])]), "more": more}
 
 
 # ---- Writing -----------------------------------------------------------------------
@@ -294,8 +350,8 @@ def take_back(c, uid: int, chat_id: int, message_id: int):
     """Your own message disappears for everyone ("Bericht verwijderd")."""
     _load(uid, chat_id, c)
     n = db.run("UPDATE chat_messages SET deleted_at=UTC_TIMESTAMP(), body=NULL WHERE id=%s AND chat_id=%s "
-               "AND user_id=%s AND deleted_at IS NULL", (message_id, chat_id, uid), c)
-    if not n and not db.one("SELECT id FROM chat_messages WHERE id=%s AND chat_id=%s AND user_id=%s",
+               "AND user_id=%s AND kind='text' AND deleted_at IS NULL", (message_id, chat_id, uid), c)
+    if not n and not db.one("SELECT id FROM chat_messages WHERE id=%s AND chat_id=%s AND user_id=%s AND kind='text'",
                             (message_id, chat_id, uid), c):
         raise ApiError(404, "chat_message_gone")
 
@@ -324,16 +380,54 @@ def report(c, uid: int, message_id: int, reason: str, note: str | None, block: b
     return {"reported": True, "blocked": block}
 
 
-def post_event(c, people: list[int], payload: dict):
+def post_event(c, people: list[int], payload: dict, skip: set[int] | frozenset = frozenset()):
     """Something these people did together shows up in every chat they're all in (their one-to-one chat and shared
-    groups), e.g. a break they planned."""
+    groups), e.g. a break they planned. Not in the chats in `skip` (the ones whose request card already says it)."""
     people = sorted(set(people))
     if len(people) < 2:
         return
     ph, args = db.in_list(people)
     for r in db.rows(f"SELECT chat_id FROM chat_members WHERE user_id IN ({ph}) GROUP BY chat_id "
                      f"HAVING COUNT(*)=%s", args + [len(people)], c):
+        if r["chat_id"] in skip:
+            continue
         _add_event(c, r["chat_id"], {**payload, "people": people, "names": _names(c, people)})
+
+
+def _group_of(c, uid: int, people: list[int]) -> int | None:
+    """A group whose members are exactly `uid` and `people` (the newest if there are several), or None."""
+    everyone = sorted({uid, *people})
+    ph, args = db.in_list(everyone)
+    r = db.one(f"SELECT c.id FROM chats c JOIN chat_members m ON m.chat_id=c.id WHERE c.kind='group' AND c.id IN "
+               f"(SELECT chat_id FROM chat_members WHERE user_id=%s) GROUP BY c.id "
+               f"HAVING COUNT(*)=%s AND SUM(m.user_id IN ({ph}))=%s ORDER BY MAX(c.last_message_id) DESC LIMIT 1",
+               [uid, len(everyone)] + args + [len(everyone)], c)
+    return r["id"] if r else None
+
+
+def post_request(c, uid: int, people: list[int], payload: dict) -> dict[int, int]:
+    """A request card from `uid` (the asker) for `people`: in the group that is exactly them (2+ people), else
+    in the direct chat with each of them (opened if needed). Counts as read for the asker. No push of its own:
+    the request's notification is the push. -> {person: chat id where their card is}"""
+    people = sorted(set(people) - {uid})
+    group = _group_of(c, uid, people) if len(people) >= 2 else None
+    where = {p: group for p in people} if group else {p: open_direct(c, uid, p) for p in people}
+    for chat_id in dict.fromkeys(where.values()):
+        mid = db.run("INSERT INTO chat_messages (chat_id, user_id, kind, payload) VALUES (%s,%s,'request',%s)",
+                     (chat_id, uid, db.js(payload)), c)
+        db.run("UPDATE chats SET last_message_id=%s WHERE id=%s", (mid, chat_id), c)
+        db.run("UPDATE chat_members SET last_read_id=GREATEST(last_read_id,%s) WHERE chat_id=%s AND user_id=%s",
+               (mid, chat_id, uid), c)
+    return where
+
+
+def card_chats(c, kind: str, request_id: int, asker: int, uid: int | None = None) -> list[int]:
+    """The chats with the card of this request (newest first); with `uid` only the ones `uid` is in."""
+    join = " JOIN chat_members cm ON cm.chat_id=m.chat_id AND cm.user_id=%s" if uid else ""
+    return list(dict.fromkeys(r["chat_id"] for r in db.rows(
+        f"SELECT m.chat_id FROM chat_messages m{join} WHERE m.user_id=%s AND m.kind='request' "
+        f"AND m.payload->>'$.type'=%s AND CAST(m.payload->>'$.request' AS UNSIGNED)=%s ORDER BY m.id DESC",
+        ([uid] if uid else []) + [asker, kind, request_id], c)))
 
 
 def _drop_chats(c, ids: list[int]):

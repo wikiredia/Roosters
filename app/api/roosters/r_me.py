@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
 from . import (
+    access,
     accounts,
     breaks,
     config,
@@ -388,7 +389,7 @@ def today(request: Request, day: str | None = None, ctx: Ctx = Depends(auth)):
             board.append({"id": f["id"], "status": {"code": "hidden"}})
             continue
         board.append({"id": f["id"], "status": schedule.status(people[f["id"]], infos[f["id"]], now)})
-    order = {"break": 0, "chilling": 1, "wants_to_chill": 1, "in_class": 2, "later": 3, "done": 4, "home": 5,
+    order = {"break": 0, "chilling": 1, "wants_to_chill": 1, "in_class": 2, "break_busy": 2, "later": 3, "done": 4, "home": 5,
              "absent": 6, "no_classes": 7, "hidden": 8}
     # Friends you pinned always on top ("Vastgezet · bovenaan in Vandaag"), then whoever is free first
     pinned = {m["user"]["id"] for m in mates if m["pinned"]}
@@ -398,7 +399,7 @@ def today(request: Request, day: str | None = None, ctx: Ctx = Depends(auth)):
     together = _pinned_first(logic.partners(me, visible, infos, after=now), mates)
     changes = [n for n in notifications.list_for(ctx.uid, limit=20)
                if n["kind"] == "schedule_change" and n["day"] and n["day"] >= d.isoformat()]
-    checkin = db.one("SELECT status, since_min, until_min FROM checkins WHERE user_id=%s AND day=%s", (ctx.uid, d))
+    checkin = db.one("SELECT status, break_status, since_min, until_min FROM checkins WHERE user_id=%s AND day=%s", (ctx.uid, d))
     return etag_json(request, {
         "day": d.isoformat(), "now": now, "loading": loading,
         "me": {"status": schedule.status(me, infos[ctx.uid], now), "checkin": checkin,
@@ -450,21 +451,40 @@ def skip(body: SkipIn, ctx: Ctx = Depends(auth)):
 
 
 class CheckinIn(BaseModel):
-    status: Literal["chilling", "want_chill", "home", "absent"] | None
+    status: Literal["chilling", "want_chill", "home", "absent"] | None = None
+    break_status: Literal["want_chill", "busy"] | None = None
     until_min: int | None = Field(None, ge=0, le=24 * 60)
 
 
 @router.put("/checkin")
 def checkin(body: CheckinIn, ctx: Ctx = Depends(auth)):
+    """Today's plan, in two parts: `break_status` for your breaks between classes ("Ik wil afspreken" / "Ik ben
+    bezig") and `status` for after school ("Ik blijf nog" / "Ik wil chillen") or the day ("Naar huis",
+    "Ik ben er vandaag niet"). Only the fields sent change (null clears one); both cleared = no row.
+    `since_min` is when `status` was last set."""
     now_dt = schedule.local_now(ctx.user)
     d, now = now_dt.date(), now_dt.hour * 60 + now_dt.minute
-    if body.status is None:
-        db.run("DELETE FROM checkins WHERE user_id=%s AND day=%s", (ctx.uid, d))
-        return {"checkin": None}
-    db.run("INSERT INTO checkins (user_id, day, status, since_min, until_min) VALUES (%s,%s,%s,%s,%s) "
-           "ON DUPLICATE KEY UPDATE status=VALUES(status), since_min=VALUES(since_min), until_min=VALUES(until_min), "
-           "updated_at=UTC_TIMESTAMP()", (ctx.uid, d, body.status, now, body.until_min))
-    return {"checkin": {"status": body.status, "since_min": now, "until_min": body.until_min}}
+    sent = body.model_fields_set
+    with db.tx() as c:
+        was = db.one("SELECT status, break_status, since_min, until_min FROM checkins WHERE user_id=%s AND day=%s "
+                     "FOR UPDATE", (ctx.uid, d), c) or {"status": None, "break_status": None, "since_min": now,
+                                                        "until_min": None}
+        out = dict(was)
+        if "status" in sent:
+            out.update(status=body.status, since_min=now, until_min=body.until_min)
+        elif "until_min" in sent:
+            out["until_min"] = body.until_min
+        if "break_status" in sent:
+            out["break_status"] = body.break_status
+        if out["status"] is None and out["break_status"] is None:
+            db.run("DELETE FROM checkins WHERE user_id=%s AND day=%s", (ctx.uid, d), c)
+            return {"checkin": None}
+        db.run("INSERT INTO checkins (user_id, day, status, break_status, since_min, until_min) "
+               "VALUES (%s,%s,%s,%s,%s,%s) ON DUPLICATE KEY UPDATE status=VALUES(status), "
+               "break_status=VALUES(break_status), since_min=VALUES(since_min), until_min=VALUES(until_min), "
+               "updated_at=UTC_TIMESTAMP()",
+               (ctx.uid, d, out["status"], out["break_status"], out["since_min"], out["until_min"]), c)
+    return {"checkin": out}
 
 
 # ---- Notifications ---------------------------------------------------------------
@@ -559,6 +579,7 @@ def export(ctx: Ctx = Depends(auth)):
                                   "FROM break_requests WHERE from_id=%s", (uid,)),
         "break_answers": db.rows("SELECT request_id, response, responded_at FROM break_request_members WHERE user_id=%s",
                                  (uid,)),
+        "access_requests": access.export(uid),
         "chats": db.rows("SELECT c.id, c.kind, c.name, m.joined_at, m.pinned FROM chat_members m JOIN chats c ON c.id=m.chat_id "
                          "WHERE m.user_id=%s", (uid,)),
         "chat_messages": db.rows("SELECT chat_id, body, created_at, deleted_at FROM chat_messages WHERE user_id=%s", (uid,)),

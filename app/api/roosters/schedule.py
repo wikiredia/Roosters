@@ -188,13 +188,17 @@ def status(p: logic.PersonDay, info: logic.DayInfo, now: int) -> dict:
         last = busy[-1][1]
         nxt = next((s for s, e in info.free if s >= (b["until"] or 0) and e <= last), None)
         out["next_break"] = nxt
-    if busy and b["code"] in ("les", "straks", "pauze") and (p.checkin or {}).get("status") not in logic.CHILL:
+    if busy and b["code"] in ("les", "straks", "pauze", "pauze_bezig") and (p.checkin or {}).get("status") not in logic.CHILL:
         out["leaves_at"] = busy[-1][1]
     if info.left_at is not None:
         out["left_at"] = info.left_at
     # Codes in English for the app
     out["code"] = {"les": "in_class", "straks": "later", "pauze": "break", "chill": "chilling", "klaar": "done",
-                   "geen": "no_classes", "absent": "absent", "home": "home"}.get(out["code"], out["code"])
-    if out["code"] == "chilling" and (p.checkin or {}).get("status") == "want_chill":
+                   "geen": "no_classes", "absent": "absent", "home": "home", "pauze_bezig": "break_busy"}.get(out["code"], out["code"])
+    ci = p.checkin or {}
+    if out["code"] == "chilling" and ci.get("status") == "want_chill":
+        out["code"] = "wants_to_chill"
+    # In a break between classes: "Ik wil afspreken" or "Ik ben bezig" (checkin break_status)
+    if out["code"] == "break" and ci.get("break_status") == "want_chill":
         out["code"] = "wants_to_chill"
     return out
