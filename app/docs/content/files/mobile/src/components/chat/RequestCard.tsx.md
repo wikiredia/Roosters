@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 **A break or access request as a card in a chat** (`ChatMessage.kind === 'request'`), drawn by `app/chat/[id].tsx`
@@ -11,8 +11,11 @@ any more) is a dashed "Dit verzoek is er niet meer".
 - **Top row**: a cup ("Pauze samen?", or "Ander uur" for a counter) or a calendar ("Mag ik je rooster zien?"), the
   state tag, and on the right Vergelijk (`swap`, label `chat.compare`) → `/compare` with the friends in the request
   (never you).
-- **Break**: who asked whom ("Lotte vraagt jou (en Amir)", "Jij vroeg Lotte en Amir"), day + time and who walks
-  (`lib/breaks` `dayWord`, `howText`), the note. Tags in Today's old colours: Gepland (together), Gevraagd / Vraagt
+- **Facts, not sentences.** The bold line is when (or what is asked); the tag says who asked whom (Vraagt jou /
+  Gevraagd), and the chat's header and the avatar say who, so a one-to-one card doesn't write the name again.
+- **Break**: day + time in bold ('Vandaag 12:00–13:00', `lib/breaks.dayWord`), under it who walks (`howText`: 'Jij
+  gaat erheen', 'Naar jou toe', 'Op cafetaria'), the note. Only a group request (more than one other person) names
+  them: 'Van Lotte, met Amir' or 'Aan Lotte, Amir'. Tags in Today's old colours: Gepland (together), Gevraagd / Vraagt
   jou (line), Zei nee (bad); Ingetrokken and Voorbij muted, without buttons. **Niet meer mogelijk** (muted): the
   server says someone in it isn't free for the whole time any more (`possible: false`, only sent while it's open and
   nobody said no, `api/roosters/breaks.py`); no Ja / Nee / Ander uur / Toch niet, the asker keeps Weghalen. Under it
@@ -20,7 +23,7 @@ any more) is a dashed "Dit verzoek is er niet meer".
   verplaatst". Buttons (`useAnswerBreak`): asked and
   not answered → Ja / Nee / Ander uur (`onOtherTime`: the chat opens `BreakSheet` with a counter, which itself
   navigates after sending); you said yes → Toch niet; yours → Terugnemen (Weghalen once everyone said no).
-- **Access**: "Lotte vraagt je volledige rooster / je rooster zonder lokalen te zien" → Aanvaarden / Weigeren
+- **Access** (always one-to-one): what is asked, 'Volledig rooster' / 'Rooster zonder lokalen' → Aanvaarden / Weigeren
   (`useAnswerAccess`; a yes sets what you show them); yours pending → Terugnemen; afterwards the outcome as a tag
   (Aanvaard, Geweigerd, Ingetrokken).
 - A refused answer shows the server's message under the buttons.
@@ -41,7 +44,8 @@ An access request and its tag.
 ## `SkipCard`, `skipState`
 
 "Volg je Python?" (`api/roosters/skipasks.py`): a friend asks whether you'd skip a class so you'd share a break (how
-long, in yellow). The one asked: 'Ik skip' (it becomes their own skip, their timetable changes) or 'Ik ga'; the asker
+long, in yellow). The bold line is when ('Vandaag 13:00–15:00'); on your own question ('Skip je die les?') the course
+comes first ('Python · Vandaag 13:00–15:00'). The one asked: 'Ik skip' (it becomes their own skip, their timetable changes) or 'Ik ga'; the asker
 can take it back. The course shows only when the server sends it. Tags: Gevraagd / Voor jou, Geskipt, Gaat toch,
 Ingetrokken, Voorbij (its day is over).
 

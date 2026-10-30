@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -97,8 +97,8 @@ are hidden (ghost) don't count, today only from now on. Within the same start yo
 
 ## `_pinned_first`
 
-Shared breaks stay in time order, but within the same start the friends you pinned come first (Today's 'Pak je
-pauze met' and the Rooster tab's yellow blocks name people in this order).
+Shared breaks stay in time order, but within the same start the friends you pinned come first (Today's 'Pauze
+samen' and the Rooster tab's yellow blocks name people in this order).
 
 ## `my_schedule`
 

@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -73,7 +73,7 @@ notifies the people affected.
 | Add a table or column | a new `api/roosters/migrations/NNNN_*.sql`; guide **Database** |
 | Add a background job | `@jobs.handler` in the owning module, import it in `worker.py` |
 | Add or change a screen | `mobile/src/app/` (file = route); texts in `mobile/src/i18n/nl.ts` + `en.ts` |
-| Change onboarding or 'Complete the following steps' | `mobile/src/app/onboarding/`, `mobile/src/lib/onboarding.ts`, `mobile/src/components/SetupSteps.tsx` (the notifications step: `onboarding/notifications.tsx` + `lib/push.ts`) |
+| Change onboarding or 'Nog te doen' (To do) | `mobile/src/app/onboarding/`, `mobile/src/lib/onboarding.ts`, `mobile/src/components/SetupSteps.tsx` (the notifications step: `onboarding/notifications.tsx` + `lib/push.ts`) |
 | Change semesters or the course list of the school year | `api/roosters/terms.py`, `sync.scan_courses`, `r_schools.courses`; guide **Timetables** |
 | Change the calendar (Rooster tab) | `mobile/src/components/timetable/Calendar.tsx`, `DayGrid.tsx`, `DayStrip.tsx`; what's worked out per day: `DayCache.ts`; guide **Plan: a fast Rooster tab** |
 | Change Vergelijken (you and friends side by side) or skip questions ("Volg je Python?") | `mobile/src/app/compare.tsx`, `components/timetable/CompareView.tsx`; API `skipasks.py`, `r_friends.ask_skip`, migration `0017` |

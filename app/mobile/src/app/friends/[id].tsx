@@ -78,7 +78,7 @@ export default function FriendScreen() {
     }
   }
   async function onBlock() {
-    if (await confirm(t('friend.blockConfirm', { name }), t('friend.blockSub', { name }), t('friend.block', { name }), t('common.cancel'))) {
+    if (await confirm(t('friend.blockConfirm', { name }), t('friend.blockSub'), t('friend.block', { name }), t('common.cancel'))) {
       await block.mutateAsync(fid);
       router.back();
     }
@@ -91,14 +91,17 @@ export default function FriendScreen() {
         <Text variant="title">{name}</Text>
         {board ? <StatusText line={statusLine(board.status, t)} /> : null}
       </View>
-      <View className="gap-2">
-        <Button icon="swap" label={t('friend.compare')} onPress={() => router.push({ pathname: '/compare', params: { ids: String(fid) } })} />
+      {/* Side by side: the name is right above, so the buttons say just what they do */}
+      <View className="flex-row gap-2">
+        <Button icon="swap" label={t('friend.compare')} onPress={() => router.push({ pathname: '/compare', params: { ids: String(fid) } })} className="flex-1" />
         <Button
           variant="secondary"
           icon="chat"
-          label={t('friend.chat', { name })}
+          label={t('tabs.chat')}
+          accessibilityLabel={t('friend.chat', { name })}
           loading={open.isPending}
           onPress={async () => router.push(`/chat/${(await open.mutateAsync(fid)).id}`)}
+          className="flex-1"
         />
       </View>
 
@@ -120,7 +123,7 @@ export default function FriendScreen() {
         )}
         {schedule.data?.visibility === 'freebusy' || schedule.data?.visibility === 'norooms' ? (
           <Text variant="sm" tone="ink2">
-            {t(schedule.data.visibility === 'freebusy' ? 'friend.onlyFreeBusy' : 'friend.noRooms', { name })}
+            {t(schedule.data.visibility === 'freebusy' ? 'friend.onlyFreeBusy' : 'friend.noRooms')}
           </Text>
         ) : null}
         {/* They show you less than everything: ask for more (they decide, in your chat) */}
@@ -157,11 +160,11 @@ export default function FriendScreen() {
       </Section>
 
       <Section>
-        <SectionHead title={t('friend.whatSees', { name })} />
+        <SectionHead title={t('friend.whatSees')} />
         <View accessibilityRole="radiogroup" className="gap-2">
           <Option label={t('friend.full')} sub={t('friend.fullSub')} on={shown === 'full'} onPress={() => vis.mutate({ id: fid, visibility: 'full' })} />
-          <Option label={t('friend.norooms')} sub={t('friend.noroomsSub', { name })} on={shown === 'norooms'} onPress={() => vis.mutate({ id: fid, visibility: 'norooms' })} />
-          <Option label={t('friend.freebusy')} sub={t('friend.freebusySub', { name })} on={shown === 'freebusy'} onPress={() => vis.mutate({ id: fid, visibility: 'freebusy' })} />
+          <Option label={t('friend.norooms')} sub={t('friend.noroomsSub')} on={shown === 'norooms'} onPress={() => vis.mutate({ id: fid, visibility: 'norooms' })} />
+          <Option label={t('friend.freebusy')} sub={t('friend.freebusySub')} on={shown === 'freebusy'} onPress={() => vis.mutate({ id: fid, visibility: 'freebusy' })} />
         </View>
       </Section>
 
@@ -169,11 +172,11 @@ export default function FriendScreen() {
         <Row
           first
           title={t('friend.pin')}
-          sub={t('friend.pinSub', { name })}
+          sub={t('friend.pinSub')}
           right={<Toggle value={!!f?.pinned} onChange={(v) => pin.mutate({ id: fid, pinned: v })} label={t('friend.pin')} />}
         />
         <Row title={t('friend.remove')} sub={t('friend.removeSub')} tone="danger" onPress={onRemove} />
-        <Row title={t('friend.block', { name })} sub={t('friend.blockSub', { name })} tone="danger" onPress={onBlock} />
+        <Row title={t('friend.block', { name })} sub={t('friend.blockSub')} tone="danger" onPress={onBlock} />
       </Card>
     </Screen>
   );

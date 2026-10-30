@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { useChats, useCheckin, useOpenDirect, useToday } from '@/api/hooks';
 import type { Checkin, Friend, Notification, Today } from '@/api/types';
@@ -10,14 +10,15 @@ import { freeGaps, isFree, isOff, mergeLessons, STATE_LABEL } from '@/components
 import { Avatar, AvatarStack, Banner, PinMark, StatusOption, Tag } from '@/components/ui/Bits';
 import { Toggle } from '@/components/ui/Inputs';
 import { Button, IconButton } from '@/components/ui/Button';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
 import { Reveal } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { slotState } from '@/lib/breaks';
+import { duration, slotState } from '@/lib/breaks';
 import { pinnedOnTop } from '@/lib/friends';
-import { currentLesson, isAway, joinNames, nextLesson, statusLine } from '@/lib/status';
+import { currentLesson, isAway, nextLesson, statusLine } from '@/lib/status';
 import { addDays, hhmm, isoDay, longDate, minutesAgo, parseDay, range, shortDate } from '@/lib/time';
 
 type T = ReturnType<typeof useT>['t'];
@@ -133,20 +134,25 @@ function NowCard({ d, t }: { d: Today; t: T }) {
   const { lang } = useT();
   const { lessons, status } = d.me;
   const now = d.now;
-  // Skipped ones don't count as classes you have (lib/skips.ts); cancelled ones are mentioned below. Back-to-back
-  // periods of a course are one class, as in the Rooster tab: not "next: the same class an hour later"
+  // Skipped ones don't count as classes you have (lib/skips.ts). Cancelled ones get a "Vervalt" line, unless
+  // Roosterwijzigingen below lists them already. Back-to-back periods of a course are one class, as in the Rooster
+  // tab: not "next: the same class an hour later"
   const active = mergeLessons(lessons.filter((l) => !isFree(l)));
-  const cancelled = lessons.filter((l) => isOff(l));
+  const listed = new Set(d.changes.filter((n) => n.payload.type === 'cancelled' && n.payload.day === d.day).map((n) => n.payload.course));
+  const cancelled = [...new Set(lessons.filter((l) => isOff(l) && !listed.has(l.course ?? '')).map((l) => l.course ?? ''))].filter(Boolean);
   const cur = currentLesson(active, now);
   const next = nextLesson(active.filter((l) => l !== cur), now);
+  const weekend = [0, 6].includes(parseDay(d.day).getDay()) && !active.length;
 
   let title: string;
-  let sub: string | null = null;
+  // Short facts under the title, each with its icon: no sentences
+  const meta: { icon: IconName; text: string }[] = [];
   switch (status.code) {
     case 'in_class':
       title = cur?.course ?? t('today.inClass');
       // The end of this class, not of the whole run of classes the status counts as busy
-      sub = [t('today.until', { t: hhmm(cur?.end ?? status.until) }), cur?.location].filter(Boolean).join(' · ');
+      meta.push({ icon: 'clock', text: t('today.until', { t: hhmm(cur?.end ?? status.until) }) });
+      if (cur?.location) meta.push({ icon: 'pin', text: cur.location });
       break;
     case 'break':
     case 'break_busy':
@@ -156,6 +162,8 @@ function NowCard({ d, t }: { d: Today; t: T }) {
       break;
     case 'later':
       title = t('today.firstAt', { t: hhmm(status.until) });
+      if (next?.course) meta.push({ icon: 'calendar', text: next.course });
+      if (next?.location) meta.push({ icon: 'pin', text: next.location });
       break;
     case 'done':
       title = t('today.done');
@@ -167,46 +175,84 @@ function NowCard({ d, t }: { d: Today; t: T }) {
     default:
       title = t('today.noClasses');
   }
-  const weekend = [0, 6].includes(parseDay(d.day).getDay());
-  if (!active.length && weekend) title = t('today.weekend');
+  if (weekend) {
+    title = t('today.weekend');
+    meta.push({ icon: 'ghost', text: t('today.weekendBody') });
+  }
 
   return (
-    <View className="bg-you rounded-card p-4 gap-3">
-      <View className="self-start bg-white/20 rounded-full px-2.5 py-0.5">
-        <Text variant="xs" bold tone="onYou">
-          {t('today.now')}
-        </Text>
+    // The whole card opens the Rooster tab
+    <Pressable
+      accessibilityRole="button"
+      accessibilityHint={t('today.openRooster')}
+      onPress={() => router.push('/rooster')}
+      className="bg-you rounded-card p-4 gap-3 active:opacity-90"
+    >
+      <View className="flex-row items-center justify-between">
+        <Pill>{t('today.now')}</Pill>
+        <Icon name="forward" size={20} color="on-you" />
       </View>
-      <View className="gap-1">
+      <View className="gap-1.5">
         <Text variant="titleXl" tone="onYou">
           {title}
         </Text>
-        {sub ? <Text tone="onYou">{sub}</Text> : null}
-        {weekend && !active.length ? <Text tone="onYou">{t('today.weekendBody')}</Text> : null}
+        {meta.length ? (
+          <View className="flex-row flex-wrap gap-x-4 gap-y-1">
+            {meta.map((m) => (
+              <View key={m.icon} className="flex-row items-center gap-1.5">
+                <Icon name={m.icon} size={16} color="on-you" strokeWidth={2} />
+                <Text tone="onYou">{m.text}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
         {cancelled.length > 0 ? (
-          <Text tone="onYou">{t('today.cancelledToday', { courses: joinNames([...new Set(cancelled.map((l) => l.course ?? ''))], t('common.and')) })}</Text>
+          <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
+            <Pill>{t('tt.cancelled')}</Pill>
+            <Text tone="onYou" className="shrink">
+              {cancelled.join(', ')}
+            </Text>
+          </View>
         ) : null}
       </View>
       {next && status.code !== 'later' ? (
-        <View className="flex-row flex-wrap gap-x-1.5">
-          <Text tone="onYou">{t('today.next')}</Text>
-          <Text bold tone="onYou">
-            {[next.course, hhmm(next.start), next.location].filter(Boolean).join(' · ')}
-          </Text>
-        </View>
-      ) : status.code === 'later' && next ? (
-        <Text bold tone="onYou">
-          {[next.course, next.location].filter(Boolean).join(' · ')}
-        </Text>
+        <NextLine label={t('today.next')} time={hhmm(next.start)} what={[next.course, next.location].filter(Boolean).join(' · ')} />
       ) : !active.length || status.code === 'done' ? (
         <TomorrowLine day={d.day} t={t} lang={lang} />
       ) : null}
-      <Button variant="onYou" size="sm" icon="calendar" label={t('today.openRooster')} onPress={() => router.push('/rooster')} className="self-start" />
+    </Pressable>
+  );
+}
+
+/** A small see-through label on the blue card: "NU", "Vervalt". */
+function Pill({ children }: { children: string }) {
+  return (
+    <View className="self-start bg-white/20 rounded-full px-2.5 py-0.5">
+      <Text variant="xs" bold tone="onYou">
+        {children}
+      </Text>
     </View>
   );
 }
 
-/** "Maandag begin je om 08:30" from the cached Today of the next school day, if we have it. */
+/** The bottom line of the blue card: "VOLGENDE  13:00  Python · A1", time first so it lines up like a timetable. */
+function NextLine({ label, time, what }: { label: string; time: string; what: string }) {
+  return (
+    <View className="flex-row items-center gap-3 border-t border-white/20 pt-3">
+      <Text variant="eyebrow" tone="onYou" className="opacity-80">
+        {label}
+      </Text>
+      <Text bold tone="onYou">
+        {time}
+      </Text>
+      <Text tone="onYou" numberOfLines={1} className="flex-1">
+        {what}
+      </Text>
+    </View>
+  );
+}
+
+/** "MORGEN  08:30  Wiskunde" from the cached Today of the next school day, if we have it. */
 function TomorrowLine({ day, t, lang }: { day: string; t: T; lang: 'nl' | 'en' }) {
   const base = parseDay(day);
   let next = addDays(base, 1);
@@ -215,16 +261,13 @@ function TomorrowLine({ day, t, lang }: { day: string; t: T; lang: 'nl' | 'en' }
   const first = q.data?.me.lessons.find((l) => !isFree(l));
   if (!first) return null;
   const when = isoDay(next) === isoDay(addDays(base, 1)) ? t('today.tomorrow') : shortDate(next, lang);
-  return (
-    <Text tone="onYou">
-      {t('today.nextDay', { day: when, t: hhmm(first.start), course: first.course ?? '' })}
-    </Text>
-  );
+  return <NextLine label={when} time={hhmm(first.start)} what={first.course ?? ''} />;
 }
 
 /**
- * "Pak je pauze met:" — shared breaks, grouped per time slot (pinned friends first in each). Tap one to ask "Pauze
- * samen?"; once asked (or planned, or a no) the row opens the chat where that request's card is instead.
+ * "Pauze samen" — shared breaks, one row per time slot: the time (and how long) on top, who under it (pinned friends
+ * first). Tap one to ask "Pauze samen?"; once asked (or planned, or a no) the row opens the chat where that request's
+ * card is instead.
  */
 function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & { start: number; end: number })[]) => void }) {
   const open = useOpenDirect();
@@ -251,11 +294,9 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
   const list = [...groups.values()].map((g) => ({ ...g, people: pinnedOnTop(g.people, (p) => p.pinned) })).sort((a, b) => a.start - b.start);
   if (list.length === 0) {
     return (
-      <Card className="p-4 gap-1">
-        <Text bold>{t('today.noTogether')}</Text>
-        <Text variant="sm" tone="ink2">
-          {t('today.noTogetherBody')}
-        </Text>
+      <Card className="flex-row items-center gap-3 px-4 py-3">
+        <TogetherIcon />
+        <Text tone="ink2">{t('today.noTogether')}</Text>
       </Card>
     );
   }
@@ -265,14 +306,16 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
       <TogetherCard>
         {list.map((g, i) => {
           const live = g.start <= d.now;
-          const state = slotState(d.breaks, g.people.map((p) => p.id), d.day, Math.max(g.start, d.now), g.end);
+          const from = Math.max(g.start, d.now);
+          const state = slotState(d.breaks, g.people.map((p) => p.id), d.day, from, g.end);
           return (
             <Row
               key={`${g.start}-${g.end}`}
               first={i === 0}
               divider="together"
-              title={joinNames(g.people.map((p) => p.display_name), t('common.and'))}
-              sub={live ? t('today.nowUntil', { t: hhmm(g.end) }) : range(g.start, g.end)}
+              // The time is what differs between rows; the avatars and the names under it say who
+              title={`${live ? t('today.nowUntil', { t: hhmm(g.end) }) : range(g.start, g.end)} · ${duration(g.end - from, t)}`}
+              sub={g.people.map((p) => p.display_name).join(', ')}
               left={<AvatarStack people={g.people.map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring="together" />}
               chevron={g.people.length > 1 || !!state}
               right={
@@ -287,7 +330,7 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
                 ) : undefined
               }
               accessibilityHint={state ? t('today.openChat') : t('break.title')}
-              onPress={() => (state ? openChat(g.people) : onAsk(g.people.map((p) => ({ ...p, start: Math.max(g.start, d.now), end: g.end }))))}
+              onPress={() => (state ? openChat(g.people) : onAsk(g.people.map((p) => ({ ...p, start: from, end: g.end }))))}
             >
               {/* Asked already, planned or a no: says so, and the row goes to the chat with the card */}
               {state ? (
@@ -309,7 +352,7 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
 const STATE_TAG = { planned: 'together', asked: 'line', declined: 'bad' } as const;
 
 /**
- * "Wie is er nu?" — tap a friend for your chat with them. Friends you pinned on top (with a thumbtack, also when they're not on campus), then free first;
+ * "Wie is er nu?" (how many are free on the right) — tap a friend for your chat with them. Friends you pinned on top (with a thumbtack, also when they're not on campus), then free first;
  * the others who aren't on campus folded into one row. The server sorts it the same way; sorting here again keeps
  * a pin you just set in place before Today is fetched again.
  */
@@ -320,9 +363,10 @@ function Board({ d, t }: { d: Today; t: T }) {
   const board = pinnedOnTop(d.board, (b) => pinned(b.id));
   const here = board.filter((b) => pinned(b.id) || !isAway(b.status));
   const away = board.filter((b) => !pinned(b.id) && isAway(b.status));
+  const free = here.filter((b) => statusLine(b.status, t).free).length;
   return (
     <Section>
-      <SectionHead title={t('today.board')} aside={t('today.freeFirst')} />
+      <SectionHead title={t('today.board')} aside={free ? t('today.freeN', { n: free }) : undefined} />
       <Card>
         {here.map((b, i) => {
           const f = byId.get(b.id);
@@ -379,68 +423,77 @@ const AFTER: { value: Status; label: 'plan.chilling' | 'plan.wantChill' }[] = [
 ];
 
 /**
- * Your own status for friends, in two parts, always there on a school day (also once school is over, so you see and
- * can change what you said). "In je pauze" (break_status), with the next break's time: busy means nobody is matched
- * with you in your breaks. "Na school" (status): staying makes after school count as a break, so friends who stay
- * too are matched with you (the server's `logic.day_info`; the Rooster tab draws it as your break). Nothing about the
- * time before school. Tap a choice again to take it back. "Ik ben er vandaag niet" is a small toggle under it; "naar
- * huis" is the button in the header. A day without classes: "Toch op de campus?".
+ * Your own status for friends, as one card under "Jouw status · vrienden zien dit", always there on a school day (also
+ * once school is over, so you see and can change what you said). "Pauze" (break_status), with the next break's time:
+ * busy means nobody is matched with you in your breaks. "Na school" (status): staying makes after school count as a
+ * break, so friends who stay too are matched with you (the server's `logic.day_info`; the Rooster tab draws it as
+ * your break). What a choice does is a few words under it once picked, not a paragraph. Nothing about the time before
+ * school. Tap a choice again to take it back. "Vandaag afwezig" is a toggle row at the bottom; "naar huis" is the
+ * button in the header. A day without classes: one part, "Toch op de campus?".
  */
 function Plan({ d, t, onStatus, onBreak }: { d: Today; t: T; onStatus: (s: Status | null) => void; onBreak: (b: BreakStatus) => void }) {
   const status = d.me.checkin?.status ?? null;
   const brk = d.me.checkin?.break_status ?? null;
   const lessons = d.me.lessons.filter((l) => !isFree(l));
-  const note = (
-    <Text variant="sm" tone="ink2">
-      {t('plan.note')}
-    </Text>
-  );
   if (lessons.length === 0) {
     return (
       <Section>
-        <SectionHead title={t('plan.titleFree')} />
-        <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
-          {AFTER.map((o) => (
-            <StatusOption key={o.value} label={t(o.value === 'chilling' ? 'plan.onCampus' : o.label)} on={status === o.value} onPress={() => onStatus(o.value)} />
-          ))}
-        </View>
-        {note}
+        <SectionHead title={t('plan.status')} aside={t('plan.visible')} />
+        <Card>
+          <PlanPart
+            first
+            title={t('plan.titleFree')}
+            options={AFTER.map((o) => ({ label: t(o.value === 'chilling' ? 'plan.onCampus' : o.label), on: status === o.value, onPress: () => onStatus(o.value) }))}
+          />
+        </Card>
       </Section>
     );
   }
   const last = Math.max(...lessons.map((l) => l.end));
   // The next break between classes that isn't over yet (none left: still there, so you can see and change your plan)
   const next = freeGaps(d.me.lessons).find((g) => g.end > d.now);
+  const staying = status === 'chilling' || status === 'want_chill';
   return (
-    <View className="gap-5">
-      <Section>
-        <SectionHead
+    <Section>
+      <SectionHead title={t('plan.status')} aside={t('plan.visible')} />
+      <Card>
+        <PlanPart
+          first
           title={t('plan.break')}
           aside={!next ? t('plan.noBreakLeft') : next.start <= d.now ? t('plan.breakNow', { t: hhmm(next.end) }) : range(next.start, next.end)}
+          options={BREAK.map((o) => ({ label: t(o.label), on: brk === o.value, onPress: () => onBreak(o.value) }))}
+          hint={brk === 'busy' ? t('plan.busyHint') : undefined}
         />
-        <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
-          {BREAK.map((o) => (
-            <StatusOption key={o.value} label={t(o.label)} on={brk === o.value} onPress={() => onBreak(o.value)} />
-          ))}
-        </View>
-      </Section>
-      <Section>
-        <SectionHead title={t('plan.after')} aside={t('plan.afterAt', { t: hhmm(last) })} />
-        <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
-          {AFTER.map((o) => (
-            <StatusOption key={o.value} label={t(o.label)} on={status === o.value} onPress={() => onStatus(o.value)} />
-          ))}
-        </View>
-      </Section>
-      {note}
-      <Card>
+        <PlanPart
+          title={t('plan.after')}
+          aside={t('plan.afterAt', { t: hhmm(last) })}
+          options={AFTER.map((o) => ({ label: t(o.label), on: status === o.value, onPress: () => onStatus(o.value) }))}
+          hint={staying ? t('plan.stayHint') : undefined}
+        />
         <Row
-          first
           title={t('plan.absent')}
-          sub={status === 'absent' ? t('plan.absentSub') : undefined}
           right={<Toggle value={status === 'absent'} onChange={(v) => onStatus(v ? 'absent' : null)} label={t('plan.absent')} />}
         />
       </Card>
+    </Section>
+  );
+}
+
+/** One part of `Plan`: its name and time on one line, the choices under it, and what the picked one means. */
+function PlanPart({ title, aside, options, hint, first }: { title: string; aside?: string; options: { label: string; on: boolean; onPress: () => void }[]; hint?: string; first?: boolean }) {
+  return (
+    <View className={first ? 'px-4 py-3 gap-2.5' : 'px-4 py-3 gap-2.5 border-t border-line'}>
+      <SectionHead title={title} aside={aside} />
+      <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
+        {options.map((o) => (
+          <StatusOption key={o.label} label={o.label} on={o.on} onPress={o.onPress} />
+        ))}
+      </View>
+      {hint ? (
+        <Text variant="sm" tone="ink2">
+          {hint}
+        </Text>
+      ) : null}
     </View>
   );
 }

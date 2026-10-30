@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 Words for **break requests** (`components/BreakSheet.tsx`, the 'Pauzeverzoeken' section on Today).
@@ -10,8 +10,8 @@ Whoever you asked, or whoever asked you.
 
 ## `howText`
 
-Who walks, seen by you: the API stores it as the asker put it, so "I come to you" from Reda reads "Reda komt naar
-jou" for Kayra and "jij gaat naar Kayra" for Reda; a place reads "op cafetaria".
+Who walks, seen by you, without names (the request card shows who): the API stores it as the asker put it, so "I
+come to you" from Reda reads "Naar jou toe" for Kayra and "Jij gaat erheen" for Reda; a place reads "Op cafetaria".
 
 ## `dayWord`
 

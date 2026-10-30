@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-30T09:31:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -31,7 +31,7 @@ layout (guide **Timetables**); skipping it keeps what we found, and it's in Time
 so it has no item in Today's steps. Classes are picked **per semester** (S1 and S2 sections on one screen), and courses per semester
 from the **whole school year**, nothing chosen until you choose it, with a preview of the timetable you'll get
 ('Ik volg dit vak niet', 'Ik mis een les') before saving (`onboarding/classes.tsx`, `onboarding/courses.tsx`,
-`components/onboarding/CoursePreview.tsx`). Every step has **Skip**. What's skipped shows on Today as **Complete the following steps**
+`components/onboarding/CoursePreview.tsx`). Every step has **Skip**. What's skipped shows on Today as **Nog te doen**
 (`components/SetupSteps.tsx`): confirm your e-mail, choose your school, add your timetable, add friends, turn on
 notifications. The notifications step (`onboarding/notifications.tsx`) explains first and asks the phone only after a
 tap; a no from the phone isn't asked again (it points to the phone's settings), and it counts as done.
