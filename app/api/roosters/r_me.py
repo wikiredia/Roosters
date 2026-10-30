@@ -23,6 +23,7 @@ from . import (
     push,
     redisx,
     schedule,
+    skipasks,
     sync,
 )
 from .deps import Ctx, auth, etag_json, parse_day
@@ -583,6 +584,7 @@ def export(ctx: Ctx = Depends(auth)):
         "break_answers": db.rows("SELECT request_id, response, responded_at FROM break_request_members WHERE user_id=%s",
                                  (uid,)),
         "access_requests": access.export(uid),
+        "skip_requests": skipasks.export(uid),
         "chats": db.rows("SELECT c.id, c.kind, c.name, m.joined_at, m.pinned FROM chat_members m JOIN chats c ON c.id=m.chat_id "
                          "WHERE m.user_id=%s", (uid,)),
         "chat_messages": db.rows("SELECT chat_id, body, created_at, deleted_at FROM chat_messages WHERE user_id=%s", (uid,)),

@@ -5,9 +5,9 @@ import { SlideInLeft, SlideInRight } from 'react-native-reanimated';
 
 import { useFriends, useWeeks } from '@/api/hooks';
 import type { Friend, Lesson } from '@/api/types';
-import { Calendar, rangeLabel } from '@/components/timetable/Calendar';
+import { CompareView } from '@/components/timetable/CompareView';
 import { isFree } from '@/components/timetable/Timetable';
-import { Avatar, AvatarStack, Check, PinMark } from '@/components/ui/Bits';
+import { Avatar, Check, PinMark } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
 import { AView } from '@/components/ui/Motion';
@@ -16,7 +16,6 @@ import { Empty, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { dateAt, dayIndex, mondayOf } from '@/lib/days';
-import { joinNames } from '@/lib/status';
 import { prefs } from '@/lib/storage';
 import { isoDay, nowMin, parseDay } from '@/lib/time';
 
@@ -38,13 +37,13 @@ function lessonWeek(lessons: Lesson[] | undefined, today: number) {
 
 /**
  * Vergelijken, in two steps: tick friends (up to 3 for free; the ones you pinned are suggested first), then
- * 'Vergelijk' shows the calendar of the Rooster tab (the same one: swipe, pinch, double tap, tap a shared break to
- * ask) with only the breaks you share with them,
- * on the current lesson week (or the next one when yours is over). With `ids` (a friend's page, a chat's +) it opens
- * on the calendar straight away; back goes to the list.
+ * 'Vergelijk' shows you and them side by side, a column each, for a day (or two) of Monday to Friday
+ * (components/timetable/CompareView: their classes, the breaks you share, drag a class of theirs into the bin to ask
+ * whether they'd skip it). With `ids` (a friend's page, a chat's +) it opens on the columns straight away; the + above
+ * them goes back to the list, 'Klaar' closes Vergelijken.
  */
 export default function CompareScreen() {
-  const { t, lang } = useT();
+  const { t } = useT();
   const params = useLocalSearchParams<{ ids?: string }>();
   const [picked, setPicked] = useState<number[]>(() => (params.ids ? params.ids.split(',').map(Number).filter(Boolean) : []));
   const [step, setStep] = useState<'who' | 'week'>(params.ids ? 'week' : 'who');
@@ -114,37 +113,22 @@ export default function CompareScreen() {
   if (step === 'week') {
     return (
       <View className="flex-1 bg-bg">
-      <Screen
-        back
-        onBack={() => setStep('who')}
-        navTitle={t('compare.title')}
-        navSub={rangeLabel(dateAt(start), dateAt(start + 4), lang)}
-        scroll={false}
-        contentClassName="flex-1 gap-2 pb-3"
-      >
-        <AView entering={SlideInRight.duration(240)} className="flex-1 gap-2">
-          <Row
-            first
-            className="px-0 py-1 min-h-12"
-            left={<AvatarStack people={chosen.map((f) => ({ name: f.display_name, color: f.avatar_color, uid: f.id, photo: f.photo }))} size="sm" />}
-            title={t('compare.withNames', { names: joinNames(chosen.map((f) => f.display_name), t('common.and')) })}
-            right={
-              <Text variant="sm" bold tone="you">
-                {t('compare.change')}
+        <Screen
+          title={t('compare.title')}
+          right={<Button size="sm" variant="ghost" label={t('compare.done')} onPress={() => (router.canGoBack() ? router.back() : router.navigate('/rooster'))} />}
+          scroll={false}
+          contentClassName="flex-1 gap-2 pb-3"
+        >
+          <AView entering={SlideInRight.duration(240)} className="flex-1 gap-2">
+            {over ? (
+              <Text variant="sm" tone="premium">
+                {t('compare.overLimit', { n: MAX_FREE })}
               </Text>
-            }
-            onPress={() => setStep('who')}
-          />
-          {over ? (
-            <Text variant="sm" tone="premium">
-              {t('compare.overLimit', { n: MAX_FREE })}
-            </Text>
-          ) : null}
-          {/* Keyed on the week: the right week once your timetable is in */}
-          <Calendar key={`${start}:${ids.join()}`} only={ids} initialStart={start} />
-        </AView>
-      </Screen>
-      {tabs}
+            ) : null}
+            <CompareView key={ids.join()} ids={ids} onAdd={() => setStep('who')} />
+          </AView>
+        </Screen>
+        {tabs}
       </View>
     );
   }

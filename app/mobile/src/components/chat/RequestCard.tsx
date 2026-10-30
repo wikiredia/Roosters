@@ -1,15 +1,15 @@
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 
-import { useAnswerAccess, useAnswerBreak } from '@/api/hooks';
-import type { AccessRequest, BreakRequest, ChatMessage } from '@/api/types';
+import { useAnswerAccess, useAnswerBreak, useAnswerSkip } from '@/api/hooks';
+import type { AccessRequest, BreakRequest, ChatMessage, SkipRequest } from '@/api/types';
 import { AvatarStack, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Card } from '@/components/ui/Layout';
 import { Text } from '@/components/ui/Text';
 import { type Key, useT } from '@/i18n';
-import { dayWord, howText } from '@/lib/breaks';
+import { dayWord, duration, howText } from '@/lib/breaks';
 import { requestText } from '@/lib/chat';
 import { joinNames } from '@/lib/status';
 import { isoDay, range } from '@/lib/time';
@@ -25,7 +25,7 @@ const OVER: State = { kind: 'neutral', label: 'req.stOver' };
 const IMPOSSIBLE: State = { kind: 'neutral', label: 'req.stImpossible' };
 
 /**
- * A break or access request as a card in the chat: full width, where it was asked in the history (not pinned).
+ * A break or access request or a skip question as a card in the chat: full width, where it was asked in the history (not pinned).
  * It always shows the request as it is now (the server sends the live state with the message) and the buttons for
  * that state; top right "Vergelijk" opens Vergelijken with the friends in it. `onOtherTime`: "Ander uur" (the chat
  * opens BreakSheet with a counter).
@@ -42,6 +42,7 @@ export function RequestCard({ m, me, onOtherTime }: { m: ChatMessage; me: number
       </View>
     );
   }
+  if (r.type === 'skip') return <SkipCard s={r} t={t} />;
   return r.type === 'break' ? <BreakCard b={r} me={me} t={t} onOtherTime={onOtherTime} /> : <AccessCard a={r} t={t} />;
 }
 
@@ -59,7 +60,7 @@ function Compare({ ids, t }: { ids: number[]; t: T }) {
 }
 
 /** The eyebrow (icon + what kind of request), the state tag, and Vergelijk on the right. */
-function Head({ icon, title, state, ids, t }: { icon: 'coffee' | 'calendar'; title: string; state: State; ids: number[]; t: T }) {
+function Head({ icon, title, state, ids, t }: { icon: 'coffee' | 'calendar' | 'trash'; title: string; state: State; ids: number[]; t: T }) {
   return (
     <View className="flex-row items-center gap-2">
       <Icon name={icon} size={16} color="ink-2" strokeWidth={2} />
@@ -168,6 +169,7 @@ export function isActiveRequest(m: ChatMessage) {
   const r = m.request;
   if (!r) return false;
   if (r.type === 'access') return r.status === 'pending';
+  if (r.type === 'skip') return skipState(r).label === 'break.stAsked' || skipState(r).label === 'break.stTheirs';
   const s = breakState(r);
   return s.label === 'break.stPlanned' || s.label === 'break.stAsked' || s.label === 'break.stTheirs';
 }
@@ -181,13 +183,14 @@ export function RequestBar({ m, onPress }: { m: ChatMessage; onPress: () => void
   const { t, lang } = useT();
   const breakAnswer = useAnswerBreak();
   const accessAnswer = useAnswerAccess();
+  const skipAnswer = useAnswerSkip();
   const r = m.request;
   if (!r) return null;
   const isBreak = r.type === 'break';
-  const state = isBreak ? breakState(r) : accessState(r);
+  const state = r.type === 'break' ? breakState(r) : r.type === 'skip' ? skipState(r) : accessState(r);
   const title = requestText(m, t, lang);
-  const ask = isBreak ? !r.mine && r.my_response === 'pending' : !r.mine && r.status === 'pending';
-  const busy = isBreak ? breakAnswer.isPending : accessAnswer.isPending;
+  const ask = r.type === 'break' ? !r.mine && r.my_response === 'pending' : !r.mine && state.label === 'break.stTheirs';
+  const busy = isBreak ? breakAnswer.isPending : r.type === 'skip' ? skipAnswer.isPending : accessAnswer.isPending;
   return (
     <Pressable
       accessibilityRole="button"
@@ -197,7 +200,7 @@ export function RequestBar({ m, onPress }: { m: ChatMessage; onPress: () => void
       className="flex-row items-center gap-2 min-h-12 pl-3.5 pr-2 py-1.5 rounded-card border border-line bg-surface-raised active:opacity-80"
       style={{ shadowColor: '#161F2A', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 6 }}
     >
-      <Icon name={isBreak ? 'coffee' : 'calendar'} size={16} color="ink-2" strokeWidth={2} />
+      <Icon name={isBreak ? 'coffee' : r.type === 'skip' ? 'trash' : 'calendar'} size={16} color="ink-2" strokeWidth={2} />
       <Text variant="sm" bold numberOfLines={1} className="shrink">
         {title}
       </Text>
@@ -208,6 +211,8 @@ export function RequestBar({ m, onPress }: { m: ChatMessage; onPress: () => void
       {ask ? (
         isBreak ? (
           <Button variant="together" size="sm" label={t('break.yes')} loading={busy} onPress={() => breakAnswer.mutate({ id: r.id, action: 'accepted' })} />
+        ) : r.type === 'skip' ? (
+          <Button variant="together" size="sm" label={t('req.skipYes')} loading={busy} onPress={() => skipAnswer.mutate({ id: r.id, action: 'accept' })} />
         ) : (
           <Button size="sm" label={t('req.accept')} loading={busy} onPress={() => accessAnswer.mutate({ id: r.id, action: 'accept' })} />
         )
@@ -256,6 +261,68 @@ function AccessCard({ a, t }: { a: AccessRequest; t: T }) {
         </View>
       ) : null}
       {answer.error && answer.variables?.id === a.id ? (
+        <Text variant="sm" bold tone="danger">
+          {answer.error.message}
+        </Text>
+      ) : null}
+    </Card>
+  );
+}
+
+/** A skip question: open until answered or its day is over; a yes is a break together. */
+function skipState(s: SkipRequest): State {
+  if (s.status === 'accepted') return { kind: 'together', label: 'req.stSkipped', icon: 'check' };
+  if (s.status === 'declined') return { kind: 'bad', label: 'req.stGoing' };
+  if (s.status === 'cancelled') return CANCELLED;
+  if (s.day < isoDay(new Date())) return OVER;
+  return { kind: 'line', label: s.mine ? 'break.stAsked' : 'break.stTheirs' };
+}
+
+/**
+ * "Volg je Python?": a friend asks whether you'd skip a class, because then you'd share a break. The one asked gets
+ * Ja, ik skip (it becomes their own skip, their timetable changes) and Nee, ik ga; the asker can take it back. The
+ * course only shows when the server sends it (the asker sees it only when the friend shows their courses).
+ */
+function SkipCard({ s, t }: { s: SkipRequest; t: T }) {
+  const { lang } = useT();
+  const answer = useAnswerSkip();
+  const busy = answer.isPending && answer.variables?.id === s.id;
+  const other = s.mine ? s.to : s.from;
+  const when = `${dayWord(s.day, isoDay(new Date()), t, lang).toLowerCase()} ${range(s.start, s.end)}`;
+  const course = s.course ?? t('req.skipClass');
+  const what = s.mine ? t('req.skipMine', { name: s.to.display_name, course, when }) : t('req.skipTheirs', { name: s.from.display_name, course, when });
+  const state = skipState(s);
+  const open = state.label === 'break.stAsked' || state.label === 'break.stTheirs';
+  return (
+    <Card className="self-stretch px-4 pt-3 pb-3.5 gap-2">
+      <Head icon="trash" title={s.mine ? t('req.skipTitleMine') : t('req.skipTitle', { course })} state={state} ids={[other.id]} t={t} />
+      <View className="flex-row items-center gap-3">
+        <AvatarStack people={[{ name: other.display_name, color: other.avatar_color, uid: other.id, photo: other.photo }]} size="sm" />
+        <View className="flex-1 min-w-0 gap-0.5">
+          <Text bold strike={s.status === 'cancelled'}>
+            {what}
+          </Text>
+          <View className="flex-row items-center gap-1.5">
+            <Icon name="together" size={15} color="together-ink" strokeWidth={2} />
+            <Text variant="sm" bold tone="together">
+              {t('req.skipGain', { dur: duration(s.minutes, t) })}
+            </Text>
+          </View>
+        </View>
+      </View>
+      {open ? (
+        <View className="flex-row flex-wrap gap-2 pt-1">
+          {s.mine ? (
+            <Button variant="ghost" size="sm" className="px-2" label={t('req.takeBack')} loading={busy} onPress={() => answer.mutate({ id: s.id, action: 'cancel' })} />
+          ) : (
+            <>
+              <Button variant="together" size="sm" label={t('req.skipYes')} disabled={busy} loading={busy && answer.variables?.action === 'accept'} onPress={() => answer.mutate({ id: s.id, action: 'accept' })} />
+              <Button variant="secondary" size="sm" label={t('req.skipNo')} disabled={busy} loading={busy && answer.variables?.action === 'decline'} onPress={() => answer.mutate({ id: s.id, action: 'decline' })} />
+            </>
+          )}
+        </View>
+      ) : null}
+      {answer.error && answer.variables?.id === s.id ? (
         <Text variant="sm" bold tone="danger">
           {answer.error.message}
         </Text>

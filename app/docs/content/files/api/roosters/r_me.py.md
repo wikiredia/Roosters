@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:00:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -69,7 +69,7 @@ Soft-deletes the source, forgets its encrypted link and deletes its personal les
 ## `export`
 
 `GET /api/v1/me/export`: everything stored about you (GDPR art. 15/20) as JSON, without secrets (no encrypted links),
-including your friends (with what you show each and whether you pinned them), the classes you skip, the break requests you made and your answers, the access requests from and to you, your chats, the messages you wrote and the reports you made,
+including your friends (with what you show each and whether you pinned them), the classes you skip, the break requests you made and your answers, the access requests from and to you, the skip questions from and to you, your chats, the messages you wrote and the reports you made,
 your Meldingen and which devices get push (without the tokens), and how you show lesson details (`lesson_details_layouts`).
 
 ## `my_notifications`, `ReadIn`, `read`

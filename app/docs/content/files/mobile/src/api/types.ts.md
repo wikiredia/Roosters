@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T16:00:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -52,6 +52,11 @@ Now-board status codes and times (`break_busy`: in a break but said they're busy
 
 A break request (`api/roosters/breaks.py`). `mode` is as the one who asked put it: `lib/breaks.howText` turns it
 into words from your side. Today carries them in `breaks` (optional: an API from before break requests leaves it out, and Today shows none instead of crashing). On a card in a chat it may also be `cancelled` or `over`, and says whether it can still happen (`possible`) and, only when that's out of everyone's hands, why not (`blocked`: a new lesson, a moved lesson).
+
+## `SkipRequest`
+
+"Volg je Python?" (`api/roosters/skipasks.py`): the asker, the friend, the class's day and span, its `course` (null
+for an asker who may not see it), the shared break it would give (`minutes`) and the status.
 
 ## `AccessRequest`, `RequestRef`
 

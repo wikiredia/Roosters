@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **Vergelijken**, in two steps that slide sideways:
@@ -9,13 +9,12 @@ updated: 2026-10-29T23:10:00Z
    then the ones you compare with most (counted on this phone, `compare.picks`; no history yet: the ones you share
    most breaks with), 3 in all or every pinned one, with how many breaks you share in that week. Only those show a
    count: seeing it for everyone is what comparing is for. The rest below in the API's order (pinned first, by name).
-2. **The week**: the same calendar as the Rooster tab (`components/timetable/Calendar.tsx`, every feature: swipe,
-   pinch, double tap, tap a shared break to ask) with only the shared breaks with the friends you picked. It opens
-   on the current **lesson week**, Monday to Friday, or the next one when your lessons of this week are over
-   (Friday afternoon, the weekend): `lessonWeek`. The row on top ('Jij en Kayra · Wijzig') and the back button go
-   back to step 1.
+2. **Side by side**: you and them, a column each, for a day (or two when you're at most three people), Monday to
+   Friday (`components/timetable/CompareView.tsx`: their classes, the breaks you share, tap a break for how it goes,
+   drag a class of theirs into the bin to ask whether they'd skip it). The + after the last friend's card goes back
+   to step 1; 'Klaar' (top right) closes Vergelijken.
 
-The picked ids passed to the calendar are memoised (`useMemo` on `picked`), so the memoised `Calendar` isn't re-rendered by this screen for nothing.
+`lessonWeek` is still what the shared-break counts in step 1 are about.
 
 It is a pushed screen that renders `components/BottomTabs.tsx` itself (Rooster lit), so the bottom bar stays visible; a tab press goes back to the tabs.
 
@@ -27,4 +26,4 @@ The free limit (same as the server) and the screen.
 
 ## `lessonWeek`
 
-The Monday to show: this week while you still have a lesson ahead in it (a skipped one doesn't count), otherwise next week.
+The Monday the counts in step 1 are about: this week while you still have a lesson ahead in it (a skipped one doesn't count), otherwise next week.

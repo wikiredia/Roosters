@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T13:30:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **Friends**: the social side. Friend list, visibility and pins, requests within your school, invite links,
@@ -101,6 +101,13 @@ Cached for good (`immutable`): the app asks with `?v=<photo_v>`, a new photo is 
 show you more. The card goes in your direct chat with them (`chat_id`: the app opens it). 404 `not_friends`, 400
 `access_has` (they show you that much already), 409 `access_dup` (yours is still open); rate limited (20 an hour).
 Rules in `access.py`.
+
+## `SkipAskIn`, `ask_skip`, `list_skip_requests`, `answer_skip`
+
+`POST /api/v1/friends/{id}/skip-request` `{day, start, end}` → 201 `{skip, chat_id}`: ask a friend whether they'd skip
+their class in that span (Vergelijken's bin); rate limited (30 an hour). `GET /api/v1/skip-requests` → `{skips}`: the
+open ones, yours and for you, from today on. `POST /api/v1/skip-requests/{id}/{accept|decline|cancel}` → `{skip}`.
+Rules in `skipasks.py`.
 
 ## `answer_access`
 

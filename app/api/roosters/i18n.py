@@ -40,6 +40,8 @@ ERRORS = {
     "day_invalid": ("Ongeldige dag.", "Invalid day."),
     "skip_day": ("Een les overslaan kan voor vandaag en later.", "You can skip a class today or later."),
     "skip_unknown": ("Die les staat niet (meer) in je rooster.", "That class isn't on your timetable (anymore)."),
+    "skip_ask_dup": ("Je vroeg dat al.", "You already asked that."),
+    "skip_ask_nothing": ("Ook dan hebben jullie geen pauze samen.", "Even then you wouldn't share a break."),
     "break_day": ("Pauze vragen kan voor vandaag en de komende twee weken.", "You can ask for today and the next two weeks."),
     "break_time": ("Kies een moment dat nog niet voorbij is (minstens 5 minuten).",
                    "Pick a time that isn't over yet (at least 5 minutes)."),

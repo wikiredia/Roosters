@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:06:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **A break or access request as a card in a chat** (`ChatMessage.kind === 'request'`), drawn by `app/chat/[id].tsx`
@@ -38,6 +38,13 @@ A break request; its tag: cancelled and over first, then what you said (asked) o
 
 An access request and its tag.
 
+## `SkipCard`, `skipState`
+
+"Volg je Python?" (`api/roosters/skipasks.py`): a friend asks whether you'd skip a class so you'd share a break (how
+long, in yellow). The one asked: 'Ik skip' (it becomes their own skip, their timetable changes) or 'Ik ga'; the asker
+can take it back. The course shows only when the server sends it. Tags: Gevraagd / Voor jou, Geskipt, Gaat toch,
+Ingetrokken, Voorbij (its day is over).
+
 ## `Head`, `Compare`
 
 The top row, and Vergelijk in its corner.
@@ -45,13 +52,13 @@ The top row, and Vergelijk in its corner.
 ## `isActiveRequest`
 
 Whether a request card is still going: a break pending or planned (not over, taken back, declined or impossible: as
-its tag says), an access request pending. The chat pins the newest such card while it's scrolled away.
+its tag says), an access request or a skip question pending. The chat pins the newest such card while it's scrolled away.
 
 ## `RequestBar`
 
 The compact copy the chat pins at the top while the card is above everything on screen: one line with the
 request in words (`lib/chat` `requestText`), its tag, and the answer when it's yours to give (Ja for a break you were
-asked, Aanvaarden for access) or an arrow. Tapping the rest of it scrolls to the card (`onPress`).
+asked, Aanvaarden for access, Ik skip for a skip question) or an arrow. Tapping the rest of it scrolls to the card (`onPress`).
 
 ## `CANCELLED`, `OVER`, `IMPOSSIBLE`, `State`, `TagKind`, `T`
 

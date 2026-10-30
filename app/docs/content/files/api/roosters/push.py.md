@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T13:30:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **Push notifications** through Expo's push service (`https://exp.host/--/api/v2/push/send`, no account needed; an
@@ -38,6 +38,11 @@ Android channel id the app creates. `DEFAULTS`: everything on, no quiet hours (n
 ## `valid_token`, `quiet`
 
 Pure. `quiet`: is this minute in the quiet hours (from > until runs past midnight; equal = off)?
+
+## `skip_text`, `_duration_en`
+
+A skip question ("Volg je DevOps? / Kayra vraagt of je DevOps volgt morgen om 10:00. Zo niet, dan heb je 2 uren samen
+pauze.") or its answer, which never names the course (the asker may only see when the friend is free).
 
 ## `break_text`, `access_text`, `change_text`, `chat_text`
 

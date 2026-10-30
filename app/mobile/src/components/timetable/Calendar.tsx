@@ -6,7 +6,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { useBreaks, useFriends, useSkip, useToday, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
-import { PeopleSheet, type PeopleTarget } from '@/components/PeopleSheet';
+import { breakTarget, PeopleSheet, type PeopleTarget } from '@/components/PeopleSheet';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { AView, enter, exit, layout } from '@/components/ui/Motion';
@@ -246,16 +246,14 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     if (remember && !chosen.current && weekendBusy && want === 5) moveTo(mondayOf(today), 7, false);
   }, [weekendBusy]);
 
-  /** A shared break tapped: "Pauze mogelijk met:" everyone in it, each with their own free window (today from now
-   * on). Hatched ones (over, too far ahead) never get here. */
+  /** A break tapped (shared, or yours with nobody): your whole break that day as a mini timetable (who's there
+   * when) with everyone in it, each with their own free window, or who you usually go with (`breakTarget`; today from
+   * now on). Hatched ones (over, too far ahead) never get here. */
   function askBreak(day: number, span: { start: number; end: number }) {
-    const byId = new Map((friends.data ?? []).map((f) => [f.id, f]));
-    const now = day === today ? nowMin() : 0;
-    const people = (byDay.get(day)?.raw ?? [])
-      .filter((s) => s.start < span.end && span.start < s.end && s.end > now && byId.has(s.id))
-      .filter((s, i, all) => all.findIndex((x) => x.id === s.id) === i)
-      .map((s) => ({ ...byId.get(s.id)!, start: Math.max(s.start, now), end: s.end }));
-    if (people.length) setPeople({ kind: 'together', day: isoDay(dateAt(day)), start: Math.max(span.start, now), end: span.end, people });
+    const d = byDay.get(day);
+    const gap = d?.free.find((f) => f.start < span.end && span.start < f.end) ?? span;
+    const target = breakTarget({ day: isoDay(dateAt(day)), gap: { start: Math.min(gap.start, span.start), end: Math.max(gap.end, span.end) }, together: d?.raw ?? [], friends: friends.data, now: day === today ? nowMin() : 0 });
+    if (target) setPeople(target);
   }
 
   /** Skip a class (dropped in the bin, or 'Skip' in its sheet): it's gone at once, and the summary says what that
@@ -340,11 +338,8 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const onPressLesson = useCallback((lesson: Lesson, day: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), []);
   const onPressOverlap = useCallback((lessons: Lesson[], day: number) => setChoose({ lessons, day }), []);
   const onPressTogether = useCallback((day: number, span: { start: number; end: number }) => latest.current.askBreak(day, span), []);
-  // Your own break with nobody: "Meestal ga je met:" (today from now on)
-  const onPressAlone = useCallback((day: number, span: { start: number; end: number }) => {
-    const from = day === latest.current.today ? Math.max(span.start, nowMin()) : span.start;
-    setPeople({ kind: 'usual', day: isoDay(dateAt(day)), start: from, end: span.end });
-  }, []);
+  // Your own break with nobody: the same (who joins later in it, or "Meestal ga je met:")
+  const onPressAlone = useCallback((day: number, span: { start: number; end: number }) => latest.current.askBreak(day, span), []);
   const onTargetCb = useCallback((s: number) => latest.current.onTarget(s), []);
   const onCount = useCallback(
     (n: number, s: number) => {

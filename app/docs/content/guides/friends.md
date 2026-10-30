@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-30T16:00:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 ## Becoming friends
@@ -52,6 +52,7 @@ Everything one person asks another lives in the **Chat tab**, never on Today. Th
 | --- | --- | --- |
 | **Break request** ("Pauze samen?", `breaks.py`) | ask; Ja / Nee / Ander uur (a counter is a new request back); take it back, remove a no, "Toch niet" after a yes | a **card in the chat**: the direct chat with each friend asked, or the group chat whose members are exactly the asker and the people asked (when one exists) |
 | **Access request** ("Mag ik je rooster zien?", `access_requests`) | ask a friend to show you more of their timetable (`full` or `norooms`); they say yes (that becomes what they show you) or no; take yours back | a **card in the direct chat** |
+| **Skip question** ("Volg je Python?", `skip_requests`) | in Vergelijken, drag a friend's class into the bin: asks whether they'd skip it, then you'd share a break; only you see it as skipped until they say yes (then it's their own skip) or no; take yours back | a **card in the direct chat** |
 | **Friend request** (`friend_requests`) | send (Vriend toevoegen, classmates in onboarding); ✓ / ✗; cancel yours | **not** in a chat (a chat only exists between friends): the collapsible 'Verzoeken' section pinned on top of the Chat tab, collapsed, with a red count; the tab icon's badge counts them too. Accepting opens the new chat |
 
 Not requests (no card, nobody approves anything):

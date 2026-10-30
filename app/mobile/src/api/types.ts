@@ -176,8 +176,27 @@ export type AccessRequest = {
   created_at: string;
 };
 
+/**
+ * "Volg je Python?" (api skipasks.py): in Vergelijken `from` dragged one of `to`'s classes (day, start, end) into the
+ * bin, asking whether they'd skip it; then they'd share `minutes` of break. `course`: null for the asker when `to`
+ * only shows when they're free. While pending only the asker sees the class as skipped; a yes makes it `to`'s own skip.
+ */
+export type SkipRequest = {
+  id: number;
+  from: BreakPerson;
+  to: BreakPerson;
+  mine: boolean;
+  day: string;
+  start: number;
+  end: number;
+  course: string | null;
+  minutes: number;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  created_at: string;
+};
+
 /** What a request card in a chat points at (the message's `payload`). */
-export type RequestRef = { type: 'break'; request: number } | { type: 'access'; request: number };
+export type RequestRef = { type: 'break'; request: number } | { type: 'access'; request: number } | { type: 'skip'; request: number };
 
 export type SourcesState = { count: number; updated_at: string | null; syncing: boolean; errors: number[] };
 
@@ -291,14 +310,14 @@ export type ChatEvent =
 export type ChatMessage = {
   id: number;
   chat_id: number;
-  /** request: a card for a break or access request (full width in the chat; `user_id`: who asked) */
+  /** request: a card for a break or access request or a skip question (full width in the chat; `user_id`: who asked) */
   kind: 'text' | 'event' | 'request';
   user_id: number | null;
   /** null when it was taken back (`deleted`) or removed by a moderator (`removed`) */
   body: string | null;
   payload: ChatEvent | RequestRef | null;
   /** kind request: the request as it is now (null: gone, e.g. one of you isn't friends any more) */
-  request?: ({ type: 'break' } & BreakRequest) | ({ type: 'access' } & AccessRequest) | null;
+  request?: ({ type: 'break' } & BreakRequest) | ({ type: 'access' } & AccessRequest) | ({ type: 'skip' } & SkipRequest) | null;
   created_at: string;
   deleted: boolean;
   removed: boolean;

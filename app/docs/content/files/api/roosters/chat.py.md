@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:07:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **Chat**: one-to-one chats between friends and groups of friends, text messages and events, read up to where,
@@ -16,8 +16,8 @@ Who sees what, the rules everything here keeps:
   one out deletes it.
 - messages from someone **you blocked** are gone for you only (`_not_blocked`), in groups too, also from the
   unread count and the preview. They don't notice.
-- **request cards** (`kind='request'`, written by the asker, payload `{type: 'break'|'access', request}`): a
-  break or access request as a full-width card. Only a pointer: `with_requests` adds the live request to every
+- **request cards** (`kind='request'`, written by the asker, payload `{type: 'break'|'access'|'skip', request}`): a
+  break or access request or a skip question as a full-width card. Only a pointer: `with_requests` adds the live request to every
   answer (from your side; null when it's not for you any more), so the ETag of `messages` changes when it's
   answered (also when it stops being possible: `possible`/`blocked`, `breaks.feasibility`). Unread for the people asked (so the Chat tab's badge shows a new request), no `push_chat` (the request's own notification is the push), can't be taken
   back or reported like a message. The card's chat: `post_request`.

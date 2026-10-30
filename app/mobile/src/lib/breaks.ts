@@ -85,3 +85,26 @@ export function slotState(breaks: BreakRequest[] | undefined, ids: number[], day
   if (states.length && states.every((s) => s === 'declined')) return 'declined';
   return null;
 }
+
+/** One stretch of a break with the same people in it: alone (`ids` empty), or with these friends. */
+export type PlanPart = { start: number; end: number; ids: number[] };
+
+/**
+ * Your break from `span.start` to `span.end` cut where someone comes or goes: "10–11 alone, 11–12:30 with Kayra,
+ * 12:30–14 with Kayra and Yeno". `together`: who you share a break with that day (each friend's free window, as the
+ * API gives them). Next stretches with the same people become one; friends in the order they first come.
+ */
+export function breakPlan(span: { start: number; end: number }, together: { id: number; start: number; end: number }[]): PlanPart[] {
+  const inside = together.filter((s) => s.start < span.end && span.start < s.end);
+  const cuts = [...new Set([span.start, span.end, ...inside.flatMap((s) => [s.start, s.end])])].filter((m) => m >= span.start && m <= span.end).sort((a, b) => a - b);
+  const order = [...new Set([...inside].sort((a, b) => a.start - b.start).map((s) => s.id))];
+  const out: PlanPart[] = [];
+  for (let i = 0; i < cuts.length - 1; i++) {
+    const [a, b] = [cuts[i], cuts[i + 1]];
+    const ids = order.filter((id) => inside.some((s) => s.id === id && s.start <= a && b <= s.end));
+    const last = out[out.length - 1];
+    if (last && last.ids.join() === ids.join()) last.end = b;
+    else out.push({ start: a, end: b, ids });
+  }
+  return out;
+}

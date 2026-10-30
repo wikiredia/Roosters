@@ -56,6 +56,7 @@ export function requestText(m: ChatMessage, t: T, lang: Lang = appLang.get(), to
   const r = m.request;
   if (!r) return t('req.gone');
   if (r.type === 'access') return t('req.accessTitle');
+  if (r.type === 'skip') return r.mine ? t('req.skipTitleMine') : t('req.skipTitle', { course: r.course ?? t('req.skipClass') });
   const when = `${dayWord(r.day, today, t, lang).toLowerCase()} ${hhmm(r.start)}`;
   return t(r.counter_of ? 'req.lineCounter' : 'req.lineBreak', { when });
 }
