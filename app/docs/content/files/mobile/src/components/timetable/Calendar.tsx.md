@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T12:30:00Z
+updated: 2026-10-30T15:05:34Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -26,7 +26,11 @@ everything moves together in the same frame, on the UI thread.
 - **Shared breaks** are yellow blocks with who they're with (`Timetable.TogetherBlock`). With `only` just the
   friends you picked (Vergelijken). One that's over, or further ahead than you can ask (more than 13 days:
   `api breaks.MAX_DAYS_AHEAD`), is **hatched** (`muted`) and a tap does nothing: you can't ask for it, so the app
-  doesn't let you try. Tapping a yellow one opens `BreakSheet`.
+  doesn't let you try. Tapping a yellow one opens `PeopleSheet` "Pauze mogelijk met:" (`askBreak`: the friends in it,
+  each with their own free window, today from now on); a row there opens your chat with that friend, where you ask.
+- **Your own break with nobody** (a free gap with the coffee cup where no shared break is drawn, today from now on or
+  later): tapping it opens `PeopleSheet` "Meestal ga je met:" (`onPressAlone`, `useUsualPartners`). The calendar no
+  longer opens `BreakSheet` itself (Today and the chat still do).
 - Each shared break shows what you did with it (asked, planned, declined: `lib/breaks.slotState` over `useBreaks`).
 - **An empty weekend** at the right end of the view (nothing on Saturday and/or Sunday): a tab against the right edge of the
   screen with the day it goes to ("MA 27"). It moves the view so that day is on the left, same number of days: Sunday when
@@ -44,7 +48,7 @@ everything moves together in the same frame, on the UI thread.
   refetch that changes nothing (a 304) changes nothing: `dataUpdatedAt` is not a dependency. `hours`, `legend` and `kinds`
   are read from the days' precomputed fields; nothing here calls `mergeLessons` in a render.
 - **Everything below is `memo` with props that keep their identity**: `DayStrip` (it gets the `kinds` Map), `TimeAxis`,
-  `DayGrid`, `DragLayer`, `TodayPill`, `SkipToast`, `Legend` and the three sheets. The callbacks are `useCallback`s that
+  `DayGrid`, `DragLayer`, `TodayPill`, `SkipToast`, `Legend` and the three sheets (`OverlapSheet`, `PeopleSheet`, `LessonSheet`). The callbacks are `useCallback`s that
   read the newest state through the `latest` ref (updated in an insertion effect), and `hours` keeps its identity while
   the two numbers are the same (it is memoised on `"h0:h1"`). Opening a sheet therefore renders this component and that
   sheet; a swipe renders the columns that mount (the render counter in the fps overlay shows it).

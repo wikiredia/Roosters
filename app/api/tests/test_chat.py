@@ -1,13 +1,15 @@
 """Chat: one-to-one and groups, unread and read, blocking and reporting (with the moderators' side), events from
 breaks, account deletion."""
+import datetime as dt
+
 import pytest
 from fastapi.testclient import TestClient
 
-from roosters import admin, config, db
+from roosters import admin, config, db, schedule
 from roosters.chat import clean_body, direct_key
 
-from .conftest import befriend, login
-from .test_breaks import _ask, _setup
+from .conftest import add_class_lessons, befriend, login
+from .test_breaks import DAY, _ask, _setup
 
 A = {"Authorization": f"Bearer {config.ADMIN_TOKEN}", "X-Admin-Actor": "MacBook"}
 
@@ -222,3 +224,33 @@ def test_deleting_an_account_takes_its_chats(client, three):
     assert db.one("SELECT COUNT(*) AS n FROM chats WHERE id=%s", (d["id"],))["n"] == 0
     left = _chats(client, reda)["chats"]
     assert [c["id"] for c in left] == [g["id"]] and left[0]["count"] == 1
+
+
+def test_a_direct_chat_has_the_breaks_you_share_this_week(client, mails, school, monkeypatch):
+    reda, kayra = _setup(client, mails, school)
+    # "Now" is a Wednesday at 8:00 with the same timetable (Reda free 10:00-12:00, Kayra 10:30-12:00)
+    wed = DAY + dt.timedelta(days=(2 - DAY.weekday()) % 7)
+    if wed != DAY:
+        add_class_lessons(school["classes"][0], [("09:00", "10:00", "Databases", "B204"), ("12:00", "13:00", "DevOps", "C102")], wed)
+        add_class_lessons(school["classes"][1], [("09:00", "10:30", "Python", "A.1.05"), ("12:00", "14:00", "Cloud", "B204")], wed)
+    # And the Monday after (next school week): not in it
+    add_class_lessons(school["classes"][0], [("09:00", "10:00", "Databases", "B204"), ("12:00", "13:00", "DevOps", "C102")],
+                      wed + dt.timedelta(days=5))
+    monkeypatch.setattr(schedule, "local_now", lambda user: dt.datetime.combine(wed, dt.time(8, 0)))
+    d = client.post("/api/v1/chats/direct", headers=reda["headers"], json={"user_id": kayra["user_id"]}).json()["chat"]
+    get = lambda who: client.get(f"/api/v1/chats/{d['id']}", headers=who["headers"]).json()["chat"]  # noqa: E731
+    shared = {"day": wed.isoformat(), "start": 630, "end": 720}
+    assert get(reda)["breaks"] == [{**shared, "asked": False}]
+    # Asked (for part of it, by either of them): `asked`
+    r = client.post("/api/v1/breaks", headers=kayra["headers"],
+                    json={"to_ids": [reda["user_id"]], "day": wed.isoformat(), "start": 660, "end": 700})
+    assert r.status_code == 201, r.text
+    assert get(reda)["breaks"] == [{**shared, "asked": True}] == get(kayra)["breaks"]
+    # Taken back: not asked any more
+    client.post(f"/api/v1/breaks/{r.json()['break']['id']}/cancel", headers=kayra["headers"])
+    assert get(reda)["breaks"][0]["asked"] is False
+    # Groups have none; a hidden friend (ghost) shares nothing
+    g = client.post("/api/v1/chats", headers=reda["headers"], json={"name": "x", "user_ids": [kayra["user_id"]]}).json()["chat"]
+    assert "breaks" not in client.get(f"/api/v1/chats/{g['id']}", headers=reda["headers"]).json()["chat"]
+    client.put("/api/v1/me/ghost", headers=kayra["headers"], json={"minutes": 60})
+    assert get(reda)["breaks"] == []

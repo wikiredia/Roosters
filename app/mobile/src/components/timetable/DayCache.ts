@@ -7,10 +7,11 @@ import { dateAt } from '@/lib/days';
 import { joinNames } from '@/lib/status';
 import { isoDay } from '@/lib/time';
 
-import { TAP_LESSON, TAP_OVERLAP, TAP_SKIPPED, TAP_TOGETHER, type TapTarget } from './TapTargets';
+import { TAP_ALONE, TAP_LESSON, TAP_OVERLAP, TAP_SKIPPED, TAP_TOGETHER, type TapTarget } from './TapTargets';
 import {
   type Block,
   dayBlocks,
+  FREE_MIN,
   freeGaps,
   isFree,
   kindsOf,
@@ -27,6 +28,18 @@ import {
 
 /** Asking for a break works for today and the 13 days after it (api breaks.MAX_DAYS_AHEAD) */
 export const ASK_DAYS = 13;
+
+/** Hours the calendar always shows; earlier or later lessons stretch them (Calendar). The end is also where your
+ * after-school break ends when you stay (`DayPlan.chill`). */
+export const HOURS: [number, number] = [8, 18];
+
+/**
+ * Today's plan (Today's check-in, `Checkin`) as far as your own breaks go. `chill`: you stay after school ('Ik blijf
+ * nog' / 'Ik wil chillen'), so after school is a break too; `busy`: you're busy in your breaks between classes, so
+ * those aren't free; `since`: when you said you stay (after school starts there when you have no lessons). Only for
+ * today; give it the same object while the values are the same (`Calendar` memoises it).
+ */
+export type DayPlan = { chill: boolean; busy: boolean; since: number };
 
 /**
  * One day of the calendar with everything the screen derives from it, worked out once when its week arrives (see
@@ -110,22 +123,32 @@ function slotsOf(raw: Together[], iso: string, day: number, c: Context): Togethe
   });
 }
 
+/** `spans` without what `cut` covers (both in time order or not): the free gaps where no shared break is drawn */
+function without(spans: Span[], cut: Span[]): Span[] {
+  let out = spans;
+  for (const c of cut) out = out.flatMap((s) => (c.end <= s.start || s.end <= c.start ? [s] : [...(s.start < c.start ? [{ start: s.start, end: c.start }] : []), ...(c.end < s.end ? [{ start: c.end, end: s.end }] : [])]));
+  return out;
+}
+
 function buildDay(day: number, lessons: Lesson[], together: Together[], loading: boolean, c: Context): DayData {
   const iso = isoDay(dateAt(day));
   const raw = together.filter((s) => !c.only || c.only.includes(s.id));
   const slots = slotsOf(raw, iso, day, c);
   const merged = mergeLessons(lessons);
   const overlaps = overlapsOf(lessons);
+  const free = freeGaps(lessons);
   const legend = new Set<LegendItem>();
   for (const s of slots) legend.add(s.state ?? 'together');
   for (const l of lessons) legend.add(l.state === 'cancelled' || l.state === 'removed' ? 'cancelled' : l.skipped ? 'skipped' : lessonKind(l));
   // In the order a tap is resolved (Calendar's onPress*): where lessons overlap (and near it), a lesson, a shared break
-  // you can ask for, a class you skip
+  // you can ask for, a class you skip, your own break with nobody (not on a past day, like the shared ones; any
+  // shared break over it, even a hatched one, is not part of it)
   const taps: TapTarget[] = [
     ...overlaps.map((o) => ({ day, start: o.start - OVERLAP_SLOP, end: o.end + OVERLAP_SLOP, kind: TAP_OVERLAP })),
     ...merged.filter((l) => !l.skipped).map((l) => ({ day, start: l.start, end: l.end, kind: TAP_LESSON })),
     ...slots.filter((s) => !s.muted).map((s) => ({ day, start: s.start, end: s.end, kind: TAP_TOGETHER })),
     ...merged.filter((l) => l.skipped).map((l) => ({ day, start: l.start, end: l.end, kind: TAP_SKIPPED })),
+    ...(day >= c.today ? without(free, slots) : []).map((f) => ({ day, start: f.start, end: f.end, kind: TAP_ALONE })),
   ];
   return {
     id: ++ids,
@@ -136,7 +159,7 @@ function buildDay(day: number, lessons: Lesson[], together: Together[], loading:
     loading,
     blocks: dayBlocks(lessons, slots, null),
     overlaps,
-    free: freeGaps(lessons),
+    free,
     kinds: kindsOf(lessons),
     legend: [...legend],
     bounds: lessons.length ? { start: Math.min(...lessons.map((l) => l.start)), end: Math.max(...lessons.map((l) => l.end)) } : null,
@@ -172,16 +195,45 @@ function daysOf(week: Schedule, monday: number, c: Context): DayData[] {
   return days;
 }
 
+/** Today's day with your plan applied to its free zones, made once per (day, plan) and kept with the day */
+const planned = new WeakMap<DayData, { plan: DayPlan; day: DayData }>();
+
+/**
+ * Today's `free` (and the taps on your own break) after today's plan: no breaks between classes when you're busy in
+ * them; when you stay, after school from the end of the last lesson you still go to (skipped and cancelled ones don't
+ * count; no lessons: when you said you stay) to the end of the grid's day. Only today's day is ever made again when
+ * the plan changes; the week's cache isn't touched.
+ */
+function withPlan(d: DayData, day: number, plan: DayPlan | null): DayData {
+  if (!plan || d.loading || (!plan.chill && !plan.busy)) return d;
+  const hit = planned.get(d);
+  if (hit && hit.plan === plan) return hit.day;
+  const free = plan.busy ? [] : [...d.free];
+  if (plan.chill) {
+    const going = d.merged.filter((l) => !isFree(l));
+    const start = going.length ? Math.max(...going.map((l) => l.end)) : plan.since;
+    const end = Math.max(HOURS[1] * 60, d.bounds ? Math.ceil(d.bounds.end / 60) * 60 : 0);
+    if (end - start >= FREE_MIN) free.push({ start, end });
+  }
+  const alone = without(free, d.together).map((f) => ({ day, start: f.start, end: f.end, kind: TAP_ALONE }));
+  const out: DayData = { ...d, id: ++ids, free, taps: [...d.taps.filter((g) => g.kind !== TAP_ALONE), ...alone] };
+  planned.set(d, { plan, day: out });
+  return out;
+}
+
 /**
  * The calendar's days: `weeks` are the weeks' data from `useWeeks` (undefined: not in yet), the first one starting on
  * the Monday `first` (a day index). Each week's days are built once and kept while its data, `names`, `breaks`,
  * `only`, today and the language stay the same, so moving the window reuses every week that is still in it, and a
- * refetch that changes nothing changes nothing here. The Map has the same identity until some day is a new object.
+ * refetch that changes nothing changes nothing here. `plan` (today's, or null) changes today's day only. The Map has
+ * the same identity until some day is a new object.
  */
-export function useDays(data: (Schedule | undefined)[], first: number, names: Map<number, string>, breaks: BreakRequest[] | undefined, only: number[] | undefined, today: number, lang: Lang) {
+export function useDays(data: (Schedule | undefined)[], first: number, names: Map<number, string>, breaks: BreakRequest[] | undefined, only: number[] | undefined, today: number, lang: Lang, plan: DayPlan | null) {
   const onlyKey = only?.join();
   const c: Context = { names, breaks, only, onlyKey, today, lang };
   const all: DayData[] = data.flatMap((w, wi) => (w ? daysOf(w, first + wi * 7, c) : Array.from({ length: 7 }, () => WAITING)));
+  const ti = today - first;
+  if (ti >= 0 && ti < all.length) all[ti] = withPlan(all[ti], today, plan);
   const key = `${first}:${all.map((d) => d.id).join()}`;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `key` says whether any day is a different object
   return useMemo(() => new Map(all.map((d, i) => [first + i, d])), [key]);

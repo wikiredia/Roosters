@@ -29,7 +29,7 @@ def direct(body: DirectIn, ctx: Ctx = Depends(verified)):
     redisx.rate_limit(f"chat-open:{ctx.uid}", 120, 3600)
     with db.tx() as c:
         chat_id = chat.open_direct(c, ctx.uid, body.user_id)
-    return {"chat": chat.chat_out(ctx.uid, chat_id)}
+    return {"chat": chat.chat_out(ctx.uid, chat_id, ctx.user)}
 
 
 class GroupIn(BaseModel):
@@ -47,8 +47,9 @@ def new_group(body: GroupIn, ctx: Ctx = Depends(verified)):
 
 @router.get("/{chat_id}")
 def get_chat(chat_id: int, request: Request, ctx: Ctx = Depends(verified)):
-    """Who's in it, and how far each of them read."""
-    return etag_json(request, {"chat": chat.chat_out(ctx.uid, chat_id)})
+    """Who's in it, and how far each of them read; a one-to-one chat also the breaks you two share this school week
+    (`breaks`: [{day, start, end, asked}], the "Pauze samen?" suggestion)."""
+    return etag_json(request, {"chat": chat.chat_out(ctx.uid, chat_id, ctx.user)})
 
 
 class ChatPatch(BaseModel):

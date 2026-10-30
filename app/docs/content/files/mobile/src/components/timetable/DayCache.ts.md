@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T15:05:34Z
 ---
 
 **Every day of the calendar with everything derived from it, made once.** A week comes in from `useWeeks`; its seven
@@ -32,15 +32,17 @@ Fields: `lessons` (as the API gave them), `merged`, `together` (shared breaks, o
 static part: over or too far ahead), `raw` (per friend, for "Pauze samen?" and what a skip changes), `loading`,
 `blocks` (merged lessons and shared breaks; `past` is false), `overlaps`, `free`, `kinds`, `legend`, `bounds` (earliest
 start and latest end, or null), `skippable` (merged classes that could be skipped if still to come) and `taps`
-(`TapTargets`). `id` is a counter: `useDays` uses it to see that nothing changed.
+(`TapTargets`; your own break with nobody is `free` minus every shared break, hatched ones too, and only from today on:
+a past day has none, like its muted shared breaks). `id` is a counter: `useDays` uses it to see that nothing changed.
 
 ## `ASK_DAYS`
 
 Asking for a break works for today and the 13 days after it (`api breaks.MAX_DAYS_AHEAD`); further ahead a shared break
 is `muted`.
 
-## `WAITING`, `slotsOf`, `buildDay`, `daysOf`, `same`
+## `WAITING`, `slotsOf`, `without`, `buildDay`, `daysOf`, `same`
 
 The placeholder day; the shared breaks as yellow blocks (overlapping ones merged, everyone in it named, state from
-`lib/breaks.slotState`); one day with all its derived fields; a week's seven days from the cache (a `WeakMap` on the
+`lib/breaks.slotState`); spans minus what other spans cover (the free gaps where no shared break is drawn); one day with
+all its derived fields; a week's seven days from the cache (a `WeakMap` on the
 week's data, a few contexts per week, gone with the week); whether two contexts are the same.

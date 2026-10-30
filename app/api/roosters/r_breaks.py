@@ -28,6 +28,13 @@ def list_breaks(day: str | None = None, ctx: Ctx = Depends(verified)):
     return {"breaks": breaks.list_for(ctx.user, d)}
 
 
+@router.get("/usual")
+def usual(ctx: Ctx = Depends(verified)):
+    """"Meestal ga je met": the friends you had the most planned breaks with lately (with `count`), filled up with
+    your pinned friends when there are few. Before the /{request_id}/... routes."""
+    return {"people": breaks.usual(ctx.user)}
+
+
 class BreakIn(BaseModel):
     to_ids: list[int] = Field(min_length=1, max_length=12)
     day: str | None = None

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T12:30:00Z
+updated: 2026-10-30T15:06:00Z
 ---
 
 **English texts** for international students. Every Dutch key must be here (the type checks it).

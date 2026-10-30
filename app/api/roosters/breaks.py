@@ -9,8 +9,13 @@ group that is exactly them. `cards` is what such a card shows (also when it's ov
 Tables: break_requests, break_request_members (migrations/0007_break_requests.sql). Every step leaves an in-app
 notification with a push (kind break_request, break_answer, break_counter, break_cancelled; its payload names the
 chat with the card for whoever gets it, so the push opens that chat); a yes also shows up in the other chats the
-two share (chat.post_event), not in the ones with the card."""
+two share (chat.post_event), not in the ones with the card.
+
+A card also says whether the break can still happen (`possible`, with `blocked` when the school is the reason:
+`feasibility`). `shared_with` gives the breaks you share with one friend this school week (the "Pauze samen?"
+suggestion in your one-to-one chat), `usual` who you usually take a break with (the coffee zone in the Rooster tab)."""
 import datetime as dt
+from collections import Counter, defaultdict
 
 from . import chat, db, friends, logic, notifications, schedule
 from .errors import ApiError
@@ -20,6 +25,12 @@ MAX_DAYS_AHEAD = 13
 # Shorter than this isn't a break
 MIN_MINUTES = 5
 MODES = ("i_come", "you_come", "meet")
+# Lesson states the school sets (schedule / untis.py), and what a card says when such a lesson is in the way
+SCHOOL_CHANGES = {"extra": "new_lesson", "changed": "moved"}
+# "Meestal ga je met": how far back, how many people, and filled up with pinned friends to this many
+USUAL_WEEKS = 8
+USUAL_MAX = 6
+USUAL_MIN = 3
 
 
 # ---- Pure parts --------------------------------------------------------------------
@@ -38,6 +49,25 @@ def conflict(info: logic.DayInfo, start: int, end: int) -> str | None:
     if info.breaks_busy and any(s < end and e > start for s, e in logic.gaps(info.busy)):
         return "busy"
     return None
+
+
+def school_change(lessons: list[dict], start: int, end: int) -> str | None:
+    """Is a lesson between start and end in the way because the school changed the timetable? 'new_lesson'
+    (an extra lesson) or 'moved' (one that changed); None when nothing is in the way, or when one of the lessons in
+    the way is a normal one (a skip undone: that's in the person's own hands)."""
+    hit = [SCHOOL_CHANGES.get(l["state"]) for l in lessons
+           if schedule.takes_place(l) and l["start_min"] < end and l["end_min"] > start]
+    if not hit or None in hit:
+        return None
+    return "new_lesson" if "new_lesson" in hit else "moved"
+
+
+def school_week(today: dt.date) -> tuple[dt.date, dt.date]:
+    """From today to Friday; on Saturday and Sunday the coming Monday to Friday."""
+    if today.weekday() >= 5:
+        monday = today + dt.timedelta(days=7 - today.weekday())
+        return monday, monday + dt.timedelta(days=4)
+    return today, today + dt.timedelta(days=4 - today.weekday())
 
 
 def summarize(responses: list[str]) -> str:
@@ -277,7 +307,98 @@ def cards(user: dict, ids: list[int]) -> dict[int, dict | None]:
         return {}
     ph, args = db.in_list(ids)
     found = {b["id"]: {"type": "break", **b} for b in _out(user, db.rows(_SELECT + f"WHERE b.id IN ({ph})", args))}
+    feasibility(list(found.values()))
     return {i: found.get(i) for i in ids}
+
+
+def feasibility(items: list[dict]):
+    """Adds `possible` and `blocked` to these requests (as _out gives them): can the break still happen? Only asked
+    for requests that are still on (not over, cancelled or declined); the others are `possible` as they are.
+    Not possible: the asker or someone asked who didn't say no isn't free for the whole time any more (`conflict`
+    on that day). `blocked` names the reason only when it's the school's doing (`school_change` of everyone in the
+    way); else None (a skip undone, went home, busy, absent: the app gives no reason)."""
+    for b in items:
+        b["possible"], b["blocked"] = True, None
+    todo = [b for b in items if not b["over"] and b["state"] in ("pending", "planned")]
+    if not todo:
+        return
+    ph, args = db.in_list([b["id"] for b in todo])
+    who: dict[int, set[int]] = defaultdict(set)
+    for r in db.rows(f"SELECT request_id, user_id FROM break_request_members WHERE request_id IN ({ph}) "
+                     f"AND response <> 'declined'", args):
+        who[r["request_id"]].add(r["user_id"])
+    by_day: dict[str, list[dict]] = defaultdict(list)
+    for b in todo:
+        who[b["id"]].add(b["from"]["id"])
+        by_day[b["day"]].append(b)
+    for day_s, bs in by_day.items():
+        day = dt.date.fromisoformat(day_s)
+        ids = sorted({i for b in bs for i in who[b["id"]]})
+        uph, uargs = db.in_list(ids)
+        users = db.rows(f"SELECT id, display_name, campus_id FROM users WHERE id IN ({uph})", uargs)
+        infos = {pid: logic.day_info(p) for pid, p in schedule.person_days(users, day).items()}
+        for b in bs:
+            why = {i: r for i in who[b["id"]] if i in infos and (r := conflict(infos[i], b["start"], b["end"]))}
+            if not why:
+                continue
+            b["possible"] = False
+            if set(why.values()) == {"in_class"}:
+                ls = schedule.lessons(why, day, day)
+                reasons = [school_change(ls[i], b["start"], b["end"]) for i in why]
+                if None not in reasons:
+                    b["blocked"] = "new_lesson" if "new_lesson" in reasons else "moved"
+
+
+def shared_with(user: dict, other: int) -> list[dict]:
+    """The breaks you share with this friend from now to the end of this school week (on a weekend: the coming
+    week), like the Rooster tab's `together` (r_me.together_days): only while you're friends and they aren't hidden
+    (ghost). `asked`: a request between you two (either way, not taken back) for (part of) that break exists.
+    -> [{day, start, end, asked}]"""
+    m = friends.friendship(user["id"], other)
+    if m is None or m["hidden"]:
+        return []
+    n = schedule.local_now(user)
+    today, now = n.date(), n.hour * 60 + n.minute
+    first, last = school_week(today)
+    asked = db.rows("SELECT DISTINCT b.day, b.start_min, b.end_min FROM break_requests b "
+                    "JOIN break_request_members m ON m.request_id=b.id WHERE b.cancelled_at IS NULL "
+                    "AND b.day BETWEEN %s AND %s AND ((b.from_id=%s AND m.user_id=%s) OR (b.from_id=%s AND m.user_id=%s))",
+                    (first, last, user["id"], other, other, user["id"]))
+    out = []
+    d = first
+    while d <= last:
+        people = schedule.person_days([user, m["user"]], d)
+        infos = {pid: logic.day_info(p) for pid, p in people.items()}
+        for p in logic.partners(people[user["id"]], people, infos, after=now if d == today else 0):
+            out.append({"day": d.isoformat(), "start": p["start"], "end": p["end"],
+                        "asked": any(a["day"] == d and a["start_min"] < p["end"] and a["end_min"] > p["start"]
+                                     for a in asked)})
+        d += dt.timedelta(days=1)
+    return out
+
+
+def usual(user: dict) -> list[dict]:
+    """"Meestal ga je met": the friends you had the most planned breaks with in the last USUAL_WEEKS weeks (a
+    request between you two, either way, that the one asked said yes to; not taken back), most first, at most
+    USUAL_MAX. Fewer than USUAL_MIN: filled up with your pinned friends (count 0). Only friends who can see you and
+    aren't hidden. -> [{id, display_name, avatar_color, photo, count}]"""
+    today, _ = _now(user)
+    mates = [m for m in friends.visible_friends(user["id"]) if not m["hidden"]]
+    by_id = {m["user"]["id"]: m for m in mates}
+    counts: Counter = Counter()
+    for r in db.rows("SELECT b.from_id, m.user_id FROM break_requests b JOIN break_request_members m "
+                     "ON m.request_id=b.id WHERE b.cancelled_at IS NULL AND m.response='accepted' "
+                     "AND b.day BETWEEN %s AND %s AND (b.from_id=%s OR m.user_id=%s)",
+                     (today - dt.timedelta(weeks=USUAL_WEEKS), today, user["id"], user["id"])):
+        other = r["user_id"] if r["from_id"] == user["id"] else r["from_id"]
+        if other in by_id and other != user["id"]:
+            counts[other] += 1
+    order = {uid: i for i, uid in enumerate(by_id)}
+    ids = sorted(counts, key=lambda i: (-counts[i], order[i]))[:USUAL_MAX]
+    if len(ids) < USUAL_MIN:
+        ids += [i for i, m in by_id.items() if m["pinned"] and i not in ids][:USUAL_MIN - len(ids)]
+    return [{**_person(i, by_id[i]["user"]["display_name"], by_id[i]["user"]["avatar_color"],
+                       by_id[i]["user"].get("photo_v")), "count": counts.get(i, 0)} for i in ids]
 
 
 def delete_user(c, uid: int):

@@ -19,7 +19,7 @@ import { hhmm, weekdayShort } from '@/lib/time';
 
 import type { DayData } from './DayCache';
 import { type DragTarget, type SkipDrag, useDragTargets, useSkipDrag, useSkipGesture } from './SkipDrag';
-import { TAP_TOGETHER, type TapTarget, tapKindAt, useTapTargets } from './TapTargets';
+import { TAP_ALONE, TAP_TOGETHER, type TapTarget, tapKindAt, useTapTargets } from './TapTargets';
 import { type Block, BlockView, lessonLabel, lessonsIn, OverlapBand, type Span } from './Timetable';
 
 /** Height of the date above each column. */
@@ -63,6 +63,8 @@ type Props = {
   onPressOverlap: (ls: Lesson[], day: number) => void;
   /** A tap on a shared break: that day and the break (the screen asks "Pauze samen?") */
   onPressTogether: (day: number, span: Span) => void;
+  /** A tap on your own break with nobody (a free gap where no shared break is): that day and that stretch of it */
+  onPressAlone: (day: number, span: Span) => void;
   /** Where a swipe will land: called as the finger lets go, so dates and data update before it gets there. */
   onTarget: (start: number) => void;
   /** Pinch: how many days you see (live while pinching is the shared `count`). */
@@ -89,7 +91,7 @@ type Props = {
  * made once and again only when the size or hours change, so those callbacks must stay the same too.
  */
 export const DayGrid = memo(function DayGrid(p: Props) {
-  const { offset, count, busyWeekends, width, height, from, to, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether, onTarget, onCount, onDoubleTap, drag, onPickClass, onDropClass } = p;
+  const { offset, count, busyWeekends, width, height, from, to, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone, onTarget, onCount, onDoubleTap, drag, onPickClass, onDropClass } = p;
   const lineColor = String(useCSSVariable('--color-line') ?? '#E4E1DA');
   const [h0, h1] = hours;
   const pxPerHour = (height - LABEL_H) / Math.max(1, h1 - h0);
@@ -165,11 +167,14 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     if (hits.length > 1) onPressOverlap(hits, day);
     else if (hits.length === 1) onPressLesson(hits[0], day);
     else {
-      // A hatched one (over, or too far ahead) can't be asked for; a shared break over a skipped class goes first
+      // A hatched one (over, or too far ahead) can't be asked for; a shared break over a skipped class goes first;
+      // then your own break with nobody (as `DayCache` cut it out of the free gaps), not once it's over
       const s = d.together.find((x) => x.start <= min && min < x.end);
       const skipped = lessonsIn(d.merged, d.overlaps, min, true)[0];
+      const alone = d.taps.find((g) => g.kind === TAP_ALONE && g.start <= min && min < g.end);
       if (s && !s.muted && !(day === today && s.end <= nowMin)) onPressTogether(day, { start: s.start, end: s.end });
       else if (skipped) onPressLesson(skipped, day);
+      else if (alone && !(day === today && alone.end <= nowMin)) onPressAlone(day, { start: alone.start, end: alone.end });
     }
   });
 
@@ -183,7 +188,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
       const d = data(day);
       if (!d) continue;
       if (hasDrag) for (const l of d.skippable) if (day > today || (day === today && l.end > nowMin)) drags.push({ day, start: l.start, end: l.end });
-      for (const g of d.taps) if (!(g.kind === TAP_TOGETHER && day === today && g.end <= nowMin)) taps.push(g);
+      for (const g of d.taps) if (!((g.kind === TAP_TOGETHER || g.kind === TAP_ALONE) && day === today && g.end <= nowMin)) taps.push(g);
     }
     return { drags, taps };
   }, [data, from, to, today, nowMin, hasDrag]);
@@ -272,6 +277,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
             onPressLesson={onPressLesson}
             onPressOverlap={onPressOverlap}
             onPressTogether={onPressTogether}
+            onPressAlone={onPressAlone}
           />
         ))}
       </View>
@@ -327,6 +333,7 @@ type ColumnProps = {
   onPressLesson: Props['onPressLesson'];
   onPressOverlap: Props['onPressOverlap'];
   onPressTogether: Props['onPressTogether'];
+  onPressAlone: Props['onPressAlone'];
 };
 
 /**
@@ -334,7 +341,7 @@ type ColumnProps = {
  * (its data, the hours, the size, the minute on today's column), never because of a swipe: every prop is a number, a
  * string, a shared value, one of the cache's `DayData` objects or a callback that keeps its identity.
  */
-const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether }: ColumnProps) {
+const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone }: ColumnProps) {
   noteColumnRender(day);
   const { t } = useT();
   const style = useAnimatedStyle(() => {
@@ -380,17 +387,22 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
           {`${weekdayShort(date, lang).toLowerCase()} ${date.getDate()}`}
         </Text>
       </View>
-      {/* Free moments between lessons: behind everything (a shared break or a cancelled lesson goes over them) */}
+      {/* Free moments between lessons: behind everything (a shared break or a cancelled lesson goes over them). A screen
+          reader can open "Meestal ga je met:" on one that isn't over (a finger only where no shared break is: `tapAt`) */}
       {free.map((f) => {
         const top = y(Math.max(f.start, h0 * 60));
         const h = Math.max(y(Math.min(f.end, h1 * 60)) - top - 3, 10);
+        // `now` is the end of the day on a past day: none of those
+        const open = now == null || f.end > now;
         return (
           <AView
             key={`free:${f.start}`}
             entering={entering}
             style={{ position: 'absolute', top, height: h, left: 2, right: 2 }}
             accessible
+            accessibilityRole={open ? 'button' : undefined}
             accessibilityLabel={`${t('tt.free')}, ${hhmm(f.start)} ${t('tt.to')} ${hhmm(f.end)}`}
+            onAccessibilityTap={open ? () => onPressAlone(day, f) : undefined}
           >
             <View pointerEvents="none" style={{ flex: 1 }}>
               <BlockView block={{ type: 'free', span: f }} style={{ flex: 1 }} compact={compact} t={t} />

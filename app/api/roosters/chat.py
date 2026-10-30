@@ -16,7 +16,8 @@ Request cards: `post_request` puts one in the direct chat with each person asked
 asker and those people exists, once in that group. The message only points at the request (`payload`
 {type, request}); `messages` and `list_for` add the live request (`request`, the viewer's view, null when it's not
 for them any more), so the ETag of those answers changes with it. `requests` in the chat list: open requests in
-that chat that involve you (the yellow "Verzoek" tag).
+that chat that involve you (the yellow "Verzoek" tag). A break card also says whether it can still happen
+(`possible`, `blocked`: breaks.feasibility), part of the same ETag.
 
 Tables: chats, chat_members, chat_messages, chat_reports (migrations/0009_chat.sql, 0013_push.sql,
 0016_request_cards.sql)."""
@@ -205,8 +206,11 @@ def _load(uid: int, chat_id: int, c=None, lock: bool = False) -> tuple[dict, lis
     return chat, members, mine
 
 
-def chat_out(uid: int, chat_id: int) -> dict:
-    """One chat with everyone in it (and how far each of them read: "gelezen"), for the conversation screen."""
+def chat_out(uid: int, chat_id: int, user: dict | None = None) -> dict:
+    """One chat with everyone in it (and how far each of them read: "gelezen"), for the conversation screen.
+    With `user` (you), a one-to-one chat also has `breaks`: the breaks you two share this school week
+    (breaks.shared_with, for the "Pauze samen?" suggestion)."""
+    from . import breaks
     chat, members, mine = _load(uid, chat_id)
     s = _summary(uid, chat, members, mine, None, 0)
     mates = _friend_ids(uid)
@@ -214,6 +218,8 @@ def chat_out(uid: int, chat_id: int) -> dict:
     s["people"] = [{**_person(m), "last_read_id": m["last_read_id"], "me": m["id"] == uid,
                     "friend": m["id"] in mates} for m in members]
     s["created_by"] = chat["created_by"]
+    if user is not None and chat["kind"] == "direct" and s["with_id"]:
+        s["breaks"] = breaks.shared_with(user, s["with_id"])
     return s
 
 

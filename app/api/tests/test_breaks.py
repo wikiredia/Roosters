@@ -1,7 +1,7 @@
 import datetime as dt
 
-from roosters import db, logic
-from roosters.breaks import already_asked, conflict, flip, summarize
+from roosters import db, logic, sync
+from roosters.breaks import already_asked, conflict, flip, school_change, school_week, summarize
 
 from .conftest import add_class_lessons, befriend, login, onboard, today
 
@@ -217,3 +217,93 @@ def test_a_group_of_exactly_them_gets_one_card(client, mails, school):
     client.delete(f"/api/v1/friends/{reda['user_id']}", headers=lotte["headers"])
     card = client.get(f"/api/v1/chats/{g['id']}/messages", headers=lotte["headers"]).json()["messages"][-1]
     assert card["kind"] == "request" and card["request"] is None
+
+
+# ---- Can it still happen? ----------------------------------------------------------
+
+def test_school_change_and_week():
+    def L(s, e, state="normal", skipped=False):
+        return {"start_min": s * H, "end_min": e * H, "state": state, "skipped": skipped}
+    assert school_change([L(11, 12, "extra")], 10 * H, 12 * H) == "new_lesson"
+    assert school_change([L(11, 12, "changed"), L(10, 11, "extra")], 10 * H, 12 * H) == "new_lesson"
+    assert school_change([L(11, 12, "changed")], 10 * H, 12 * H) == "moved"
+    # A normal lesson in the way (a skip undone) or nothing in the way: no reason
+    assert school_change([L(11, 12, "changed"), L(10, 11)], 10 * H, 12 * H) is None
+    assert school_change([L(13, 14, "extra"), L(11, 12, "cancelled")], 10 * H, 12 * H) is None
+    wed, sat = dt.date(2026, 10, 28), dt.date(2026, 10, 31)
+    assert school_week(wed) == (wed, dt.date(2026, 10, 30))
+    assert school_week(sat) == (dt.date(2026, 11, 2), dt.date(2026, 11, 6))
+    assert school_week(dt.date(2026, 11, 1)) == (dt.date(2026, 11, 2), dt.date(2026, 11, 6))
+
+
+def _lesson(class_id, start, end, state):
+    l = {"uid": f"x:{class_id}:{start}", "day": DAY, "start_min": start, "end_min": end, "course": "Extra",
+         "location": "A1", "state": state}
+    return db.run("INSERT INTO class_lessons (school_class_id, uid, day, start_min, end_min, course, location, state, "
+                  "fingerprint) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                  (class_id, l["uid"], DAY, start, end, "Extra", "A1", state, sync.fingerprint(l)))
+
+
+def test_a_card_says_when_the_break_cant_happen_any_more(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    r = _ask(client, reda, kayra).json()
+    url = f"/api/v1/chats/{r['chats'][0]}/messages"
+
+    def card(who=reda, tag=None):
+        res = client.get(url, headers={**who["headers"], **({"X-If-None-Match": tag} if tag else {})})
+        req = res.json()["messages"][-1]["request"]
+        return (req["possible"], req["blocked"]), res.headers["etag"]
+
+    first, tag = card()
+    assert first == (True, None)
+    # The school adds a lesson in Kayra's class during the break: not possible, the school's doing
+    lid = _lesson(school["classes"][1], 660, 690, "extra")
+    now, tag2 = card(tag=tag)
+    assert now == (False, "new_lesson") and tag2 != tag
+    assert card(kayra)[0] == (False, "new_lesson")
+    # A lesson moved there
+    db.run("UPDATE class_lessons SET state='changed' WHERE id=%s", (lid,))
+    assert card()[0] == (False, "moved")
+    # A normal lesson (e.g. a skip undone): no reason given
+    db.run("UPDATE class_lessons SET state='normal' WHERE id=%s", (lid,))
+    assert card()[0] == (False, None)
+    # Kayra says "Ik ben bezig" for her breaks that day: not possible, no reason
+    db.run("DELETE FROM class_lessons WHERE id=%s", (lid,))
+    assert card()[0] == (True, None)
+    db.run("INSERT INTO checkins (user_id, day, break_status, since_min) VALUES (%s,%s,'busy',0)", (kayra["user_id"], DAY))
+    assert card()[0] == (False, None)
+    # Declined: not asked any more (possible as it is)
+    client.post(f"/api/v1/breaks/{r['break']['id']}/respond", headers=kayra["headers"], json={"response": "declined"})
+    assert card()[0] == (True, None)
+
+
+# ---- "Meestal ga je met" -----------------------------------------------------------
+
+def _past(frm, to, days_ago, response="accepted", cancelled=False):
+    rid = db.run("INSERT INTO break_requests (from_id, day, start_min, end_min, cancelled_at) VALUES (%s,%s,600,660,%s)",
+                 (frm["user_id"], today() - dt.timedelta(days=days_ago), dt.datetime(2026, 1, 1) if cancelled else None))
+    db.run("INSERT INTO break_request_members (request_id, user_id, response) VALUES (%s,%s,%s)",
+           (rid, to["user_id"], response))
+
+
+def test_usual_partners(client, mails):
+    reda, kayra, lotte, sam, amir = [login(client, f"{n}@example.com", mails) for n in ("reda", "kayra", "lotte", "sam", "amir")]
+    for other in (kayra, lotte, sam, amir):
+        befriend(client, reda, other)
+    usual = lambda: [(p["id"], p["count"]) for p in client.get("/api/v1/breaks/usual", headers=reda["headers"]).json()["people"]]  # noqa: E731
+    assert usual() == []
+    # Pinned friends fill up an empty list
+    client.patch(f"/api/v1/friends/{sam['user_id']}", headers=reda["headers"], json={"pinned": True})
+    assert usual() == [(sam["user_id"], 0)]
+    _past(reda, kayra, 3)
+    _past(kayra, reda, 10)                       # they asked, Reda said yes
+    _past(lotte, reda, 1)
+    _past(reda, lotte, 2, cancelled=True)        # taken back: doesn't count
+    _past(reda, amir, 2, response="declined")    # a no doesn't count
+    _past(reda, amir, 70)                        # too long ago
+    assert usual() == [(kayra["user_id"], 2), (lotte["user_id"], 1), (sam["user_id"], 0)]
+    # Three or more: no filling up
+    _past(amir, reda, 4)
+    assert usual() == [(kayra["user_id"], 2), (amir["user_id"], 1), (lotte["user_id"], 1)]
+    p = client.get("/api/v1/breaks/usual", headers=reda["headers"]).json()["people"][0]
+    assert set(p) == {"id", "display_name", "avatar_color", "photo", "count"}

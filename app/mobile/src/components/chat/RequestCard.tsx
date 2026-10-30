@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { useAnswerAccess, useAnswerBreak } from '@/api/hooks';
 import type { AccessRequest, BreakRequest, ChatMessage } from '@/api/types';
@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Layout';
 import { Text } from '@/components/ui/Text';
 import { type Key, useT } from '@/i18n';
 import { dayWord, howText } from '@/lib/breaks';
+import { requestText } from '@/lib/chat';
 import { joinNames } from '@/lib/status';
 import { isoDay, range } from '@/lib/time';
 
@@ -20,6 +21,8 @@ type State = { kind: TagKind; label: Key; icon?: 'check' };
 /** Muted: nothing to do any more (taken back, or its time has passed) */
 const CANCELLED: State = { kind: 'neutral', label: 'req.stCancelled' };
 const OVER: State = { kind: 'neutral', label: 'req.stOver' };
+/** Not over, but someone in it isn't free then any more (`possible: false`): nothing to answer */
+const IMPOSSIBLE: State = { kind: 'neutral', label: 'req.stImpossible' };
 
 /**
  * A break or access request as a card in the chat: full width, where it was asked in the history (not pinned).
@@ -78,8 +81,10 @@ function breakState(b: BreakRequest): State {
   // Asked: what you said decides; yours: how it stands with the others
   const planned = b.mine ? b.state === 'planned' : b.my_response === 'accepted';
   const declined = b.mine ? b.state === 'declined' : b.my_response === 'declined';
-  if (planned) return { kind: 'together', label: 'break.stPlanned', icon: 'check' };
   if (declined) return { kind: 'bad', label: 'break.stDeclined' };
+  // Planned or still asked, but it can't happen any more (the server only says so while it's open)
+  if (b.possible === false) return IMPOSSIBLE;
+  if (planned) return { kind: 'together', label: 'break.stPlanned', icon: 'check' };
   return { kind: 'line', label: b.mine ? 'break.stAsked' : 'break.stTheirs' };
 }
 
@@ -98,6 +103,7 @@ function BreakCard({ b, me, t, onOtherTime }: { b: BreakRequest; me: number | un
       : t('req.asksYou', { name: b.from.display_name });
   const state = breakState(b);
   const open = b.state !== 'cancelled' && !b.over;
+  const impossible = state === IMPOSSIBLE;
   // Everyone in it but you: the avatars and Vergelijk
   const people = b.mine ? b.members : [b.from, ...others];
   const sub = [`${dayWord(b.day, isoDay(new Date()), t, lang)} ${range(b.start, b.end)}`, howText(b, t)].join(' · ');
@@ -115,12 +121,24 @@ function BreakCard({ b, me, t, onOtherTime }: { b: BreakRequest; me: number | un
           </Text>
         </View>
       </View>
+      {impossible && b.blocked ? (
+        <Text variant="sm" bold tone="ink2">
+          {t(b.blocked === 'new_lesson' ? 'req.blockedNewLesson' : 'req.blockedMoved')}
+        </Text>
+      ) : null}
       {b.note ? (
         <Text variant="sm" tone="ink2" numberOfLines={3}>
           “{b.note}”
         </Text>
       ) : null}
-      {open ? (
+      {impossible ? (
+        // Nothing to answer; the asker can still clear it away
+        b.mine ? (
+          <View className="flex-row pt-1">
+            <Button variant="ghost" size="sm" className="px-2" label={t('req.remove')} loading={busy} onPress={() => act('cancel')} />
+          </View>
+        ) : null
+      ) : open ? (
         <View className="flex-row flex-wrap gap-2 pt-1">
           {!b.mine && b.my_response === 'pending' ? (
             <>
@@ -141,6 +159,62 @@ function BreakCard({ b, me, t, onOtherTime }: { b: BreakRequest; me: number | un
         </Text>
       ) : null}
     </Card>
+  );
+}
+
+/** Still going: a break request pending or planned (not over, taken back, declined or impossible), an access request
+ * waiting for an answer. The chat pins the newest one at the top while it's scrolled out of view. */
+export function isActiveRequest(m: ChatMessage) {
+  const r = m.request;
+  if (!r) return false;
+  if (r.type === 'access') return r.status === 'pending';
+  const s = breakState(r);
+  return s.label === 'break.stPlanned' || s.label === 'break.stAsked' || s.label === 'break.stTheirs';
+}
+
+/**
+ * The compact copy of an active request card, pinned at the top of the chat while the card is scrolled up out of
+ * view: one line with what it is ("Pauze samen? morgen 12:30"), its state and the main answer when it's yours to
+ * give (Ja, Aanvaarden), else an arrow. Tapping it scrolls to the card (`onPress`).
+ */
+export function RequestBar({ m, onPress }: { m: ChatMessage; onPress: () => void }) {
+  const { t, lang } = useT();
+  const breakAnswer = useAnswerBreak();
+  const accessAnswer = useAnswerAccess();
+  const r = m.request;
+  if (!r) return null;
+  const isBreak = r.type === 'break';
+  const state = isBreak ? breakState(r) : accessState(r);
+  const title = requestText(m, t, lang);
+  const ask = isBreak ? !r.mine && r.my_response === 'pending' : !r.mine && r.status === 'pending';
+  const busy = isBreak ? breakAnswer.isPending : accessAnswer.isPending;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}, ${t(state.label)}`}
+      accessibilityHint={t('req.toCard')}
+      onPress={onPress}
+      className="flex-row items-center gap-2 min-h-12 pl-3.5 pr-2 py-1.5 rounded-card border border-line bg-surface-raised active:opacity-80"
+      style={{ shadowColor: '#161F2A', shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 6 }}
+    >
+      <Icon name={isBreak ? 'coffee' : 'calendar'} size={16} color="ink-2" strokeWidth={2} />
+      <Text variant="sm" bold numberOfLines={1} className="shrink">
+        {title}
+      </Text>
+      <Tag kind={state.kind} icon={state.icon}>
+        {t(state.label)}
+      </Tag>
+      <View className="flex-1" />
+      {ask ? (
+        isBreak ? (
+          <Button variant="together" size="sm" label={t('break.yes')} loading={busy} onPress={() => breakAnswer.mutate({ id: r.id, action: 'accepted' })} />
+        ) : (
+          <Button size="sm" label={t('req.accept')} loading={busy} onPress={() => accessAnswer.mutate({ id: r.id, action: 'accept' })} />
+        )
+      ) : (
+        <Icon name="forward" size={18} color="ink-3" strokeWidth={2} />
+      )}
+    </Pressable>
   );
 }
 
