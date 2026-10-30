@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-30T09:25:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -56,7 +56,7 @@ With `semester`, the same class can be followed once per semester (two sources, 
 
 ## `delete_account`
 
-`DELETE /api/v1/me`: deletes the account and everything linked to it, right away (`accounts.delete_user`). Required by the App Store and GDPR.
+`DELETE /api/v1/me`: deletes the account and everything linked to it, right away (`accounts.delete_user`). Required by the App Store and GDPR. An account with an e-mail address gets one last mail (`send_account_deleted`, queued in the same transaction, in the account's language); guests get none.
 
 ## `delete_source`
 

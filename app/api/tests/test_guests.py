@@ -15,12 +15,17 @@ def guest(client) -> dict:
     return out
 
 
+def _code(mails, email: str) -> str:
+    """The newest code mail to this address (a welcome mail can come after it)."""
+    return next(m.group(0).replace(" ", "") for to, _, b in reversed(mails)
+                if to == email and (m := re.search(r"(\d{3}) (\d{3})", b)))
+
+
 def verify_as(client, mails, email: str, headers: dict) -> dict:
     """E-mail code sign-in while signed in as a guest (the app sends the guest's token along)."""
     client.post("/api/v1/auth/email/start", json={"email": email})
     run_jobs()
-    body = next(b for to, _, b in reversed(mails) if to == email)
-    code = re.search(r"(\d{3}) (\d{3})", body).group(0).replace(" ", "")
+    code = _code(mails, email)
     r = client.post("/api/v1/auth/email/verify", json={"email": email, "code": code, "platform": "ios"},
                     headers=headers)
     assert r.status_code == 200, r.text
@@ -113,8 +118,7 @@ def test_disabled_accounts_are_locked_out(client, mails):
     assert client.get("/api/v1/me", headers=a["headers"]).status_code == 401
     client.post("/api/v1/auth/email/start", json={"email": "ana@example.com"})
     run_jobs()
-    body = next(b for to, _, b in reversed(mails) if to == "ana@example.com")
-    code = re.search(r"(\d{3}) (\d{3})", body).group(0).replace(" ", "")
+    code = _code(mails, "ana@example.com")
     r = client.post("/api/v1/auth/email/verify", json={"email": "ana@example.com", "code": code})
     assert r.status_code == 403 and r.json()["code"] == "account_disabled"
 

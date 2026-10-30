@@ -4,7 +4,7 @@ Used by GET /api/v1/debug (only with ENV=dev) and by `python -m roosters.cli deb
 import socket
 import time
 
-from . import config, db, mailer, redisx
+from . import config, db, mailer, mails, redisx
 
 HEARTBEAT_KEY = "worker:heartbeat"
 
@@ -81,7 +81,7 @@ def diagnose() -> dict:
 def send_test_mail(to: str) -> dict:
     """Sends right away (not through the worker), so an SMTP error comes back here."""
     try:
-        mailer.send(to, "Roosters+ test mail", "If you read this, the mail setup works.")
+        mailer.send_mail(to, mails.mail_check())
         return {"ok": True, "mode": config.MAIL_MODE}
     except Exception as e:  # noqa: BLE001 (any SMTP or socket error is the answer we want to show)
         return {"ok": False, "mode": config.MAIL_MODE, "error": f"{e.__class__.__name__}: {e}"}

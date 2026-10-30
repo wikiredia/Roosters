@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T09:25:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -76,6 +76,7 @@ notifies the people affected.
 | Change the calendar (Rooster tab and Vergelijken) | `mobile/src/components/timetable/Calendar.tsx`, `DayGrid.tsx`, `DayStrip.tsx`; what's worked out per day: `DayCache.ts`; guide **Plan: a fast Rooster tab** |
 | Measure speed (fps, renders, cache size) | the fps overlay: Server & debug → Performance (`mobile/src/components/PerfOverlay.tsx`, `mobile/src/lib/perf.tsx`) |
 | Change skipping a class (drag to the bin, summary, Undo) | `mobile/src/components/timetable/SkipDrag.tsx`, `SkipToast.tsx`, `mobile/src/lib/skips.ts`; API `r_me.skip`, `schedule.takes_place` |
+| Change an e-mail (login code, welcome, new sign-in, account deleted) or add one | `api/roosters/mails.py` (texts + the shared HTML look, `nl` + `en`), `mailer.py` (the jobs that send them, the inline logo `mail_assets/logo.png`); preview in Mailpit (`:8025`) |
 | Change push notifications (texts, who gets what, Meldingen) | `api/roosters/push.py`, `notifications.py`, `mobile/src/lib/push.ts`, `mobile/src/app/settings/notifications.tsx` |
 | Change profile photos | `api/roosters/r_me.py` (`put_photo`), `r_friends.photo`, `mobile/src/lib/photo.ts`, `components/ui/Bits.tsx` (`Avatar`) |
 | Change a design token or component | `mobile/src/global.css`, `mobile/src/components/ui/` |

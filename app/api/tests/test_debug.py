@@ -24,7 +24,7 @@ def test_debug_shows_mail_setup_and_last_login_mails(client, mails):
 
 
 def test_debug_shows_why_a_login_mail_failed(client, monkeypatch):
-    def broken(to, subject, body):
+    def broken(to, subject, body, html=None):
         raise ConnectionRefusedError("[Errno 111] Connection refused")
 
     monkeypatch.setattr(mailer, "send", broken)
@@ -37,11 +37,11 @@ def test_debug_shows_why_a_login_mail_failed(client, monkeypatch):
 
 def test_test_mail_returns_the_smtp_error(client, monkeypatch):
     sent = []
-    monkeypatch.setattr(mailer, "send", lambda to, subject, body: sent.append(to))
+    monkeypatch.setattr(mailer, "send", lambda to, subject, body, html=None: sent.append(to))
     assert client.post("/api/v1/debug/mail", json={"email": "me@example.com"}).json()["ok"] is True
     assert sent == ["me@example.com"]
 
-    def broken(to, subject, body):
+    def broken(to, subject, body, html=None):
         raise TimeoutError("timed out")
 
     monkeypatch.setattr(mailer, "send", broken)
