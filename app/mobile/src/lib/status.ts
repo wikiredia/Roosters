@@ -13,6 +13,9 @@ export function statusLine(s: Status, t: (k: Key, p?: Params) => string): { free
       return { free: true, strong: t('status.free'), text: t('status.chilling') };
     case 'wants_to_chill':
       return { free: true, strong: t('status.free'), text: t('status.wantsToChill') };
+    case 'break_busy':
+      // Between classes, but said they're busy: not free for a break
+      return { free: false, text: t('status.breakBusy') };
     case 'in_class':
       return { free: false, text: t('status.inClass', { t: until }) };
     case 'later':

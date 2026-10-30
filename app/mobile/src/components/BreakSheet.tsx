@@ -1,8 +1,9 @@
+import { router, usePathname } from 'expo-router';
 import { memo, useState } from 'react';
 import { View } from 'react-native';
 import { SlideInLeft, SlideInRight, SlideOutLeft, SlideOutRight } from 'react-native-reanimated';
 
-import { useAnswerBreak, useAskBreak, useBreaks } from '@/api/hooks';
+import { type BreakAnswer, useAnswerBreak, useAskBreak, useBreaks } from '@/api/hooks';
 import type { BreakMode, BreakRequest } from '@/api/types';
 import { Avatar, AvatarStack, Segmented, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -100,6 +101,7 @@ function Form({ target, step, dir, go, onDone }: { target: NonNullable<BreakTarg
   const ask = useAskBreak();
   const answer = useAnswerBreak();
   const breaks = useBreaks();
+  const path = usePathname();
   const people = target.kind === 'ask' ? target.people : [];
   // Already asked, planned or asked by them: shown with its state, and not asked twice
   const states = new Map(people.map((p) => [p.id, stateWith(breaks.data, p.id, target.kind === 'ask' ? target.day : '', p.start, p.end)?.state ?? null]));
@@ -143,13 +145,22 @@ function Form({ target, step, dir, go, onDone }: { target: NonNullable<BreakTarg
 
   async function send() {
     setError(null);
+    let res: BreakAnswer;
     try {
-      if (r) await answer.mutateAsync({ id: r.id, action: 'counter', start, end, place: place.trim() || null, note: note.trim() || null });
-      else await ask.mutateAsync({ to_ids: chosen, day, start, end, mode, place: mode === 'meet' ? place.trim() || null : null, note: note.trim() || null });
-      onDone();
+      res = r
+        ? await answer.mutateAsync({ id: r.id, action: 'counter', start, end, place: place.trim() || null, note: note.trim() || null })
+        : await ask.mutateAsync({ to_ids: chosen, day, start, end, mode, place: mode === 'meet' ? place.trim() || null : null, note: note.trim() || null });
     } catch (e) {
       setError(breakError(e, names, t));
+      return;
     }
+    onDone();
+    // To the chat the card went to (back returns here); several separate chats: the Chat tab. Not the same chat
+    // again when the sheet was opened on top of it ("Ander uur" on a card)
+    const chats = res.chats ?? [];
+    if (chats.length === 1) {
+      if (path !== `/chat/${chats[0]}`) router.push(`/chat/${chats[0]}`);
+    } else if (chats.length > 1) router.push('/chat');
   }
 
   const who = r ? [r.from] : people.filter((p) => chosen.includes(p.id));
