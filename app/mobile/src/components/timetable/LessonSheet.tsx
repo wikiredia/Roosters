@@ -6,7 +6,7 @@ import type { Friend, Lesson, Together } from '@/api/types';
 import { Avatar, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
 import { Card, Row } from '@/components/ui/Layout';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetPeek } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/cn';
@@ -24,18 +24,36 @@ type Props = {
   /** 'Skip this class' (one that's still to come), and 'I'll go after all' on one you skip. Without: neither. */
   onSkip?: (l: Lesson) => void;
   onUnskip?: (l: Lesson) => void;
+  /** Opened from a tap on the grid: its peek (the grid starts it), and whether it's only peeking yet (shows
+   * `lesson`, but isn't open). See components/ui/Sheet `peek`. */
+  peek?: SheetPeek;
+  peeking?: boolean;
 };
 
 /** Tap on a lesson: when, what, where, who else is free if it's cancelled or you skip it, and skipping it.
  * Memo (like the other two sheets of the calendar): opening it renders this sheet and nothing else, as long as the
- * callbacks it gets keep their identity. */
-export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends = [], together = [], onSkip, onUnskip }: Props) {
-  const { t, lang } = useT();
+ * callbacks it gets keep their identity. With `peek` the sheet is there before any lesson (an empty frame, for the
+ * frame before the tapped lesson comes in). */
+export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends = [], together = [], onSkip, onUnskip, peek, peeking = false }: Props) {
+  const { t } = useT();
   // Keep showing the last lesson while the sheet slides away
   const [last, setLast] = useState(lesson);
   if (lesson && lesson !== last) setLast(lesson);
   const l = lesson ?? last;
-  if (!l) return null;
+  if (!l && !peek) return null;
+  return (
+    <Sheet visible={!!lesson && !peeking} onClose={onClose} closeLabel={t('common.close')} title={l?.course ?? t('tt.lesson')} sub={l ? subOf(l, t) : undefined} peek={peek}>
+      {l ? <LessonBody l={l} onClose={onClose} friends={friends} together={together} onSkip={onSkip} onUnskip={onUnskip} /> : null}
+    </Sheet>
+  );
+});
+
+function subOf(l: Lesson, t: ReturnType<typeof useT>['t']) {
+  return isOff(l) ? t('tt.cancelled') : l.skipped ? t('tt.skipped') : l.state === 'changed' ? t('tt.changed') : l.state === 'exam' ? t('tt.exam') : undefined;
+}
+
+function LessonBody({ l, onClose, friends, together, onSkip, onUnskip }: { l: Lesson; onClose: () => void; friends: Friend[]; together: Together[]; onSkip?: (l: Lesson) => void; onUnskip?: (l: Lesson) => void }) {
+  const { t, lang } = useT();
   const off = isOff(l);
   const day = parseDay(l.day);
   const when = l.day === isoDay(new Date()) ? t('today.title') : shortDate(day, lang);
@@ -46,13 +64,7 @@ export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends 
   // Friends free while this lesson would have been
   const alsoFree = free ? together.filter((s) => s.start < l.end && l.start < s.end && byId.has(s.id)) : [];
   return (
-    <Sheet
-      visible={!!lesson}
-      onClose={onClose}
-      closeLabel={t('common.close')}
-      title={l.course ?? t('tt.lesson')}
-      sub={off ? t('tt.cancelled') : l.skipped ? t('tt.skipped') : l.state === 'changed' ? t('tt.changed') : l.state === 'exam' ? t('tt.exam') : undefined}
-    >
+    <>
       <Card>
         <Row first title={t('lesson.when')} right={<Text>{`${when} ${range(l.start, l.end)}`}</Text>} />
         <Row title={t('lesson.kind')} right={<Text>{[kind, l.location].filter(Boolean).join(' · ')}</Text>} />
@@ -102,22 +114,22 @@ export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends 
         </View>
       ) : null}
       <Button variant={skippable || (l.skipped && onUnskip) ? 'ghost' : 'secondary'} label={t('common.close')} onPress={onClose} />
-    </Sheet>
+    </>
   );
-});
+}
 
 /**
  * Lessons that overlap were tapped (or close to where they overlap): which one do you mean? Picking one opens
  * its own sheet (the screen does that). In time order, each with its kind's colour, time and room.
  */
-export const OverlapSheet = memo(function OverlapSheet({ choice, onClose, onPick }: { choice: { lessons: Lesson[] } | null; onClose: () => void; onPick: (l: Lesson) => void }) {
+export const OverlapSheet = memo(function OverlapSheet({ choice, onClose, onPick, peek, peeking = false }: { choice: { lessons: Lesson[] } | null; onClose: () => void; onPick: (l: Lesson) => void; peek?: SheetPeek; peeking?: boolean }) {
   const { t } = useT();
   // Keep showing the last choice while the sheet slides away
   const [last, setLast] = useState(choice);
   if (choice && choice !== last) setLast(choice);
   const lessons = (choice ?? last)?.lessons ?? [];
   return (
-    <Sheet visible={!!choice} onClose={onClose} closeLabel={t('common.close')} title={t('tt.whichLesson')}>
+    <Sheet visible={!!choice && !peeking} onClose={onClose} closeLabel={t('common.close')} title={t('tt.whichLesson')} peek={peek}>
       <Card>
         {lessons.map((l, i) => (
           <Row

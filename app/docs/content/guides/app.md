@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T02:00:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -39,10 +39,19 @@ the grid (`TodayPill.tsx`). Day math and where a swipe lands: `lib/days.ts`. Dat
 (`useWeeks`); every lesson kind has its own colour. The plan to make it fast (and sheets app-wide), what's done and what's
 measured: the guide **Plan: a fast Rooster tab (and fast sheets)**.
 
-Performance rules for the calendar (they hold from Phase 1 of that plan):
+A tap on a lesson (an overlap, a shared break, a skipped class) **peeks** its sheet at once, in the frame the finger
+lifts; a second tap within 200 ms puts the peek away and zooms, no second tap and the sheet opens fully in one motion
+(`DayGrid` "The peek", `ui/Sheet` `peek`).
+
+Performance rules for the calendar (they hold from Phases 1 and 2 of that plan):
 - **No `layout` transitions inside the grid.** One per block restarted a 200 ms animation for every block on every frame of
   a pinch or of the strip's handle. `entering` only where it means something: lessons fade in when their data arrives after
-  the skeleton, on a day that's in view.
+  the skeleton, on a day that's in view. When the hours change, blocks glide on shared values (`DayGrid.GridZoom`), only
+  for the days in view.
+- **Move things with transforms**, not `left`/`top`: the columns are placed with `translateX` (a swipe changes nothing
+  else), their `width` changes only with the number of days. Only the days in view plus a buffer exist as columns.
+- **No `Modal` for sheets.** Every sheet is drawn in the root layout's `SheetHost` (`components/ui/Sheet.tsx`), which
+  also does Android back and screen-reader hiding. Don't put a sheet in a `Modal`, and don't add a second gesture root.
 - **Work a day out once.** Everything derived from a day's lessons (merged periods, blocks, overlaps, free gaps, dots,
   legend, skippable classes, tappable stretches) is made when its week arrives (`DayCache.useDays`) and read afterwards;
   never call `mergeLessons` and friends in a render or a gesture.

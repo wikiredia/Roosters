@@ -1,10 +1,11 @@
 ---
 title: Plan: a fast Rooster tab (and fast sheets)
 position: 65
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T02:00:00Z
 ---
 
-**Status: Phase 0 and Phase 1 are in the code (see their status notes below); the measurements and Phase 2 are open.** Written after a code review of the Rooster tab (no device profiling
+**Status: Phases 0, 1 and 2 are in the code (see their status notes below); the measurements, tuning the peek by feel
+and Phase 3 are open.** Written after a code review of the Rooster tab (no device profiling
 yet). The user reported: low fps while changing how many days you see, slow bottom sheets with a class's details,
 and every action on the Rooster screen feeling heavy. Sheets are slow across the whole app. This guide says
 **why**, **what to change**, in **what order**, and **what we can't avoid**. It is written for the agent who
@@ -255,6 +256,36 @@ Done when: (b) and (c) are clearly smoother in a release build, a swipe re-rende
 (render counter), and opening a sheet re-renders only that sheet (the 200 ms wait goes in Phase 2.2).
 
 ### Phase 2: structural fixes (the bigger wins)
+
+**Status: code done (all five items); not yet tried on a device. Needs a new development build (2.5 is native).** What
+changed, per item:
+- **2.1** `components/ui/SheetHost.tsx`, mounted around the `Stack` in `app/_layout.tsx`. `Sheet` keeps its props and
+  renders into the host through a small store (`putSheet` from a layout effect, so the first frame of the slide is
+  unchanged). Android back, screen-reader hiding (app content and the sheets under the top one), `accessibilityViewIsModal`
+  and focus on the title, `KeyboardAvoidingView` (`padding` on both platforms, only while open), stacking by open order.
+  No nested gesture root. No React context is lost (the app has none below the root).
+- **2.2** `Sheet` has `peek` (`useSheetPeek`, `peekSheet`/`openPeek`/`dropPeek`, `PEEK_PX` = 104). `DayGrid`: the tap
+  runs `Simultaneous` with the double tap; its worklet starts the peek; the double tap's `onEnd` drops it, its
+  `onFinalize` (window ran out) opens it. A second touch inside the window is never a tap of its own (`second`/`pending`
+  shared values: no `Date.now()` in the worklets). `Calendar`: `answer`, `peeking`, `answered`, `onPeekOpen`, `putAway`.
+  Screen readers open fully at once; reduced motion: no peek, a short fade when the window runs out.
+- **2.3** Columns: `translateX` + `width` in two animated styles. Mounted: the view ± `ceil(want)` days, extended from an
+  animated reaction when a gesture goes further (`DayGrid` "Which columns exist"); `useWeeks` window unchanged. Day
+  separators: one periodic drawing that moves by the fraction of a column (fades while the number of days changes),
+  instead of one `Svg` per column; hour lines: one drawing. The tap, pinch and skip-drag math is unchanged.
+- **2.4** `GridZoom` (`h0`, `pph`, `range`) in `Calendar`, animated 250 ms from a layout effect when the hours change.
+  Blocks of the days in view (`Placed`), the hour lines (translate + scale) and `TimeAxis` (`zoom` prop) follow it.
+  Known edge: when a swipe changes the hours, a column that just came into view may show the new hours for one frame.
+- **2.5** `package.json` → `reanimated.staticFeatureFlags` (both `*_SYNCHRONOUSLY_UPDATE_UI_PROPS`, and
+  `USE_COMMIT_HOOK_ONLY_FOR_REACT_COMMITS`, already the 4.7 default); `app.json` → `ios.infoPlist`
+  `CADisableMinimumFrameDurationOnPhone`.
+
+To test on a phone (both platforms, release build): every sheet in the app (Today's `BreakSheet`, `MessageSheet` and
+`ChatInfoSheet` in a chat, `AddLinkSheet` with the keyboard, `GhostSheet` and log out on Ik, `CoursePreview` in onboarding);
+Android back with a sheet open; VoiceOver/TalkBack can't reach the screen behind a sheet; tap / double tap / slow
+second tap on a lesson near the bottom of the grid; overlap tap → pick a lesson; drag-to-skip, pinch anchor, the strip's
+group drag and edge scroll (columns appear in time), a zoom (axis and blocks move together); 'Reset' (`TitleOrBack`),
+`usePressScale` buttons and the `TodayPill` stay tappable with the synchronous flags.
 
 1. **Sheets without `Modal`: a `SheetHost`.** One host view mounted in the root layout (`app/_layout.tsx`, after the
    `Stack`, absolute fill, above everything), and a portal: `Sheet` renders its content into the host instead of

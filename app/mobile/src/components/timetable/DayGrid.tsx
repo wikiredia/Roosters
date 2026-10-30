@@ -1,7 +1,8 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { FadeIn, FadeInLeft, FadeInRight, type SharedValue, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { type AnimatedProps, FadeIn, FadeInLeft, FadeInRight, interpolate, type SharedValue, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import type { ViewProps } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { useCSSVariable } from 'uniwind';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -9,6 +10,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import type { Lesson } from '@/api/types';
 import { AView } from '@/components/ui/Motion';
 import { Skeleton } from '@/components/ui/Screen';
+import { dropPeek, openPeek, peekSheet, SHEET_PEEK, type SheetPeek } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { dateAt, MAX_DAYS, snap } from '@/lib/days';
@@ -18,7 +20,7 @@ import { hhmm, weekdayShort } from '@/lib/time';
 
 import type { DayData } from './DayCache';
 import { type DragTarget, type SkipDrag, useDragTargets, useSkipDrag, useSkipGesture } from './SkipDrag';
-import { TAP_TOGETHER, type TapTarget, tapKindAt, useTapTargets } from './TapTargets';
+import { TAP_OVERLAP, TAP_TOGETHER, type TapTarget, tapKindAt, useTapTargets } from './TapTargets';
 import { type Block, BlockView, lessonLabel, lessonsIn, OverlapBand, type Span } from './Timetable';
 
 /** Height of the date above each column. */
@@ -27,6 +29,18 @@ export const LABEL_H = 22;
 export const SWIPE = { damping: 28, stiffness: 230, mass: 1 };
 /** The number of days settles with a little bounce. */
 export const RESIZE = { damping: 16, stiffness: 240, mass: 0.8 };
+/** How long (ms) after a tap a second one still makes it a double tap (zoom). A single tap's sheet peeks at once
+ * and opens fully when this runs out: lower opens sooner, too low makes double taps hard. Tune by feel. */
+export const DOUBLE_TAP_DELAY = 200;
+
+/** The sheets a tap on the grid opens, each with its UI-thread peek (components/ui/Sheet `useSheetPeek`):
+ * a lesson (or a skipped class), lessons that overlap, a shared break. */
+export type GridPeeks = { lesson: SheetPeek; overlap: SheetPeek; ask: SheetPeek };
+
+/** The hours as they are on screen right now, on the UI thread: the first hour and pixels per hour. They glide to
+ * the new values when the hours change (a zoom, or a day with an earlier lesson), and the blocks of the days in
+ * `range` (the days in view: first, last) and the time axis follow them. Everything else jumps. Calendar drives it. */
+export type GridZoom = { h0: SharedValue<number>; pph: SharedValue<number>; range: SharedValue<[number, number]> };
 
 /** What a day column needs to know about the view without being rendered by it: the direction you went last (new
  * lessons come in from that side), and the first day and number of days you're on (a column only fades its lessons in
@@ -41,9 +55,14 @@ type Props = {
   busyWeekends: SharedValue<number[]>;
   width: number;
   height: number;
-  /** The days rendered (a window around the view; columns outside it don't exist). */
+  /** The days with data (the weeks around the view): what a tap or a drag can find. */
   from: number;
   to: number;
+  /** The first day in view and how many, as React knows them: the columns that exist are these, plus as many
+   * again on each side (more while a gesture goes further, see `mounted`). */
+  start: number;
+  want: number;
+  zoom: GridZoom;
   /** The day's data (`DayCache`): a new function when some day changed, the same `DayData` objects for the others */
   data: (day: number) => DayData | undefined;
   hours: [number, number];
@@ -55,11 +74,19 @@ type Props = {
   /** Short course names (narrow columns). */
   compact: boolean;
   lang: Lang;
-  onPressLesson: (l: Lesson, day: number) => void;
+  /** `peek`: the tap came from the grid's gesture, which already started that sheet's peek (`peeks`); without
+   * (a screen reader) the sheet opens fully at once */
+  onPressLesson: (l: Lesson, day: number, peek?: boolean) => void;
   /** A tap on (or close to) lessons that overlap: the screen asks which one you mean */
-  onPressOverlap: (ls: Lesson[], day: number) => void;
+  onPressOverlap: (ls: Lesson[], day: number, peek?: boolean) => void;
   /** A tap on a shared break: that day and the break (the screen asks "Pauze samen?") */
-  onPressTogether: (day: number, span: Span) => void;
+  onPressTogether: (day: number, span: Span, peek?: boolean) => void;
+  /** A tap the UI thread thought would open something, but on JS nothing was there (the data just changed) */
+  onPressNothing: () => void;
+  /** The sheets a tap opens: their peek starts on the UI thread in the frame the finger lifts */
+  peeks: GridPeeks;
+  /** The double tap's window ran out after a single tap: the peeking sheet went on to open fully */
+  onPeekOpen: () => void;
   /** Where a swipe will land: called as the finger lets go, so dates and data update before it gets there. */
   onTarget: (start: number) => void;
   /** Pinch: how many days you see (live while pinching is the shared `count`). */
@@ -84,7 +111,7 @@ type Props = {
  * made once and again only when the size or hours change, so those callbacks must stay the same too.
  */
 export const DayGrid = memo(function DayGrid(p: Props) {
-  const { offset, count, busyWeekends, width, height, from, to, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether, onTarget, onCount, onDoubleTap, drag, onPickClass, onDropClass } = p;
+  const { offset, count, busyWeekends, width, height, from, to, start, want, zoom, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether, onPressNothing, peeks, onPeekOpen, onTarget, onCount, onDoubleTap, drag, onPickClass, onDropClass } = p;
   const lineColor = String(useCSSVariable('--color-line') ?? '#E4E1DA');
   const [h0, h1] = hours;
   const pxPerHour = (height - LABEL_H) / Math.max(1, h1 - h0);
@@ -145,16 +172,17 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     const day = Math.floor(off + x / (width / n));
     const min = h0 * 60 + ((y - LABEL_H) / pxPerHour) * 60;
     const d = data(day);
-    if (!d) return;
+    if (!d) return onPressNothing();
     const hits = lessonsIn(d.merged, d.overlaps, min);
-    if (hits.length > 1) onPressOverlap(hits, day);
-    else if (hits.length === 1) onPressLesson(hits[0], day);
+    if (hits.length > 1) onPressOverlap(hits, day, true);
+    else if (hits.length === 1) onPressLesson(hits[0], day, true);
     else {
       // A hatched one (over, or too far ahead) can't be asked for; a shared break over a skipped class goes first
       const s = d.together.find((x) => x.start <= min && min < x.end);
       const skipped = lessonsIn(d.merged, d.overlaps, min, true)[0];
-      if (s && !s.muted && !(day === today && s.end <= nowMin)) onPressTogether(day, { start: s.start, end: s.end });
-      else if (skipped) onPressLesson(skipped, day);
+      if (s && !s.muted && !(day === today && s.end <= nowMin)) onPressTogether(day, { start: s.start, end: s.end }, true);
+      else if (skipped) onPressLesson(skipped, day, true);
+      else onPressNothing();
     }
   });
 
@@ -176,22 +204,39 @@ export const DayGrid = memo(function DayGrid(p: Props) {
   const tapTargets = useTapTargets(lists.taps);
 
   // Taps go through the gesture system too (not a Pressable per lesson): a swipe or pinch can never end
-  // as a tap on the lesson under your finger, and a double tap is never two taps. The UI thread already knows whether
-  // anything under the finger opens a sheet (the stretches in `tapTargets`): a tap on nothing never wakes JS.
+  // as a tap on the lesson under your finger. The single tap doesn't wait for the double tap: they run side by side.
+  // The UI thread knows what's under the finger (the stretches in `tapTargets`), so a tap on something starts that
+  // sheet's peek in the frame the finger lifts, and only then tells JS what to put in it; a tap on nothing never
+  // wakes JS. A second tap within the double tap's window is never a tap of its own (`second`): the double tap
+  // takes it, drops the peek and zooms. No second tap: the window runs out and the peek goes on to open fully.
+  // `pending`: the double tap is waiting for a second tap after a first one ended; `waiting`: it's still in the race.
+  const pending = useSharedValue(false);
+  const waiting = useSharedValue(false);
+  const second = useSharedValue(false);
   const tap = useMemo(
     () =>
       Gesture.Tap()
         .maxDistance(8)
+        .onBegin(() => {
+          second.set(pending.get());
+        })
         .onEnd((e, ok) => {
-          if (!ok) return;
+          if (!ok || second.get()) return;
+          // The double tap may have given up already (a long press): then there is no window to wait for
+          const live = waiting.get();
+          if (live) pending.set(true);
           const off = offset.get();
           const n = count.get();
           const day = Math.floor(off + e.x / (width / n));
           const min = h0 * 60 + ((e.y - LABEL_H) / pxPerHour) * 60;
-          if (tapKindAt(tapTargets.get(), day, min) < 0) return;
+          const kind = tapKindAt(tapTargets.get(), day, min);
+          if (kind < 0) return;
+          const sheet = kind === TAP_OVERLAP ? peeks.overlap : kind === TAP_TOGETHER ? peeks.ask : peeks.lesson;
+          if (live) peekSheet(sheet);
+          else openPeek(sheet);
           scheduleOnRN(tapAt, e.x, e.y, off, n);
         }),
-    [offset, count, tapTargets, width, h0, pxPerHour, tapAt],
+    [offset, count, tapTargets, width, h0, pxPerHour, tapAt, peeks, pending, waiting, second],
   );
 
   const ownDrag = useSkipDrag();
@@ -215,28 +260,109 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     () =>
       Gesture.Tap()
         .numberOfTaps(2)
-        // Short: a single tap waits this long to be sure it isn't the first of two
-        .maxDelay(200)
+        .maxDelay(DOUBLE_TAP_DELAY)
+        .onBegin(() => {
+          waiting.set(true);
+        })
         .onEnd((_e, ok) => {
-          if (ok) scheduleOnRN(onDoubleTap);
+          if (!ok) return;
+          // Zoom, and the sheet the first tap peeked is never opened (Calendar forgets it)
+          dropPeek(peeks.lesson);
+          dropPeek(peeks.overlap);
+          dropPeek(peeks.ask);
+          scheduleOnRN(onDoubleTap);
+        })
+        .onFinalize((_e, ok) => {
+          waiting.set(false);
+          pending.set(false);
+          if (ok) return;
+          // The window ran out (or the gesture failed): the peek goes on to open, in one motion
+          let opened = false;
+          for (const sheet of [peeks.lesson, peeks.overlap, peeks.ask]) {
+            if (sheet.stage.get() !== SHEET_PEEK) continue;
+            openPeek(sheet);
+            opened = true;
+          }
+          if (opened) scheduleOnRN(onPeekOpen);
         }),
-    [onDoubleTap],
+    [onDoubleTap, onPeekOpen, peeks, pending, waiting],
   );
 
-  const gesture = useMemo(() => Gesture.Simultaneous(pinch, Gesture.Exclusive(skip, pan, doubleTap, tap)), [pinch, skip, pan, doubleTap, tap]);
+  // The pinch alongside everything; then a class drag, a swipe, and the taps (single and double side by side)
+  const gesture = useMemo(() => Gesture.Simultaneous(pinch, Gesture.Exclusive(skip, pan, Gesture.Simultaneous(doubleTap, tap))), [pinch, skip, pan, doubleTap, tap]);
 
+  // The columns that exist: what you see plus as many days again on each side, so a swipe lands on columns that are
+  // there already (the data is fetched further out, see Calendar). A gesture that goes further than that (a pinch to
+  // 7 days, the strip pushed against its edge) adds columns as it crosses each whole day: `live`, until React's view
+  // moves (then the window follows it again).
+  const buffer = Math.ceil(want);
+  const baseA = start - buffer;
+  const baseB = start + want - 1 + buffer;
+  const [live, setLive] = useState<[number, number] | null>(null);
+  const [base, setBase] = useState(`${baseA}:${baseB}`);
+  if (base !== `${baseA}:${baseB}`) {
+    setBase(`${baseA}:${baseB}`);
+    setLive(null);
+  }
+  const a = Math.min(baseA, live?.[0] ?? baseA);
+  const b = Math.max(baseB, live?.[1] ?? baseB);
+  const mounted = useSharedValue<[number, number]>([a, b]);
+  useEffect(() => {
+    mounted.set([a, b]);
+  }, [a, b, mounted]);
+  const extend = useStable((lo: number, hi: number) => setLive((l) => [Math.min(lo, l?.[0] ?? lo), Math.max(hi, l?.[1] ?? hi)]));
+  useAnimatedReaction(
+    // The days on screen, one more on each side
+    () => [Math.floor(offset.get()) - 1, Math.ceil(offset.get() + count.get())] as [number, number],
+    (v, prev) => {
+      if (prev && v[0] === prev[0] && v[1] === prev[1]) return;
+      const m = mounted.get();
+      if (v[0] < m[0] || v[1] > m[1]) scheduleOnRN(extend, v[0], v[1]);
+    },
+  );
   const days: number[] = [];
-  for (let i = from; i <= to; i++) days.push(i);
+  for (let i = a; i <= b; i++) days.push(i);
+
+  // The day separators: one drawing of dotted lines a column apart that moves by the part of a column you've
+  // swiped (it repeats every column), instead of a drawing per column. While the number of days changes they fade out
+  // (their spacing is React's), and come back once it settles.
+  const colW = width / want;
+  const separators = useAnimatedStyle(() => {
+    const off = offset.get();
+    const n = count.get();
+    return {
+      opacity: interpolate(Math.abs(n - want), [0.02, 0.15], [1, 0], 'clamp'),
+      transform: [{ translateX: -(off - Math.floor(off)) * (width / n) }],
+    };
+  });
+  // The hour lines, for every hour of the day (so a zoom has lines to show coming in), placed by React for the
+  // current hours and moved to where the hours are right now (`zoom`) while they glide
+  const lines = useAnimatedStyle(() => {
+    const pc = zoom.pph.get();
+    const k = pc / pxPerHour;
+    return { transform: [{ translateY: h0 * pxPerHour - zoom.h0.get() * pc }, { scaleY: k }] };
+  });
 
   return (
     <GestureDetector gesture={gesture}>
       <View className="flex-1 overflow-hidden" style={{ height }}>
         {/* Hour lines: subtle and dotted, behind everything */}
-        <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">
-          {Array.from({ length: h1 - h0 + 1 }, (_, i) => (
-            <Line key={i} x1={0} x2={width} y1={LABEL_H + i * pxPerHour} y2={LABEL_H + i * pxPerHour} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
-          ))}
-        </Svg>
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: LABEL_H - 1, width, height: height - LABEL_H + 2, overflow: 'hidden' }}>
+          <AView style={[{ position: 'absolute', left: 0, top: 1 - h0 * pxPerHour, width, height: 24 * pxPerHour + 2, transformOrigin: 'top' }, lines]}>
+            <Svg width={width} height={24 * pxPerHour + 2}>
+              {Array.from({ length: 25 }, (_, i) => (
+                <Line key={i} x1={0} x2={width} y1={i * pxPerHour} y2={i * pxPerHour} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
+              ))}
+            </Svg>
+          </AView>
+        </View>
+        <AView pointerEvents="none" style={[{ position: 'absolute', left: 0, top: LABEL_H, width: width + colW, height: height - LABEL_H }, separators]}>
+          <Svg width={width + colW} height={height - LABEL_H}>
+            {Array.from({ length: want + 2 }, (_, i) => (
+              <Line key={i} x1={i * colW + 1} x2={i * colW + 1} y1={0} y2={height - LABEL_H} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
+            ))}
+          </Svg>
+        </AView>
         {days.map((day) => (
           <DayColumn
             key={day}
@@ -246,9 +372,9 @@ export const DayGrid = memo(function DayGrid(p: Props) {
             width={width}
             height={height}
             pxPerHour={pxPerHour}
-            lineColor={lineColor}
             data={data(day)}
             hours={hours}
+            zoom={zoom}
             today={today}
             nowMin={day === today ? nowMin : null}
             compact={compact}
@@ -273,9 +399,9 @@ type ColumnProps = {
   width: number;
   height: number;
   pxPerHour: number;
-  lineColor: string;
   data: DayData | undefined;
   hours: [number, number];
+  zoom: GridZoom;
   today: number;
   /** The time of day, for today's column only: the others are not concerned by it (null) and don't render every minute */
   nowMin: number | null;
@@ -288,17 +414,16 @@ type ColumnProps = {
 };
 
 /**
- * One day. Placed and sized on the UI thread from `offset` and `count`; it re-renders only when its own props change
- * (its data, the hours, the size, the minute on today's column), never because of a swipe: every prop is a number, a
- * string, a shared value, one of the cache's `DayData` objects or a callback that keeps its identity.
+ * One day. Placed on the UI thread from `offset` and `count`: moved with a transform (a swipe moves nothing else), sized
+ * with `width`, which only changes with the number of days. It re-renders only when its own props change (its data, the
+ * hours, the size, the minute on today's column), never because of a swipe: every prop is a number, a string, a shared
+ * value, one of the cache's `DayData` objects or a callback that keeps its identity.
  */
-const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether }: ColumnProps) {
+const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, data, hours, zoom, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether }: ColumnProps) {
   noteColumnRender(day);
   const { t } = useT();
-  const style = useAnimatedStyle(() => {
-    const w = width / count.get();
-    return { left: (day - offset.get()) * w, width: w };
-  });
+  const place = useAnimatedStyle(() => ({ transform: [{ translateX: (day - offset.get()) * (width / count.get()) }] }));
+  const size = useAnimatedStyle(() => ({ width: width / count.get() }));
   const date = dateAt(day);
   const isToday = day === today;
   const [h0, h1] = hours;
@@ -312,6 +437,11 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
   const overlaps = data?.overlaps ?? [];
   const free = data?.free ?? [];
   const y = (min: number) => LABEL_H + ((min - h0 * 60) / 60) * pxPerHour;
+  // Where a stretch goes with the hours as React has them; `Placed` moves it along while the hours glide
+  const at = (s: Span, minH: number) => {
+    const top = y(Math.max(s.start, h0 * 60));
+    return { top, h: Math.max(y(Math.min(s.end, h1 * 60)) - top - 3, minH), start: s.start, end: s.end, minH, day, zoom, gridH: height };
+  };
   // Lessons slide in only when they arrive after the skeleton, on a day you're looking at (from the side you went
   // to); a column that mounts with its data, or gets it out of sight, shows them as they are
   const loading = !data || data.loading;
@@ -329,44 +459,29 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
   }
   const entering = arrived ? (arrived > 0 ? FadeInRight : FadeInLeft).duration(240) : undefined;
   return (
-    <AView className="absolute top-0" style={[{ height }, style]}>
-      <Svg width={2} height={height} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
-        <Line x1={1} x2={1} y1={LABEL_H} y2={height} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
-      </Svg>
+    <AView className="absolute top-0 left-0" style={[{ height }, place, size]}>
       <View style={{ height: LABEL_H }} className="items-center justify-center">
         <Text variant="xs" bold tone={isToday ? 'you' : day % 7 >= 5 ? 'ink3' : 'ink2'} numberOfLines={1}>
           {`${weekdayShort(date, lang).toLowerCase()} ${date.getDate()}`}
         </Text>
       </View>
       {/* Free moments between lessons: behind everything (a shared break or a cancelled lesson goes over them) */}
-      {free.map((f) => {
-        const top = y(Math.max(f.start, h0 * 60));
-        const h = Math.max(y(Math.min(f.end, h1 * 60)) - top - 3, 10);
-        return (
-          <AView
-            key={`free:${f.start}`}
-            entering={entering}
-            style={{ position: 'absolute', top, height: h, left: 2, right: 2 }}
-            accessible
-            accessibilityLabel={`${t('tt.free')}, ${hhmm(f.start)} ${t('tt.to')} ${hhmm(f.end)}`}
-          >
-            <View pointerEvents="none" style={{ flex: 1 }}>
-              <BlockView block={{ type: 'free', span: f }} style={{ flex: 1 }} compact={compact} t={t} />
-            </View>
-          </AView>
-        );
-      })}
+      {free.map((f) => (
+        <Placed key={`free:${f.start}`} {...at(f, 10)} entering={entering} accessible accessibilityLabel={`${t('tt.free')}, ${hhmm(f.start)} ${t('tt.to')} ${hhmm(f.end)}`}>
+          <View pointerEvents="none" style={{ flex: 1 }}>
+            <BlockView block={{ type: 'free', span: f }} style={{ flex: 1 }} compact={compact} t={t} />
+          </View>
+        </Placed>
+      ))}
       {blocks.map((b) => {
         const s = b.type === 'lesson' ? { start: b.lesson.start, end: b.lesson.end } : 'span' in b ? b.span : { start: 0, end: 0 };
-        const top = y(Math.max(s.start, h0 * 60));
-        const h = Math.max(y(Math.min(s.end, h1 * 60)) - top - 3, 16);
         const key = b.type === 'lesson' ? `${b.lesson.start}:${b.lesson.course}:${b.lesson.location}` : `${b.type}:${s.start}`;
         return (
           // Touches go to the grid's tap gesture; screen readers activate the block itself
-          <AView
+          <Placed
             key={key}
+            {...at(s, 16)}
             entering={entering}
-            style={{ position: 'absolute', top, height: h, left: 2, right: 2 }}
             accessible
             accessibilityRole="button"
             accessibilityLabel={b.type === 'lesson' ? lessonLabel(b.lesson, t) : t('tt.together')}
@@ -375,17 +490,16 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
             <View pointerEvents="none" style={{ flex: 1 }}>
               <BlockView block={b} style={{ flex: 1 }} compact={compact} t={t} />
             </View>
-          </AView>
+          </Placed>
         );
       })}
       {/* Lessons at the same time: a hatched band over the shared stretch, on top of both blocks */}
       {overlaps.map((o) => {
-        const top = y(Math.max(o.start, h0 * 60));
-        const h = Math.max(y(Math.min(o.end, h1 * 60)) - top - 3, 6);
+        const p = at(o, 6);
         return (
-          <AView key={`overlap:${o.start}`} entering={entering} style={{ position: 'absolute', top, height: h, left: 2, right: 2 }} accessible accessibilityRole="button" onAccessibilityTap={() => onPressOverlap(o.lessons, day)}>
-            <OverlapBand overlap={o} style={{ flex: 1 }} compact={compact} label={h >= 20} t={t} />
-          </AView>
+          <Placed key={`overlap:${o.start}`} {...p} entering={entering} accessible accessibilityRole="button" onAccessibilityTap={() => onPressOverlap(o.lessons, day)}>
+            <OverlapBand overlap={o} style={{ flex: 1 }} compact={compact} label={p.h >= 20} t={t} />
+          </Placed>
         );
       })}
       {data?.loading && blocks.length === 0 ? (
@@ -396,10 +510,50 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
         </AView>
       ) : null}
       {isToday && nowMin != null && nowMin >= h0 * 60 && nowMin <= h1 * 60 ? (
-        <View className="absolute left-0 right-0 h-0.5 bg-ink" style={{ top: y(nowMin) }} pointerEvents="none">
-          <View className="absolute bg-ink rounded-full w-2 h-2" style={{ left: -3, top: -3 }} />
-        </View>
+        <Placed {...at({ start: nowMin, end: nowMin }, 0)} line pointerEvents="none">
+          <View className="flex-1 bg-ink">
+            <View className="absolute bg-ink rounded-full w-2 h-2" style={{ left: -3, top: -3 }} />
+          </View>
+        </Placed>
       ) : null}
     </AView>
   );
 });
+
+type PlacedProps = Omit<AnimatedProps<ViewProps>, 'style'> & {
+  /** Where React puts it (the current hours) */
+  top: number;
+  h: number;
+  /** The stretch it shows (minutes), its smallest height, its day, and the grid's height: to place it while the hours glide */
+  start: number;
+  end: number;
+  minH: number;
+  day: number;
+  zoom: GridZoom;
+  gridH: number;
+  /** The 'now' line: 2 px high at `start`, the column's full width */
+  line?: boolean;
+  children?: ReactNode;
+};
+
+/**
+ * A block in a day column, at `top`/`h`. While the hours glide (`GridZoom`) the blocks of the days in view are placed
+ * from the hours on screen right now instead, frame by frame (at most 7 columns of a few blocks, for ~250 ms); the rest
+ * jump. Its animated style only runs when the zoom's values change, never during a swipe.
+ */
+function Placed({ top, h, start, end, minH, day, zoom, gridH, line, ...rest }: PlacedProps) {
+  const style = useAnimatedStyle(() => {
+    const r = zoom.range.get();
+    if (day < r[0] || day > r[1]) return { top, height: line ? 2 : h };
+    const a = zoom.h0.get() * 60;
+    const p = zoom.pph.get();
+    const b = a + ((gridH - LABEL_H) / p) * 60;
+    const y = (m: number) => LABEL_H + ((m - a) / 60) * p;
+    if (line) return { top: y(start), height: 2 };
+    const t = y(Math.max(start, a));
+    return { top: t, height: Math.max(y(Math.min(end, b)) - t - 3, minH) };
+  });
+  return <AView {...rest} style={[line ? styles.line : styles.block, style]} />;
+}
+
+const styles = { block: { position: 'absolute', left: 2, right: 2 }, line: { position: 'absolute', left: 0, right: 0 } } as const;

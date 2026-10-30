@@ -1,7 +1,7 @@
-import { memo, type RefObject, useCallback, useEffect, useImperativeHandle, useInsertionEffect, useMemo, useRef, useState } from 'react';
+import { memo, type RefObject, useCallback, useEffect, useImperativeHandle, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useSharedValue, withSpring } from 'react-native-reanimated';
+import { Easing, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useBreaks, useFriends, useSkip, useWeeks } from '@/api/hooks';
@@ -10,6 +10,7 @@ import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { AView, enter, exit, layout } from '@/components/ui/Motion';
+import { dropPeek, openPeek, peekSheet, SHEET_IDLE, SHEET_OPEN, SHEET_PEEK, type SheetPeek, useSheetPeek } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { dateAt, dayIndex, homeStart, MAX_DAYS, mondayOf, weekdayOf } from '@/lib/days';
@@ -21,7 +22,7 @@ import { createStore } from '@/lib/store';
 import { isoDay, nowMin, parseDay, weekdayShort } from '@/lib/time';
 
 import { type DayData, useDays } from './DayCache';
-import { DayGrid, LABEL_H, RESIZE, SWIPE } from './DayGrid';
+import { DayGrid, type GridPeeks, type GridZoom, LABEL_H, RESIZE, SWIPE } from './DayGrid';
 import { DayStrip } from './DayStrip';
 import { LessonSheet, OverlapSheet } from './LessonSheet';
 import { DragLayer, useSkipDrag } from './SkipDrag';
@@ -34,6 +35,11 @@ const HOURS: [number, number] = [8, 18];
 const AXIS_W = 30;
 /** What the legend shows when there's nothing to show yet */
 const DEFAULT_LEGEND: LegendItem[] = ['theory', 'lab'];
+/** The sheets a tap on the grid opens (`GridPeeks`) */
+type PeekKind = keyof GridPeeks;
+const PEEK_KINDS: PeekKind[] = ['lesson', 'overlap', 'ask'];
+/** The hours glide to new ones (a zoom, a day with an earlier lesson) in this long */
+const ZOOM = { duration: 250, easing: Easing.inOut(Easing.cubic) };
 
 /** The hours the days show: the standard ones, or (zoomed) only those of the lessons; earlier or later lessons stretch them */
 function hoursFor(days: (DayData | undefined)[], zoomed: boolean): [number, number] {
@@ -49,6 +55,15 @@ function hoursFor(days: (DayData | undefined)[], zoomed: boolean): [number, numb
     h1 = Math.max(h1, Math.ceil(b.end / 60));
   }
   return [h0, h1];
+}
+
+/** A grid sheet that shouldn't be there (peeking, or opened by the UI thread, with nothing to show): out of sight */
+function putAway(p: SheetPeek) {
+  if (p.stage.get() === SHEET_PEEK) dropPeek(p);
+  else if (p.stage.get() === SHEET_OPEN) {
+    p.stage.set(SHEET_IDLE);
+    p.progress.set(withTiming(0, { duration: 120 }));
+  }
 }
 
 /** "19 – 23 okt", "28 okt – 3 nov", "di 20 okt": always short enough for one line. */
@@ -113,6 +128,16 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const [choose, setChoose] = useState<{ lessons: Lesson[]; day: number } | null>(null);
   const chosen = useRef(false);
   const [ask, setAsk] = useState<BreakTarget>(null);
+  // A tap on the grid: its sheet peeks first (the grid starts that on the UI thread), and opens fully when the double
+  // tap's window runs out without a second tap. `peeking`: the sheet that has its content but isn't open yet.
+  // `answered`: what the last grid tap turned out to be, kept in a ref because the UI thread's next step
+  // (onPeekOpen, onDoubleTap) can come before React has rendered it
+  const peekLesson = useSheetPeek();
+  const peekOverlap = useSheetPeek();
+  const peekAsk = useSheetPeek();
+  const peeks = useMemo<GridPeeks>(() => ({ lesson: peekLesson, overlap: peekOverlap, ask: peekAsk }), [peekLesson, peekOverlap, peekAsk]);
+  const [peeking, setPeeking] = useState<PeekKind | null>(null);
+  const answered = useRef<PeekKind | null>(null);
   // Skipping: the class under your finger (the dragged card shows it), the summary at the bottom, the last skip (Undo)
   const drag = useSkipDrag();
   const skip = useSkip();
@@ -240,6 +265,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
       .filter((s, i, all) => all.findIndex((x) => x.id === s.id) === i)
       .map((s) => ({ ...byId.get(s.id)!, start: Math.max(s.start, now), end: s.end }));
     if (people.length) setAsk({ kind: 'ask', day: isoDay(dateAt(day)), people });
+    return people.length > 0;
   }
 
   /** Skip a class (dropped in the bin, or 'Skip' in its sheet): it's gone at once, and the summary says what that
@@ -308,6 +334,24 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     onView?.({ start, want, custom });
   }, [start, want, custom]);
   const pxPerHour = size.h ? (size.h - LABEL_H) / (hours[1] - hours[0]) : 40;
+  // The hours as they are on screen (DayGrid's GridZoom): they glide when the hours change, and jump when only the
+  // size does. Set before the first paint, so the first frame still shows the old hours and then moves.
+  const zoomH0 = useSharedValue(hours[0]);
+  const zoomPph = useSharedValue(pxPerHour);
+  const zoomRange = useSharedValue<[number, number]>([start, start + want - 1]);
+  const zoom = useMemo<GridZoom>(() => ({ h0: zoomH0, pph: zoomPph, range: zoomRange }), [zoomH0, zoomPph, zoomRange]);
+  // The days in view, for the next zoom: up to date before a double tap renders anything
+  useEffect(() => {
+    zoomRange.set([start, start + want - 1]);
+  }, [start, want, zoomRange]);
+  const shownHours = useRef(hoursKey);
+  useLayoutEffect(() => {
+    const glide = shownHours.current !== hoursKey && !!size.h;
+    shownHours.current = hoursKey;
+    zoomRange.set([start, start + want - 1]);
+    zoomH0.set(glide ? withTiming(hours[0], ZOOM) : hours[0]);
+    zoomPph.set(glide ? withTiming(pxPerHour, ZOOM) : pxPerHour);
+  }, [hoursKey, pxPerHour]);
   const now = nowMin();
 
   // Stable callbacks for everything below (all of it memo): opening a sheet re-renders this component and that
@@ -318,9 +362,54 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today };
   });
   const data = useCallback((d: number) => byDay.get(d), [byDay]);
-  const onPressLesson = useCallback((lesson: Lesson, day: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), []);
-  const onPressOverlap = useCallback((lessons: Lesson[], day: number) => setChoose({ lessons, day }), []);
-  const onPressTogether = useCallback((day: number, span: { start: number; end: number }) => latest.current.askBreak(day, span), []);
+  /** What a grid tap opens: `kind`'s sheet, only peeking while the grid's double tap window is still open (`peek`,
+   * from the grid's gesture), else fully (a screen reader, or the window ran out already). Any other peek goes away. */
+  const answer = useCallback(
+    (kind: PeekKind | null, peek: boolean) => {
+      answered.current = peek ? kind : null;
+      // No other sheet can be open while the grid takes a tap (the scrim covers it): any other one is a stray peek.
+      // `guessed`: how far the UI thread got with another sheet than the one JS found (the data changed in between)
+      let guessed = SHEET_IDLE;
+      for (const k of PEEK_KINDS) {
+        if (k === kind) continue;
+        guessed = Math.max(guessed, peeks[k].stage.get());
+        putAway(peeks[k]);
+      }
+      // Take over where it got. Nothing peeking at all means the double tap already put it away: leave it out of sight
+      if (kind && peek && peeks[kind].stage.get() === SHEET_IDLE) {
+        if (guessed === SHEET_PEEK) peekSheet(peeks[kind]);
+        else if (guessed === SHEET_OPEN) openPeek(peeks[kind]);
+      }
+      // Pending until the window runs out (onPeekOpen) or a double tap forgets it (onDoubleTap); open when it already ran out
+      setPeeking(kind && peek && peeks[kind].stage.get() !== SHEET_OPEN ? kind : null);
+    },
+    [peeks],
+  );
+  const onPressLesson = useCallback(
+    (lesson: Lesson, day: number, peek = false) => {
+      setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] });
+      answer('lesson', peek);
+    },
+    [answer],
+  );
+  const onPressOverlap = useCallback(
+    (lessons: Lesson[], day: number, peek = false) => {
+      setChoose({ lessons, day });
+      answer('overlap', peek);
+    },
+    [answer],
+  );
+  const onPressTogether = useCallback(
+    (day: number, span: { start: number; end: number }, peek = false) => answer(latest.current.askBreak(day, span) ? 'ask' : null, peek),
+    [answer],
+  );
+  const onPressNothing = useCallback(() => answer(null, false), [answer]);
+  // The window ran out: the peeking sheet is open now. A sheet the UI thread opened that JS found nothing for goes away.
+  const onPeekOpen = useCallback(() => {
+    setPeeking(null);
+    for (const k of PEEK_KINDS) if (k !== answered.current) putAway(peeks[k]);
+    answered.current = null;
+  }, [peeks]);
   const onTargetCb = useCallback((s: number) => latest.current.onTarget(s), []);
   const onCount = useCallback(
     (n: number, s: number) => {
@@ -330,7 +419,16 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     },
     [k],
   );
-  const onDoubleTap = useCallback(() => setZoomed((z) => !z), []);
+  // A double tap: zoom, and the sheet the first tap peeked (the grid already put it away) is forgotten
+  const onDoubleTap = useCallback(() => {
+    setZoomed((z) => !z);
+    const k = answered.current;
+    answered.current = null;
+    setPeeking(null);
+    if (k === 'lesson') setOpen(null);
+    else if (k === 'overlap') setChoose(null);
+    else if (k === 'ask') setAsk(null);
+  }, []);
   // The strip above the grid
   const onStripPick = useCallback(
     (day: number) => {
@@ -446,7 +544,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
       </View>
       <AView layout={layout} className="flex-1 flex-row" onLayout={(e) => setSize({ w: e.nativeEvent.layout.width - AXIS_W, h: e.nativeEvent.layout.height })}>
         <View style={{ width: AXIS_W, paddingTop: LABEL_H }}>
-          <TimeAxis pxPerHour={pxPerHour} hours={hours} compact />
+          <TimeAxis pxPerHour={pxPerHour} hours={hours} compact zoom={zoom} />
         </View>
         {size.w ? (
           <PerfProfile id="DayGrid">
@@ -458,6 +556,9 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
             height={size.h}
             from={from}
             to={to}
+            start={start}
+            want={want}
+            zoom={zoom}
             data={data}
             hours={hours}
             today={today}
@@ -468,6 +569,9 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
             onPressLesson={onPressLesson}
             onPressOverlap={onPressOverlap}
             onPressTogether={onPressTogether}
+            onPressNothing={onPressNothing}
+            peeks={peeks}
+            onPeekOpen={onPeekOpen}
             onTarget={onTargetCb}
             onCount={onCount}
             onDoubleTap={onDoubleTap}
@@ -531,9 +635,18 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
       <AView layout={layout}>
         <Legend items={legend} />
       </AView>
-      <OverlapSheet choice={choose} onClose={closeChoice} onPick={pickChoice} />
-      <BreakSheet target={ask} onClose={closeAsk} />
-      <LessonSheet lesson={open?.lesson ?? null} onClose={closeLesson} friends={friends.data} together={open?.together} onSkip={skipFromSheet} onUnskip={unskipFromSheet} />
+      <OverlapSheet choice={choose} onClose={closeChoice} onPick={pickChoice} peek={peekOverlap} peeking={peeking === 'overlap'} />
+      <BreakSheet target={ask} onClose={closeAsk} peek={peekAsk} peeking={peeking === 'ask'} />
+      <LessonSheet
+        lesson={open?.lesson ?? null}
+        onClose={closeLesson}
+        friends={friends.data}
+        together={open?.together}
+        onSkip={skipFromSheet}
+        onUnskip={unskipFromSheet}
+        peek={peekLesson}
+        peeking={peeking === 'lesson'}
+      />
     </PerfProfile>
   );
 });

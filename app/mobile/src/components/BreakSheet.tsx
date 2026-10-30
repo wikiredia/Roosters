@@ -9,7 +9,7 @@ import { Button, IconButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Inputs';
 import { Card, Row } from '@/components/ui/Layout';
 import { AView } from '@/components/ui/Motion';
-import { Sheet } from '@/components/ui/Sheet';
+import { Sheet, type SheetPeek } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { breakError, dayWord, duration, stateWith, type WithState } from '@/lib/breaks';
@@ -44,8 +44,9 @@ const ORDER: Step[] = ['who', 'how', 'note'];
  * of 5 minutes within the break) and a short note. "Ander uur" uses the same sheet for a counter-proposal, from
  * the second page: any time that day. The server checks that everyone is free and nobody was asked already;
  * what's wrong shows on the last page.
+ * From the Rooster grid it opens in two stages (`peek`, `peeking`: see components/ui/Sheet); on Today it opens as any sheet.
  */
-export const BreakSheet = memo(function BreakSheet({ target, onClose }: { target: BreakTarget; onClose: () => void }) {
+export const BreakSheet = memo(function BreakSheet({ target, onClose, peek, peeking = false }: { target: BreakTarget; onClose: () => void; peek?: SheetPeek; peeking?: boolean }) {
   const { t, lang } = useT();
   // Keep showing the last target while the sheet slides away; a new one starts on its first page
   const [last, setLast] = useState(target);
@@ -73,7 +74,8 @@ export const BreakSheet = memo(function BreakSheet({ target, onClose }: { target
         : undefined;
   return (
     <Sheet
-      visible={!!target}
+      visible={!!target && !peeking}
+      peek={peek}
       onClose={onClose}
       closeLabel={t('common.close')}
       title={title}

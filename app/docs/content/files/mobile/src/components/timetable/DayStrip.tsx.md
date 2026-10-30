@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T02:00:00Z
 ---
 
 The **week strip** above the timetable: seven equal cells. What you see in the grid is a white cell (the first day)
@@ -13,7 +13,8 @@ The white cell, the band and the dash are **one group you can pick up** (`move`,
 little and follows your finger over the dates, which stay put (`offset` moves with `k`), and the grid shows the days
 under it, live. **Push it against the strip's edge** and the dates scroll further in time under it, every frame
 (`useFrameCallback`; faster the further you push, `EDGE`, `SCROLL_MIN`, `SCROLL_MAX`), and `onMove` tells the screen
-which days to load. Let go and it settles on a whole day (`onTarget`; the screen then springs `k` so the strip sits on
+which days to load (the grid adds the columns it needs as the view passes each whole day: `DayGrid` "Which columns
+exist"). Let go and it settles on a whole day (`onTarget`; the screen then springs `k` so the strip sits on
 the week again). Swiping the dates themselves does nothing: the grid's swipe moves the dates under the band (the strip
 shows `offset - k` …). When the band grows past Sunday the dates slide left under it. The dash's drag blocks moving
 the group and a tap.

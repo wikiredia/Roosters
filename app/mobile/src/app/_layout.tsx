@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
 import { PerfOverlay } from '@/components/PerfOverlay';
+import { SheetHost } from '@/components/ui/SheetHost';
 import { loadLanguage } from '@/i18n';
 import { fonts } from '@/lib/fonts';
 import { startNetworkWatch } from '@/lib/net';
@@ -57,12 +58,15 @@ export default function RootLayout() {
         persistOptions={{ persister, maxAge: 7 * 24 * 60 * 60_000, buster: 'v2-2', dehydrateOptions: { shouldDehydrateQuery: shouldPersist } }}
       >
         <StatusBar style="auto" />
+        {/* Every bottom sheet is drawn over the app here (components/ui/SheetHost), not in a native Modal */}
+        <SheetHost>
         {/* The same native push on iOS and Android, with the swipe back */}
         <Stack screenOptions={{ headerShown: false, animation: 'ios_from_right', contentStyle: { backgroundColor: String(bg ?? '#F4F3EF') } }}>
           {/* The app itself: nothing to swipe back to (welcome and onboarding are gone, see lib/nav.resetTo) */}
           <Stack.Screen name="(tabs)" options={{ gestureEnabled: false, animation: 'fade' }} />
           <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
         </Stack>
+        </SheetHost>
         {/* Development and EXPO_PUBLIC_DEBUG builds only, and only when switched on (Server & debug) */}
         <PerfOverlay />
       </PersistQueryClientProvider>
