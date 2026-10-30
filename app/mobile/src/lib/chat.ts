@@ -1,6 +1,7 @@
 import type { Chat, ChatEvent, ChatMessage } from '@/api/types';
-import type { Key, Lang } from '@/i18n';
+import { type Key, lang as appLang, type Lang } from '@/i18n';
 
+import { dayWord } from './breaks';
 import { joinNames } from './status';
 import { addDays, hhmm, isoDay, shortDate, weekdayShort } from './time';
 
@@ -50,9 +51,19 @@ export function eventText(e: ChatEvent, me: number | undefined, t: T) {
   }
 }
 
+/** A request card in one line: "Pauze samen? morgen 12:30", "Ander uur: vandaag 13:00", "Mag ik je rooster zien?". */
+export function requestText(m: ChatMessage, t: T, lang: Lang = appLang.get(), today = isoDay(new Date())) {
+  const r = m.request;
+  if (!r) return t('req.gone');
+  if (r.type === 'access') return t('req.accessTitle');
+  const when = `${dayWord(r.day, today, t, lang).toLowerCase()} ${hhmm(r.start)}`;
+  return t(r.counter_of ? 'req.lineCounter' : 'req.lineBreak', { when });
+}
+
 /** What a message says in one line (chat list, screen readers): taken back and removed ones say so. */
 export function messageText(m: ChatMessage, me: number | undefined, t: T) {
-  if (m.kind === 'event' && m.payload) return eventText(m.payload, me, t);
+  if (m.kind === 'event' && m.payload && 'names' in m.payload) return eventText(m.payload, me, t);
+  if (m.kind === 'request') return requestText(m, t);
   if (m.removed) return t('chat.removed');
   if (m.deleted) return t('chat.deleted');
   return m.body ?? '';

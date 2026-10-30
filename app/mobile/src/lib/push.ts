@@ -18,7 +18,8 @@ import { createStore } from './store';
  *   the server, which ties it to this session: signing out stops push here. Called at every start once signed in.
  * - The Android channels are the categories of Meldingen (requests, changes, chat); the server picks one per push.
  * - A break request comes with Ja / Nee / Ander uur (category `break_request`).
- * - `handlePushResponses` (in the tabs layout): a tap opens what the push is about (`data.url`); Ja / Nee answers.
+ * - `handlePushResponses` (in the tabs layout): a tap opens what the push is about (`data.url`: for a break or access
+ *   request the chat with its card); Ja / Nee answers and opens that chat too.
  *
  * Remote push needs a development build (not Expo Go on Android) and an EAS project id (`npx eas-cli init` writes
  * `extra.eas.projectId` into app.json). Without one, `pushState` says why, and the phone is never asked: a yes
@@ -115,9 +116,16 @@ function refresh(data: PushData) {
   } else if (data.kind === 'schedule_change') {
     queryClient.invalidateQueries({ queryKey: ['today'] });
     queryClient.invalidateQueries({ queryKey: ['schedule'] });
-  } else if (data.kind?.startsWith('break_')) {
-    queryClient.invalidateQueries({ queryKey: ['breaks'] });
-    queryClient.invalidateQueries({ queryKey: ['today'] });
+  } else if (data.kind?.startsWith('break_') || data.kind?.startsWith('access_')) {
+    // The request's card in a chat (its live state), the chat list's "Verzoek" tag, and Today
+    queryClient.invalidateQueries({ queryKey: ['chats'] });
+    queryClient.invalidateQueries({ queryKey: data.chat ? ['chat-messages', data.chat] : ['chat-messages'] });
+    if (data.kind.startsWith('break_')) {
+      queryClient.invalidateQueries({ queryKey: ['breaks'] });
+      queryClient.invalidateQueries({ queryKey: ['today'] });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['friends'] });
+    }
   }
 }
 
@@ -140,11 +148,9 @@ async function onResponse(r: Notifications.NotificationResponse) {
     try {
       await api.post(`/api/v1/breaks/${data.request}/respond`, { response: r.actionIdentifier === 'yes' ? 'accepted' : 'declined' });
     } catch {
-      // Gone, over, or no network: Today shows the request as it is
+      // Gone, over, or no network: the card in the chat shows the request as it is
     }
     refresh(data);
-    router.navigate('/today');
-    return;
   }
   if (typeof data.url === 'string') router.navigate(data.url as Href);
 }

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:30:00Z
+updated: 2026-10-30T10:30:00Z
 ---
 
 **Push notifications** on the phone (`expo-notifications`). The server side is `api/roosters/push.py`: it writes the
@@ -42,12 +42,13 @@ The chat on screen (`chat/[id]` sets it while focused): its messages don't come 
 
 In the tabs layout, so whatever it opens lands on top of the tabs (signed in and set up). The push that opened the
 app (`getLastNotificationResponse`, also from a cold start) and every tap after: Ja / Nee answers the break request
-(`POST /breaks/{id}/respond`) and opens Today; anything else opens `data.url`.
+(`POST /breaks/{id}/respond`); then, and for anything else, it opens `data.url` (for break and access requests the
+chat with the request's card, `/chat/<id>`).
 
 ## `refresh`, `onResponse`
 
 A push came in or was tapped: ask again for what it's about (chats, a conversation, Today, the breaks, the
-timetable). The notification handler (set when this file loads) does it for pushes that arrive while the app is open.
+timetable; for `break_*` and `access_*` also the chat list and the chat with the card, `data.chat`). The notification handler (set when this file loads) does it for pushes that arrive while the app is open.
 
 ## `setUpChannels`, `setUpCategories`, `projectId`, `set`, `t`, `SUPPORTED`, `EXPO_GO_ANDROID`
 
