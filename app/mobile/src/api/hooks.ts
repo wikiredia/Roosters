@@ -8,6 +8,7 @@ import { type SkipTarget, withSkip } from '@/lib/skips';
 import { addDays, isoDay, parseDay } from '@/lib/time';
 
 import type {
+  AccessRequest,
   BreakMode,
   BreakRequest,
   Campus,
@@ -418,16 +419,19 @@ export function useSetPhoto() {
 export function useCheckin() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (status: Checkin['status'] | null) =>
-      api.put<{ checkin: Checkin | null }>('/api/v1/me/checkin', { status }).then((r) => r.checkin),
+    // Only what's sent changes: { status } (after school / the day), { break_status } (your breaks), or both
+    mutationFn: (plan: Partial<Pick<Checkin, 'status' | 'break_status'>>) =>
+      api.put<{ checkin: Checkin | null }>('/api/v1/me/checkin', plan).then((r) => r.checkin),
     // Show the choice right away; the server confirms (or the retry does) later
-    onMutate: async (status) => {
+    onMutate: async (plan) => {
       await qc.cancelQueries({ queryKey: keys.today() });
       const prev = qc.getQueryData<Today>(keys.today());
       if (prev) {
+        const was = prev.me.checkin ?? { status: null, break_status: null, since_min: prev.now, until_min: null };
+        const next = { ...was, ...plan, ...('status' in plan ? { since_min: prev.now } : {}) };
         qc.setQueryData<Today>(keys.today(), {
           ...prev,
-          me: { ...prev.me, checkin: status ? { status, since_min: prev.now, until_min: null } : null },
+          me: { ...prev.me, checkin: next.status || next.break_status ? next : null },
         });
       }
       return { prev };
@@ -636,9 +640,11 @@ export function useAnswerRequest() {
   });
 }
 
-type BreakAnswer = { breaks: BreakRequest[]; break: BreakRequest | null };
+/** `chats`: where the request's card is (asking and 'Ander uur': the chat to go to; one per friend, or the group
+ * chat of exactly these people when there is one) */
+export type BreakAnswer = { breaks: BreakRequest[]; break: BreakRequest | null; chats?: number[] };
 
-/** Every break write answers with the whole list: it replaces ours, and Today asks again for its copy. */
+/** Every break write answers with the whole list: it replaces ours, and Today and the chats (their cards) ask again. */
 function useBreakWrite<V>(fn: (v: V) => Promise<BreakAnswer>) {
   const qc = useQueryClient();
   return useMutation({
@@ -646,6 +652,8 @@ function useBreakWrite<V>(fn: (v: V) => Promise<BreakAnswer>) {
     onSuccess: (r) => {
       qc.setQueryData(keys.breaks, r.breaks);
       qc.invalidateQueries({ queryKey: ['today'] });
+      qc.invalidateQueries({ queryKey: keys.chats });
+      qc.invalidateQueries({ queryKey: ['chat-messages'] });
     },
   });
 }
@@ -667,6 +675,34 @@ export function useAnswerBreak() {
           ? api.post<BreakAnswer>(`/api/v1/breaks/${a.id}/counter`, { start: a.start, end: a.end, place: a.place, note: a.note })
           : api.post<BreakAnswer>(`/api/v1/breaks/${a.id}/respond`, { response: a.action }),
   );
+}
+
+/** "Mag ik je rooster zien?": ask a friend to show you more (their card goes in your chat with them). */
+export function useAskAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, visibility }: { id: number; visibility: AccessRequest['visibility'] }) =>
+      api.post<{ access: AccessRequest; chat_id: number }>(`/api/v1/friends/${id}/access`, { visibility }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.chats });
+      qc.invalidateQueries({ queryKey: ['chat-messages'] });
+    },
+  });
+}
+
+/** Yes / no to an access request you got, or taking back your own. A yes changes what you show them. */
+export function useAnswerAccess() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: number; action: 'accept' | 'decline' | 'cancel' }) =>
+      api.post<{ access: AccessRequest }>(`/api/v1/access/${id}/${action}`).then((r) => r.access),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.friends });
+      qc.invalidateQueries({ queryKey: keys.chats });
+      qc.invalidateQueries({ queryKey: ['chat-messages'] });
+      qc.invalidateQueries({ queryKey: ['friend-schedule'] });
+    },
+  });
 }
 
 export function useSetVisibility() {

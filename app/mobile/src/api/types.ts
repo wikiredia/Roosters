@@ -46,6 +46,8 @@ export type StatusCode =
   | 'break'
   | 'chilling'
   | 'wants_to_chill'
+  /** In a break, but said they're busy (Checkin.break_status) */
+  | 'break_busy'
   | 'in_class'
   | 'later'
   | 'done'
@@ -86,7 +88,15 @@ export type Together = { id: number; start: number; end: number; same_campus: bo
 export type Skip = { course: string; start: number; end: number };
 export type SkipAnswer = { day: string; skips: Skip[]; together: Together[] };
 
-export type Checkin = { status: 'chilling' | 'want_chill' | 'home' | 'absent'; since_min: number; until_min: number | null };
+/** Your plan for today. `status`: after school (chilling / want_chill: you stay; home: you left at `since_min`;
+ * absent: not there today), null when you didn't say. `break_status`: your breaks between classes today
+ * (want_chill: you'd like company; busy: don't count on me), null when you didn't say. */
+export type Checkin = {
+  status: 'chilling' | 'want_chill' | 'home' | 'absent' | null;
+  break_status: 'want_chill' | 'busy' | null;
+  since_min: number;
+  until_min: number | null;
+};
 
 export type ScheduleChange = {
   type: 'new' | 'changed' | 'cancelled';
@@ -140,9 +150,27 @@ export type BreakRequest = {
   members: (BreakPerson & { response: BreakResponse })[];
   /** Yours when you were asked; null when you asked */
   my_response: BreakResponse | null;
-  state: 'pending' | 'planned' | 'declined';
+  /** cancelled: the one who asked took it back (only seen on a card in a chat) */
+  state: 'pending' | 'planned' | 'declined' | 'cancelled';
   now: boolean;
+  /** Its time has passed (only seen on a card in a chat: Today's lists leave those out) */
+  over?: boolean;
 };
+
+/** "Mag ik je rooster zien?": a friend asks to see more of your timetable (`visibility`: what they ask for).
+ * Accepting sets what you show them to that. `mine`: you asked. */
+export type AccessRequest = {
+  id: number;
+  from: BreakPerson;
+  to: BreakPerson;
+  mine: boolean;
+  visibility: 'full' | 'norooms';
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  created_at: string;
+};
+
+/** What a request card in a chat points at (the message's `payload`). */
+export type RequestRef = { type: 'break'; request: number } | { type: 'access'; request: number };
 
 export type SourcesState = { count: number; updated_at: string | null; syncing: boolean; errors: number[] };
 
@@ -256,11 +284,14 @@ export type ChatEvent =
 export type ChatMessage = {
   id: number;
   chat_id: number;
-  kind: 'text' | 'event';
+  /** request: a card for a break or access request (full width in the chat; `user_id`: who asked) */
+  kind: 'text' | 'event' | 'request';
   user_id: number | null;
   /** null when it was taken back (`deleted`) or removed by a moderator (`removed`) */
   body: string | null;
-  payload: ChatEvent | null;
+  payload: ChatEvent | RequestRef | null;
+  /** kind request: the request as it is now (null: gone, e.g. one of you isn't friends any more) */
+  request?: ({ type: 'break' } & BreakRequest) | ({ type: 'access' } & AccessRequest) | null;
   created_at: string;
   deleted: boolean;
   removed: boolean;
@@ -278,6 +309,8 @@ export type Chat = {
   /** The bell: a push for every message in this chat (only for you, off by default) */
   push: boolean;
   unread: number;
+  /** Open requests in this chat (a break or access request still waiting for an answer): the yellow 'Verzoek' tag */
+  requests: number;
   last_read_id: number;
   last: ChatMessage | null;
   members: ChatPerson[];
