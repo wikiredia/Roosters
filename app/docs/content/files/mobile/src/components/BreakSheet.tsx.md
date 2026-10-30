@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-30T10:27:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 **"Pauze samen?"** (`memo`, so a screen that re-renders without a new `target` or `onClose` doesn't render it): the sheet that asks friends to spend a shared break together, opened by tapping a shared break on
-Today ('Pak je pauze met') or in the calendar (Rooster, Vergelijken). Three short pages that slide sideways, a back
+Today ('Pauze samen') or in the calendar (Rooster, Vergelijken). Three short pages that slide sideways, a back
 arrow in the title row:
 
 1. **Who**: a row per friend (photo, name, from–until, how long, an arrow), also when there's only one; with

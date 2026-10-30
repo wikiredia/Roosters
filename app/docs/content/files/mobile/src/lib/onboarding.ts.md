@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-30T09:29:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 **Racing through onboarding.** Every step can be skipped, and you can start **without signing in** (a guest
-account on this phone). What was skipped shows on Today as 'Complete the following steps'
+account on this phone). What was skipped shows on Today as 'Nog te doen'
 (`components/SetupSteps.tsx`).
 
 Server side: `POST /api/v1/auth/guest`, and the upgrade logic in `api/roosters/r_auth.py`.

@@ -1,11 +1,11 @@
 ---
-updated: 2026-10-30T10:27:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 Tap on a lesson: when, its **details** (Type, Building, Floor, Classroom, Group, ... after the layout of the lesson's
 origin: `lib/details.detailRows` with `api/hooks.useDetails`; titles, merges and hidden fields as the student set them
 in `app/onboarding/details.tsx`; a lesson without a known origin gets Type, Location, Group), and who else is free if
-it's cancelled ('Kayra is ook vrij': tapping one closes the sheet and opens your one-to-one chat with them,
+it's cancelled ('Ook vrij': a row per friend, their name and 'tot 12:30'; tapping one closes the sheet and opens your one-to-one chat with them,
 `useOpenDirect`, not their profile). `LessonSheet`, `OverlapSheet` (and `BreakSheet`) are
 `memo`, and `Calendar` gives them callbacks that keep their identity, so opening one renders only that sheet.
 

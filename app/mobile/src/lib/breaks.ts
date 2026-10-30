@@ -2,7 +2,6 @@ import type { BreakRequest } from '@/api/types';
 import type { Key, Lang } from '@/i18n';
 import { ApiError, NetworkError } from '@/lib/api';
 
-import { joinNames } from './status';
 import { addDays, isoDay, parseDay, shortDate } from './time';
 
 type T = (k: Key, p?: Record<string, string | number>) => string;
@@ -12,13 +11,13 @@ export function otherPeople(b: BreakRequest) {
   return b.mine ? b.members : [b.from];
 }
 
-/** "jij gaat naar Kayra", "Reda komt naar jou", "op cafetaria": who walks, seen by you. `mode` is as the asker put it. */
+/** "Jij gaat erheen", "Naar jou toe", "Op cafetaria": who walks, seen by you, without names (the card shows who). `mode`
+ * is as the asker put it. */
 export function howText(b: BreakRequest, t: T) {
   if (b.mode === 'meet') return b.place ? t('break.at', { place: b.place }) : t('break.somewhere');
-  const names = b.mine ? joinNames(b.members.map((m) => m.display_name), t('common.and')) : b.from.display_name;
   // The asker comes (i_come): from their side the others wait; from yours, they come to you
   const theyCome = b.mine ? b.mode === 'you_come' : b.mode === 'i_come';
-  return theyCome ? t('break.theyCome', { names }) : t('break.youGo', { names });
+  return t(theyCome ? 'break.theyCome' : 'break.youGo');
 }
 
 /** "Vandaag", "Morgen", "di 28 okt" */

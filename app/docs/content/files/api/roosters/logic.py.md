@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T13:30:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 **Breaks, shared free time, the now-board and travelling together.** Only pure functions, no database:
@@ -11,7 +11,7 @@ Definitions that matter:
 - **Check-ins** change that: *chilling* / *want to chill* extends your free time after class (until a time
   or 22:00); *going home* cuts everything after that moment; *absent* means not there at all. The break part
   (`break_status`): *busy* ("Ik ben bezig") takes the breaks between classes out of your free time (no shared
-  breaks, nobody can ask you then); *want_chill* ("Ik wil afspreken") only changes your board code.
+  breaks, nobody can ask you then); *want_chill* ("Afspreken") only changes your board code.
 - A **shared break** needs at least 30 minutes on the same campus, or more than 30 on different campuses
   (you need time to walk).
 

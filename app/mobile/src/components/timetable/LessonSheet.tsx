@@ -91,7 +91,7 @@ export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends 
                     key={`${s.id}-${s.start}`}
                     first={i === 0}
                     left={<Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} />}
-                    title={t('lesson.alsoFree', { name: f.display_name })}
+                    title={f.display_name}
                     sub={t('lesson.until', { t: hhmm(s.end) })}
                     chevron
                     // Straight to your chat with them: that's where you'd ask "zullen we?"

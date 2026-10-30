@@ -11,7 +11,6 @@ import { Text } from '@/components/ui/Text';
 import { type Key, useT } from '@/i18n';
 import { dayWord, duration, howText } from '@/lib/breaks';
 import { requestText } from '@/lib/chat';
-import { joinNames } from '@/lib/status';
 import { isoDay, range } from '@/lib/time';
 
 type T = ReturnType<typeof useT>['t'];
@@ -26,6 +25,7 @@ const IMPOSSIBLE: State = { kind: 'neutral', label: 'req.stImpossible' };
 
 /**
  * A break or access request or a skip question as a card in the chat: full width, where it was asked in the history (not pinned).
+ * Facts, not sentences: the bold line is when (or what), the tag says who asked whom, names only in a group.
  * It always shows the request as it is now (the server sends the live state with the message) and the buttons for
  * that state; top right "Vergelijk" opens Vergelijken with the friends in it. `onOtherTime`: "Ander uur" (the chat
  * opens BreakSheet with a counter).
@@ -94,20 +94,22 @@ function BreakCard({ b, me, t, onOtherTime }: { b: BreakRequest; me: number | un
   const answer = useAnswerBreak();
   const busy = answer.isPending && answer.variables?.id === b.id;
   const act = (action: 'accepted' | 'declined' | 'cancel') => answer.mutate({ id: b.id, action });
-  const and = t('common.and');
   // Asked: the others asked with you (a group request; the members include you)
   const others = b.mine ? [] : b.members.filter((p) => p.id !== me);
-  const who = b.mine
-    ? t('req.youAsked', { names: joinNames(b.members.map((p) => p.display_name), and) })
-    : others.length
-      ? t('req.asksYouAnd', { name: b.from.display_name, names: joinNames(others.map((p) => p.display_name), and) })
-      : t('req.asksYou', { name: b.from.display_name });
   const state = breakState(b);
   const open = b.state !== 'cancelled' && !b.over;
   const impossible = state === IMPOSSIBLE;
   // Everyone in it but you: the avatars and Vergelijk
   const people = b.mine ? b.members : [b.from, ...others];
-  const sub = [`${dayWord(b.day, isoDay(new Date()), t, lang)} ${range(b.start, b.end)}`, howText(b, t)].join(' · ');
+  // One other person: a one-to-one chat, where the header, the avatar and the tag already say who asked whom. Only a
+  // group request names them: who asked, or whom you asked
+  const who =
+    people.length < 2
+      ? null
+      : b.mine
+        ? t('req.to', { names: people.map((p) => p.display_name).join(', ') })
+        : t('req.fromWith', { name: b.from.display_name, names: others.map((p) => p.display_name).join(', ') });
+  const sub = [who, howText(b, t)].filter(Boolean).join(' · ');
   return (
     <Card className="self-stretch px-4 pt-3 pb-3.5 gap-2">
       <Head icon="coffee" title={t(b.counter_of ? 'break.counterTitle' : 'break.title')} state={state} ids={people.map((p) => p.id)} t={t} />
@@ -115,7 +117,7 @@ function BreakCard({ b, me, t, onOtherTime }: { b: BreakRequest; me: number | un
         <AvatarStack people={people.map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="sm" />
         <View className="flex-1 min-w-0 gap-0.5">
           <Text bold strike={b.state === 'cancelled'}>
-            {who}
+            {`${dayWord(b.day, isoDay(new Date()), t, lang)} ${range(b.start, b.end)}`}
           </Text>
           <Text variant="sm" tone="ink2">
             {sub}
@@ -235,9 +237,8 @@ function AccessCard({ a, t }: { a: AccessRequest; t: T }) {
   const busy = answer.isPending && answer.variables?.id === a.id;
   const other = a.mine ? a.to : a.from;
   const full = a.visibility === 'full';
-  const what = a.mine
-    ? t(full ? 'req.accessMineFull' : 'req.accessMineNoRooms', { name: a.to.display_name })
-    : t(full ? 'req.accessFull' : 'req.accessNoRooms', { name: a.from.display_name });
+  // Always in your one-to-one chat: the tag says who asked, the card only what for
+  const what = t(full ? 'req.accessWhatFull' : 'req.accessWhatNoRooms');
   const state = accessState(a);
   return (
     <Card className="self-stretch px-4 pt-3 pb-3.5 gap-2">
@@ -288,9 +289,10 @@ function SkipCard({ s, t }: { s: SkipRequest; t: T }) {
   const answer = useAnswerSkip();
   const busy = answer.isPending && answer.variables?.id === s.id;
   const other = s.mine ? s.to : s.from;
-  const when = `${dayWord(s.day, isoDay(new Date()), t, lang).toLowerCase()} ${range(s.start, s.end)}`;
+  const when = `${dayWord(s.day, isoDay(new Date()), t, lang)} ${range(s.start, s.end)}`;
   const course = s.course ?? t('req.skipClass');
-  const what = s.mine ? t('req.skipMine', { name: s.to.display_name, course, when }) : t('req.skipTheirs', { name: s.from.display_name, course, when });
+  // Their question names the course in the head already; yours ("Skip je die les?") says it here
+  const what = s.mine && s.course ? `${s.course} · ${when}` : when;
   const state = skipState(s);
   const open = state.label === 'break.stAsked' || state.label === 'break.stTheirs';
   return (

@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-30T15:52:00Z
 ---
 
 ## Becoming friends
@@ -68,7 +68,7 @@ and the API adds the request as it is now, so the card always shows the live sta
 Vergelijk icon (top right) for the people in it. It sits in the history like any message (full width, not pinned).
 After asking (a break, Ander uur, access) the app opens that chat (several separate chats: the Chat tab); a push about
 a request opens that chat too. Tapping a friend who has a status or an open request (Today's 'Wie is er nu?', the
-state tag of a shared break, '… is ook vrij' in a lesson) opens your chat with them. Each chat in the list with an
+state tag of a shared break, 'Ook vrij' in a lesson) opens your chat with them. Each chat in the list with an
 open request has a small yellow 'Verzoek' tag (`requests` in `GET /chats`).
 
 In a one-to-one chat: the friend's status under their name (in class or not, on campus or not), Vergelijk next to the
