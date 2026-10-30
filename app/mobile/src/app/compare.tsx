@@ -1,5 +1,5 @@
 import { type Href, router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { SlideInLeft, SlideInRight } from 'react-native-reanimated';
 
@@ -60,7 +60,7 @@ export default function CompareScreen() {
   }, []);
 
   const byId = new Map((friends.data ?? []).map((f) => [f.id, f]));
-  const ids = picked.slice(0, MAX_FREE);
+  const ids = useMemo(() => picked.slice(0, MAX_FREE), [picked]);
   const chosen = ids.map((id) => byId.get(id)).filter((f): f is Friend => !!f);
   const over = picked.length > MAX_FREE;
 

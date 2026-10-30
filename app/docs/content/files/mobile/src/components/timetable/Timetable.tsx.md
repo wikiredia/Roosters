@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -17,11 +17,13 @@ days slide past it). Columns glide to their new width when their number changes 
 
 ## `TimeAxis`, `axisWidth`
 
-The hours on the left of a grid, on its own; its width (narrower when compact).
+The hours on the left of a grid, on its own; its width (narrower when compact). `TimeAxis` is `memo`: give it the same
+`hours` array while the hours are the same (`Calendar` does).
 
 ## `Legend`, `LegendItem`
 
 Colour legend under a grid, one line that scrolls sideways (it never grows taller); the Rooster tab passes only what's on screen.
+`Legend` is `memo`: give it the same `items` array while the items are the same.
 
 ## `START_HOUR`, `END_HOUR`
 
@@ -38,12 +40,13 @@ separate lessons. Free/busy blocks of friends (no course) are never merged here;
 
 Building blocks of a column.
 
-## `Overlap`, `overlapsOf`, `OVERLAP_SLOP`, `lessonsAt`
+## `Overlap`, `overlapsOf`, `OVERLAP_SLOP`, `lessonsAt`, `lessonsIn`
 
 Lessons that run at the same time (two groups, a moved lesson, a class you follow twice): `overlapsOf` gives the
 stretches where (merged, not cancelled) lessons overlap, three at once as one stretch. `lessonsAt(lessons, min)` is
 what a tap means: within `OVERLAP_SLOP` (10) minutes of an overlap it's all its lessons (the screen asks which),
-otherwise the one lesson under the finger.
+otherwise the one lesson under the finger. `lessonsIn` is the same for a day that has been worked out already (its merged
+lessons and overlaps from `DayCache`), which is what the grid's tap uses.
 
 ## `OverlapBand`
 
@@ -101,7 +104,10 @@ have a coffee cup in the corner, 18 px (15 in narrow columns).
 ## `Hatch`, `HatchLabel`
 
 Diagonal lines over a block (overlaps, breaks you asked for, the skip bin); wider than any column, the parent clips
-them. Thin (1 px) and faint (`opacity`) on purpose: a texture, never louder than the text on it; a break's lines use
+them. It is **one SVG pattern filled into one rectangle** (`Pattern` with `patternTransform="rotate(45)"`, a unique id per
+instance from `useId` because SVG ids are global on the web), not a line per stripe: the old version drew ~100–200
+`Line`s per use. The lines are `gap` apart horizontally, as before, so the tile that repeats is `gap/√2` across; `gap`,
+`width` and `opacity` mean what they did. Thin (1 px) and faint (`opacity`) on purpose: a texture, never louder than the text on it; a break's lines use
 `--color-together-line`, dimmer in dark mode. Text over lines goes on `HatchLabel`: a rounded patch in the block's
 own colour, so the lines stop around the text (the overlap band does the same with its course names).
 

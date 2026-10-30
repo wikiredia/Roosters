@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 **Vergelijken**, in two steps that slide sideways:
@@ -14,6 +14,8 @@ updated: 2026-10-24T13:40:00Z
    on the current **lesson week**, Monday to Friday, or the next one when your lessons of this week are over
    (Friday afternoon, the weekend): `lessonWeek`. The row on top ('Jij en Kayra · Wijzig') and the back button go
    back to step 1.
+
+The picked ids passed to the calendar are memoised (`useMemo` on `picked`), so the memoised `Calendar` isn't re-rendered by this screen for nothing.
 
 It is a pushed screen that renders `components/BottomTabs.tsx` itself (Rooster lit), so the bottom bar stays visible; a tab press goes back to the tabs.
 

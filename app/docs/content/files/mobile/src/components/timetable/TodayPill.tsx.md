@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:00:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 **'Vandaag'** floating over the timetable when you've moved away from today: tap to go back (the timetable slides
@@ -9,7 +9,8 @@ so moving it never counts as a tap.
 
 ## `TodayPill`, `Corner`, `cornerXY`
 
-As above; the four corners and where each one is.
+As above; the four corners and where each one is. Memo, and the drag and tap gestures are made once (again when the grid's
+size changes), so keep `onPress` stable.
 
 ## `MARGIN`, `W`, `H`, `SNAP`
 

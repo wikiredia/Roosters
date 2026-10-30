@@ -1,8 +1,9 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
-Tap on a lesson: when, what, where, and who else is free if it's cancelled.
+Tap on a lesson: when, what, where, and who else is free if it's cancelled. `LessonSheet`, `OverlapSheet` (and `BreakSheet`) are
+`memo`, and `Calendar` gives them callbacks that keep their identity, so opening one renders only that sheet.
 
 ## `OverlapSheet`
 

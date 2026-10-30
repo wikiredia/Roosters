@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -27,9 +27,23 @@ everything moves together in the same frame, on the UI thread.
   Sunday has something (and isn't on screen yet), otherwise Monday.
 - Tapping a lesson opens `LessonSheet`; where lessons overlap, `OverlapSheet` first.
 
-**Fast taps**: `DayGrid` is memoised and gets only stable callbacks (refs to the latest state), so opening a sheet
-re-renders this component and the sheet, never the 20-odd day columns. The single tap waits 200 ms for a possible
-double tap (`DayGrid`), the sheet starts sliding in the frame it appears (`Sheet`).
+**Fast, because little renders** (guide 'Plan: a fast Rooster tab', Phase 1):
+- `Calendar` is `memo`, so the Rooster screen changing its header (`onView`) doesn't render it a second time.
+- **The days come from `DayCache.useDays`**: built once per week that comes in and kept while that week's data, the names,
+  the breaks, `only`, today and the language stay the same. Moving `start` re-uses the weeks still in the window, and a
+  refetch that changes nothing (a 304) changes nothing: `dataUpdatedAt` is not a dependency. `hours`, `legend` and `kinds`
+  are read from the days' precomputed fields; nothing here calls `mergeLessons` in a render.
+- **Everything below is `memo` with props that keep their identity**: `DayStrip` (it gets the `kinds` Map), `TimeAxis`,
+  `DayGrid`, `DragLayer`, `TodayPill`, `SkipToast`, `Legend` and the three sheets. The callbacks are `useCallback`s that
+  read the newest state through the `latest` ref (updated in an insertion effect), and `hours` keeps its identity while
+  the two numbers are the same (it is memoised on `"h0:h1"`). Opening a sheet therefore renders this component and that
+  sheet; a swipe renders the columns that mount (the render counter in the fps overlay shows it).
+- **Which way you went** (`heading`) and where you are live in a small store (`view`) that the columns read when they mount
+  or get their data, not in state: the direction used to be a prop of every column.
+- **`now`** (`nowMin()`) is read at each render and only today's column gets it.
+
+The single tap still waits 200 ms for a possible double tap (`DayGrid`); the sheet starts sliding in the frame it appears
+(`Sheet`). Both change in Phase 2.
 
 ## `Calendar`
 
@@ -53,7 +67,8 @@ What `onView` reports, and what `control` can do.
 
 A small dark tip with 'Oké', over the content but never the whole screen.
 
-## `HOURS`, `AXIS_W`, `ASK_DAYS`
+## `HOURS`, `AXIS_W`, `DEFAULT_LEGEND`, `hoursFor`
 
-Hours always on screen (8–18, lessons stretch them), the width of the hours on the left, how far ahead a shared
-break can be asked for, and the one-day label.
+Hours always on screen (8–18, lessons stretch them), the width of the hours on the left, and what the legend shows before
+anything is loaded. `hoursFor`: the hours of the visible days, from their `bounds` (zoomed: only those of the lessons).
+How far ahead a shared break can be asked for (`ASK_DAYS`) moved to `DayCache`.

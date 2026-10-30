@@ -1,9 +1,11 @@
-import { type ReactNode, useLayoutEffect, useState } from 'react';
+import { type ReactNode, useLayoutEffect, useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { Easing, interpolate, type SharedValue, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
+
+import { useStable } from '@/lib/latest';
 
 import { IconButton } from './Button';
 import { Text } from './Text';
@@ -59,19 +61,25 @@ export function Sheet({ visible, onClose, title, sub, left, children, closeLabel
     }
   }, [visible]);
 
-  const pan = Gesture.Pan()
-    .activeOffsetY(8)
-    .onUpdate((e) => {
-      // Down follows the finger, up resists
-      drag.set(e.translationY > 0 ? e.translationY : e.translationY / 6);
-    })
-    .onEnd((e) => {
-      if (e.translationY > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY) {
-        scheduleOnRN(onClose);
-      } else {
-        drag.set(withSpring(0, { damping: 18, stiffness: 220 }));
-      }
-    });
+  // One gesture for the life of the sheet: `close` keeps its identity while `onClose` is a new function on every render
+  const close = useStable(onClose);
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY(8)
+        .onUpdate((e) => {
+          // Down follows the finger, up resists
+          drag.set(e.translationY > 0 ? e.translationY : e.translationY / 6);
+        })
+        .onEnd((e) => {
+          if (e.translationY > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY) {
+            scheduleOnRN(close);
+          } else {
+            drag.set(withSpring(0, { damping: 18, stiffness: 220 }));
+          }
+        }),
+    [drag, close],
+  );
 
   const scrim = useAnimatedStyle(() => ({
     opacity: progress.get() * interpolate(drag.get(), [0, height.get()], [1, 0.2], 'clamp'),

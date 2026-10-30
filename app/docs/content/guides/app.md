@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-27T12:00:00Z
+updated: 2026-10-29T23:10:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -36,8 +36,23 @@ tap; a no from the phone isn't asked again (it points to the phone's settings), 
 mirrored by the week strip above (`DayStrip.tsx`): they share the same animated values, so they move together.
 Drag the strip's dash, pinch or − / + for more or fewer days; double tap the grid to zoom the hours, double tap the day strip to reset the view; 'Vandaag' floats over
 the grid (`TodayPill.tsx`). Day math and where a swipe lands: `lib/days.ts`. Data comes a week at a time
-(`useWeeks`); every lesson kind has its own colour. Why it's slow today and the plan to fix it (and sheets
-app-wide): the guide **Plan: a fast Rooster tab (and fast sheets)**.
+(`useWeeks`); every lesson kind has its own colour. The plan to make it fast (and sheets app-wide), what's done and what's
+measured: the guide **Plan: a fast Rooster tab (and fast sheets)**.
+
+Performance rules for the calendar (they hold from Phase 1 of that plan):
+- **No `layout` transitions inside the grid.** One per block restarted a 200 ms animation for every block on every frame of
+  a pinch or of the strip's handle. `entering` only where it means something: lessons fade in when their data arrives after
+  the skeleton, on a day that's in view.
+- **Work a day out once.** Everything derived from a day's lessons (merged periods, blocks, overlaps, free gaps, dots,
+  legend, skippable classes, tappable stretches) is made when its week arrives (`DayCache.useDays`) and read afterwards;
+  never call `mergeLessons` and friends in a render or a gesture.
+- **Stable props into memoised children.** `DayColumn`, `DayStrip`, `TimeAxis`, `Legend`, `DragLayer`, `TodayPill`,
+  `SkipToast` and the sheets are `memo`: pass numbers, shared values, `DayData` objects, a `hours` array that keeps its
+  identity, and callbacks that read the newest state through a ref (`Calendar.latest`, `lib/latest.useStable`). Only today's
+  column gets the time. A new object or function in a prop is a render of 22 columns.
+- **Memoise gestures** (`useMemo`), which is why their callbacks must be stable too.
+- **Measure in a release build** with the fps overlay (Server & debug → Performance, a build made with `EXPO_PUBLIC_DEBUG=1`).
+  Watch the column render counter: a swipe should render at most the columns that mount.
 
 ## Push notifications
 

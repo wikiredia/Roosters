@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { View } from 'react-native';
 
 import type { Friend, Lesson, Together } from '@/api/types';
@@ -26,8 +26,10 @@ type Props = {
   onUnskip?: (l: Lesson) => void;
 };
 
-/** Tap on a lesson: when, what, where, who else is free if it's cancelled or you skip it, and skipping it. */
-export function LessonSheet({ lesson, onClose, friends = [], together = [], onSkip, onUnskip }: Props) {
+/** Tap on a lesson: when, what, where, who else is free if it's cancelled or you skip it, and skipping it.
+ * Memo (like the other two sheets of the calendar): opening it renders this sheet and nothing else, as long as the
+ * callbacks it gets keep their identity. */
+export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends = [], together = [], onSkip, onUnskip }: Props) {
   const { t, lang } = useT();
   // Keep showing the last lesson while the sheet slides away
   const [last, setLast] = useState(lesson);
@@ -102,13 +104,13 @@ export function LessonSheet({ lesson, onClose, friends = [], together = [], onSk
       <Button variant={skippable || (l.skipped && onUnskip) ? 'ghost' : 'secondary'} label={t('common.close')} onPress={onClose} />
     </Sheet>
   );
-}
+});
 
 /**
  * Lessons that overlap were tapped (or close to where they overlap): which one do you mean? Picking one opens
  * its own sheet (the screen does that). In time order, each with its kind's colour, time and room.
  */
-export function OverlapSheet({ choice, onClose, onPick }: { choice: { lessons: Lesson[] } | null; onClose: () => void; onPick: (l: Lesson) => void }) {
+export const OverlapSheet = memo(function OverlapSheet({ choice, onClose, onPick }: { choice: { lessons: Lesson[] } | null; onClose: () => void; onPick: (l: Lesson) => void }) {
   const { t } = useT();
   // Keep showing the last choice while the sheet slides away
   const [last, setLast] = useState(choice);
@@ -132,4 +134,4 @@ export function OverlapSheet({ choice, onClose, onPick }: { choice: { lessons: L
       </Card>
     </Sheet>
   );
-}
+});

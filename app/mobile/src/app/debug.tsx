@@ -3,13 +3,14 @@ import { View } from 'react-native';
 
 import { Banner } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Inputs';
+import { Input, Toggle } from '@/components/ui/Inputs';
 import { Card, ListHead, Row } from '@/components/ui/Layout';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { describe, requestLog } from '@/lib/debuglog';
 import { type GoogleSupport, googleSupport } from '@/lib/google';
+import { perfOverlay, resetColumnRenders } from '@/lib/perf';
 import { pushState, registerPush, sendTestPush } from '@/lib/push';
 import { apiOverride, automaticApiBase, debugEnabled, setApiOverride } from '@/lib/server';
 
@@ -58,6 +59,7 @@ export default function DebugScreen() {
   const [mailResult, setMailResult] = useState<Check>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const push = pushState.use();
+  const overlay = perfOverlay.use();
   const [pushResult, setPushResult] = useState<Check>(null);
 
   if (!debugEnabled) return null;
@@ -216,6 +218,19 @@ export default function DebugScreen() {
           <Button variant="tonal" icon="bell" label="Send a test push" loading={busy === 'push'} onPress={testPush} />
           {pushResult ? <Banner kind={pushResult.ok ? 'neutral' : 'bad'} title={pushResult.ok ? 'Test push' : 'Test push failed'} body={pushResult.text} /> : null}
         </Card>
+      </View>
+
+      <View>
+        <ListHead>Performance</ListHead>
+        <Card>
+          <Row
+            first
+            title="fps overlay"
+            sub="UI and JS fps, how often the Rooster tab's day columns re-render, and the size of the saved cache. Over every screen until you switch it off or restart the app. For measuring in a release build, make it with EXPO_PUBLIC_DEBUG=1."
+            right={<Toggle value={overlay} onChange={perfOverlay.set} label="fps overlay" />}
+          />
+        </Card>
+        <Button variant="ghost" size="sm" label="Reset the column render counter" onPress={resetColumnRenders} className="self-start mt-2" />
       </View>
 
       <View>

@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react';
-import { Pressable, ScrollView, useWindowDimensions, View } from 'react-native';
-import Svg, { Line } from 'react-native-svg';
+import { memo, type ReactNode, useId } from 'react';
+import { Pressable, ScrollView, View } from 'react-native';
+import Svg, { Defs, Line, Pattern, Rect } from 'react-native-svg';
 import { useCSSVariable } from 'uniwind';
 
 import type { Lesson } from '@/api/types';
@@ -138,19 +138,25 @@ export function dayBlocks(lessons: Lesson[], together: TogetherSlot[], nowMin: n
 
 /** Diagonal lines over a block (an overlap, a break you asked for, the skip bin): wider than any column, the parent
  * clips them. Thin and faint on purpose: a texture, never louder than the text on it. Text over them goes on a
- * rounded patch of the block's own colour (`HatchLabel`), so the lines stop where the text is. */
-export function Hatch({ color, gap = 7, width = 1, opacity = 0.45 }: { color: string; gap?: number; width?: number; opacity?: number }) {
-  const w = useWindowDimensions().width;
-  const lines: number[] = [];
-  for (let x = 0; x < w + 400; x += gap) lines.push(x);
+ * rounded patch of the block's own colour (`HatchLabel`), so the lines stop where the text is.
+ * One SVG pattern filled into one rectangle, not a line per stripe: the lines are `gap` apart horizontally (as they
+ * were drawn one by one), at 45°. Every instance has its own pattern id (SVG ids are shared on the web). */
+export const Hatch = memo(function Hatch({ color, gap = 7, width = 1, opacity = 0.45 }: { color: string; gap?: number; width?: number; opacity?: number }) {
+  const id = `hatch${useId().replace(/\W/g, '')}`;
+  // The tile is turned 45°, so the lines are `gap` apart horizontally when the tile is gap/√2 across
+  const tile = gap / Math.SQRT2;
   return (
     <Svg width="100%" height="100%" style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
-      {lines.map((x) => (
-        <Line key={x} x1={x} y1={0} x2={x - 400} y2={400} stroke={color} strokeWidth={width} strokeOpacity={opacity} />
-      ))}
+      <Defs>
+        <Pattern id={id} patternUnits="userSpaceOnUse" width={tile} height={tile} patternTransform="rotate(45)">
+          {/* Down and to the left, like the lines it replaces; in the middle of the tile so none of it is cut off */}
+          <Line x1={tile / 2} y1={0} x2={tile / 2} y2={tile} stroke={color} strokeWidth={width} strokeOpacity={opacity} />
+        </Pattern>
+      </Defs>
+      <Rect x={0} y={0} width="100%" height="100%" fill={`url(#${id})`} />
     </Svg>
   );
-}
+});
 
 /** Text on hatched lines: a rounded patch in the block's colour behind it, so the lines stop around the text. */
 export function HatchLabel({ bg, children }: { bg: string; children: ReactNode }) {
@@ -211,9 +217,14 @@ export const OVERLAP_SLOP = 10;
 /** What a tap at `min` on a day means: one lesson, a choice between overlapping ones, or nothing. Skipped lessons
  * only with `skipped` (the grid asks for those last: a shared break over one wins). */
 export function lessonsAt(lessons: Lesson[], min: number, skipped = false): Lesson[] {
-  const near = overlapsOf(lessons).find((o) => o.start - OVERLAP_SLOP <= min && min < o.end + OVERLAP_SLOP);
+  return lessonsIn(mergeLessons(lessons), overlapsOf(lessons), min, skipped);
+}
+
+/** `lessonsAt` for a day that has been worked out already: its merged lessons and its overlaps (`DayCache`). */
+export function lessonsIn(merged: Lesson[], overlaps: Overlap[], min: number, skipped = false): Lesson[] {
+  const near = overlaps.find((o) => o.start - OVERLAP_SLOP <= min && min < o.end + OVERLAP_SLOP);
   if (near && !skipped) return [...near.lessons].sort((a, b) => a.start - b.start || a.end - b.end);
-  const hit = mergeLessons(lessons).find((l) => !!l.skipped === skipped && l.start <= min && min < l.end);
+  const hit = merged.find((l) => !!l.skipped === skipped && l.start <= min && min < l.end);
   return hit ? [hit] : [];
 }
 
@@ -279,7 +290,7 @@ export function axisWidth(compact?: boolean) {
 }
 
 /** The hours on the left of a grid, with the 'now' time when it's on screen. */
-export function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOUR] }: { pxPerHour?: number; compact?: boolean; hours?: [number, number] }) {
+export const TimeAxis = memo(function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOUR] }: { pxPerHour?: number; compact?: boolean; hours?: [number, number] }) {
   const [h0, h1] = hours;
   const height = (h1 - h0) * pxPerHour;
   return (
@@ -293,7 +304,7 @@ export function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOU
         ))}
     </View>
   );
-}
+});
 
 /** Time axis on the left, one or more day columns, a "now" line. Columns resize smoothly when their
  * number changes (layout animation), so going from 2 to 3 days glides instead of jumping. */
@@ -517,7 +528,7 @@ export const STATE_LABEL: Record<BreakState, Key> = { planned: 'tt.planned', ask
 
 export type LegendItem = LessonKind | 'cancelled' | 'skipped' | 'together' | 'friend' | BreakState;
 
-export function Legend({ items }: { items: LegendItem[] }) {
+export const Legend = memo(function Legend({ items }: { items: LegendItem[] }) {
   const { t } = useT();
   const hatch = String(useCSSVariable('--color-together-line') ?? '#FFC21A');
   const sw = (i: LegendItem) =>
@@ -547,4 +558,4 @@ export function Legend({ items }: { items: LegendItem[] }) {
       ))}
     </ScrollView>
   );
-}
+});
