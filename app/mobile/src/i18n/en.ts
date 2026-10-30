@@ -296,6 +296,7 @@ export const en: Record<Key, string> = {
 
   'rooster.compare': 'Compare with…',
   'rooster.reset': 'Reset',
+  'rooster.refresh': 'Fetch the timetable again from the source',
   'rooster.compareShort': 'Compare',
   'rooster.daysLabel': '{n} days side by side',
   'rooster.fewer': 'Fewer days',

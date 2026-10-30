@@ -6,7 +6,7 @@ import { useAnswerBreak, useCheckin, useOpenDirect, useToday } from '@/api/hooks
 import type { BreakRequest, Checkin, Friend, Notification, Today } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { SetupSteps } from '@/components/SetupSteps';
-import { type BreakState, isFree, isOff, STATE_LABEL } from '@/components/timetable/Timetable';
+import { type BreakState, isFree, isOff, mergeLessons, STATE_LABEL } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, PinMark, StatusOption, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
@@ -128,8 +128,9 @@ function NowCard({ d, t }: { d: Today; t: T }) {
   const { lang } = useT();
   const { lessons, status } = d.me;
   const now = d.now;
-  // Skipped ones don't count as classes you have (lib/skips.ts); cancelled ones are mentioned below
-  const active = lessons.filter((l) => !isFree(l));
+  // Skipped ones don't count as classes you have (lib/skips.ts); cancelled ones are mentioned below. Back-to-back
+  // periods of a course are one class, as in the Rooster tab: not "next: the same class an hour later"
+  const active = mergeLessons(lessons.filter((l) => !isFree(l)));
   const cancelled = lessons.filter((l) => isOff(l));
   const cur = currentLesson(active, now);
   const next = nextLesson(active.filter((l) => l !== cur), now);
@@ -139,7 +140,8 @@ function NowCard({ d, t }: { d: Today; t: T }) {
   switch (status.code) {
     case 'in_class':
       title = cur?.course ?? t('today.inClass');
-      sub = [t('today.until', { t: hhmm(status.until) }), cur?.location].filter(Boolean).join(' · ');
+      // The end of this class, not of the whole run of classes the status counts as busy
+      sub = [t('today.until', { t: hhmm(cur?.end ?? status.until) }), cur?.location].filter(Boolean).join(' · ');
       break;
     case 'break':
     case 'chilling':

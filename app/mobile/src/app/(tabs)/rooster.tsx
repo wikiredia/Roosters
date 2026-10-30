@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight } from 'react-native-reanimated';
+import { Easing, FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
+import { useSourceRefresh } from '@/api/hooks';
 import { Calendar, type CalendarControl, type CalendarView, rangeLabel } from '@/components/timetable/Calendar';
-import { Button } from '@/components/ui/Button';
+import { Button, IconButton } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { APressable, AView, usePressScale } from '@/components/ui/Motion';
 import { Screen } from '@/components/ui/Screen';
@@ -24,7 +25,12 @@ export default function RoosterScreen() {
   return (
     <Screen
       title={t('tabs.rooster')}
-      heading={<TitleOrBack title={t('tabs.rooster')} back={view.custom ? t('rooster.reset') : null} hint={t('rooster.resetHint')} onBack={() => control.current?.reset()} />}
+      heading={
+        <View className="flex-shrink flex-row items-end gap-2">
+          <TitleOrBack title={t('tabs.rooster')} back={view.custom ? t('rooster.reset') : null} hint={t('rooster.resetHint')} onBack={() => control.current?.reset()} />
+          <RefreshButton />
+        </View>
+      }
       eyebrow={rangeLabel(dateAt(view.start), dateAt(view.start + view.want - 1), lang)}
       right={<Button size="sm" icon="users" label={t('rooster.compareShort')} accessibilityLabel={t('rooster.compare')} onPress={() => router.push('/compare')} />}
       scroll={false}
@@ -32,6 +38,27 @@ export default function RoosterScreen() {
     >
       <Calendar remember control={control} onView={setView} />
     </Screen>
+  );
+}
+
+/**
+ * A small refresh button next to the title (or 'Reset'): fetches the timetable again from where it comes from (Untis,
+ * your calendar links), not only from our API (`useSourceRefresh`). The arrow turns while it works.
+ */
+function RefreshButton() {
+  const { t } = useT();
+  const { run, busy } = useSourceRefresh();
+  const reduced = useReducedMotion();
+  const turn = useSharedValue(0);
+  useEffect(() => {
+    if (busy && !reduced) turn.set(withRepeat(withTiming(360, { duration: 900, easing: Easing.linear }), -1));
+    else turn.set(withTiming(0, { duration: 0 }));
+  }, [busy, reduced, turn]);
+  const spin = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.get()}deg` }] }));
+  return (
+    <AView style={spin} className="mb-1">
+      <IconButton icon="refresh" label={t('rooster.refresh')} accessibilityState={{ busy }} onPress={run} className="w-8 h-8" />
+    </AView>
   );
 }
 
