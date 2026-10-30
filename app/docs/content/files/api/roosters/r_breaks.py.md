@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T13:30:00Z
+updated: 2026-10-30T15:07:00Z
 ---
 
 Routes for **break requests** (`/api/v1/breaks`); the rules are in `breaks.py`. Everything needs a signed-in,
@@ -14,6 +14,11 @@ Errors (translated in `i18n.py`): `break_day`, `break_time`, `break_people`, `no
 ## `list_breaks`
 
 `GET /api/v1/breaks[?day=]`: requests from and to you, today and the coming two weeks (or one day).
+
+## `usual`
+
+`GET /api/v1/breaks/usual` → `{people: [{id, display_name, avatar_color, photo, count}]}` (`breaks.usual`):
+"Meestal ga je met:" in the Rooster tab. Declared before the `/{request_id}/...` routes.
 
 ## `BreakIn`, `ask`
 

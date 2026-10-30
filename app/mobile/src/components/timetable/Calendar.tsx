@@ -4,9 +4,9 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { useBreaks, useFriends, useSkip, useWeeks } from '@/api/hooks';
+import { useBreaks, useFriends, useSkip, useToday, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
-import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
+import { PeopleSheet, type PeopleTarget } from '@/components/PeopleSheet';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { AView, enter, exit, layout } from '@/components/ui/Motion';
@@ -21,7 +21,7 @@ import { prefs } from '@/lib/storage';
 import { createStore } from '@/lib/store';
 import { isoDay, nowMin, parseDay, weekdayShort } from '@/lib/time';
 
-import { type DayData, useDays } from './DayCache';
+import { type DayData, type DayPlan, HOURS, useDays } from './DayCache';
 import { DayGrid, LABEL_H, RESIZE, SWIPE } from './DayGrid';
 import { DayStrip } from './DayStrip';
 import { LessonSheet, OverlapSheet } from './LessonSheet';
@@ -30,8 +30,6 @@ import { type SkipNote, SkipToast } from './SkipToast';
 import { isFree, Legend, type LegendItem, TimeAxis } from './Timetable';
 import { TodayPill } from './TodayPill';
 
-/** Hours always on screen; earlier or later lessons stretch them. */
-const HOURS: [number, number] = [8, 18];
 const AXIS_W = 30;
 /** The fewest hours the axis can be dragged down to */
 const MIN_SPAN = 2;
@@ -85,7 +83,8 @@ type Props = {
  * animated values (offset, count), so they move together in the same frame. Data comes a week at a time and only
  * the columns wait for it; dates are there before you land. Pinch or drag the strip's handle for more or fewer
  * days (the day on the left stays there), double tap to zoom in on your lessons, drag the first or last hour on the axis
- * to show fewer or more hours, tap a lesson or a shared break for its sheet. Drag a class into the
+ * to show fewer or more hours, tap a lesson for its sheet, a shared break for who's free then and your own break
+ * with nobody for who you usually go with (PeopleSheet: a row opens the chat). Drag a class into the
  * bin on the right (or 'Skip' in its sheet) to skip it: a short summary of what that changes, with Undo, comes up
  * at the bottom (SkipToast).
  * The Rooster tab and Vergelijken (with `only`: the friends you picked) both show this.
@@ -120,7 +119,8 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   // Overlapping lessons tapped: which one? Then that one's sheet
   const [choose, setChoose] = useState<{ lessons: Lesson[]; day: number } | null>(null);
   const chosen = useRef(false);
-  const [ask, setAsk] = useState<BreakTarget>(null);
+  // A break tapped: who's free then (a shared break), or who you usually go with (your own break with nobody)
+  const [people, setPeople] = useState<PeopleTarget>(null);
   // Skipping: the class under your finger (the dragged card shows it), the summary at the bottom, the last skip (Undo)
   const drag = useSkipDrag();
   const skip = useSkip();
@@ -144,6 +144,13 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   }, [from, to]);
   const weeks = useWeeks(mondays);
   const names = useMemo(() => new Map((friends.data ?? []).map((f) => [f.id, f.display_name])), [friends.data]);
+  // Today's plan (check-in): staying after school makes it a break too, busy in your breaks makes them not free.
+  // One object while the three values are the same, so only a real change rebuilds today's day (DayCache.withPlan)
+  const checkin = useToday().data?.me.checkin;
+  const chill = checkin?.status === 'chilling' || checkin?.status === 'want_chill';
+  const busy = checkin?.break_status === 'busy';
+  const since = checkin?.since_min ?? 0;
+  const plan = useMemo<DayPlan | null>(() => (chill || busy ? { chill, busy, since } : null), [chill, busy, since]);
   // Every day with what's derived from it (merged lessons, blocks, overlaps, free gaps, ...), built once per week
   // that comes in: moving `start` reuses the weeks still in the window (DayCache)
   const byDay = useDays(
@@ -154,6 +161,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     only,
     today,
     lang,
+    plan,
   );
 
   // Weekends with something on them: a swipe doesn't skip those
@@ -238,7 +246,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     if (remember && !chosen.current && weekendBusy && want === 5) moveTo(mondayOf(today), 7, false);
   }, [weekendBusy]);
 
-  /** A shared break tapped: "Pauze samen?" with everyone in it, each with their own free window (today from now
+  /** A shared break tapped: "Pauze mogelijk met:" everyone in it, each with their own free window (today from now
    * on). Hatched ones (over, too far ahead) never get here. */
   function askBreak(day: number, span: { start: number; end: number }) {
     const byId = new Map((friends.data ?? []).map((f) => [f.id, f]));
@@ -247,7 +255,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
       .filter((s) => s.start < span.end && span.start < s.end && s.end > now && byId.has(s.id))
       .filter((s, i, all) => all.findIndex((x) => x.id === s.id) === i)
       .map((s) => ({ ...byId.get(s.id)!, start: Math.max(s.start, now), end: s.end }));
-    if (people.length) setAsk({ kind: 'ask', day: isoDay(dateAt(day)), people });
+    if (people.length) setPeople({ kind: 'together', day: isoDay(dateAt(day)), start: Math.max(span.start, now), end: span.end, people });
   }
 
   /** Skip a class (dropped in the bin, or 'Skip' in its sheet): it's gone at once, and the summary says what that
@@ -332,6 +340,11 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const onPressLesson = useCallback((lesson: Lesson, day: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), []);
   const onPressOverlap = useCallback((lessons: Lesson[], day: number) => setChoose({ lessons, day }), []);
   const onPressTogether = useCallback((day: number, span: { start: number; end: number }) => latest.current.askBreak(day, span), []);
+  // Your own break with nobody: "Meestal ga je met:" (today from now on)
+  const onPressAlone = useCallback((day: number, span: { start: number; end: number }) => {
+    const from = day === latest.current.today ? Math.max(span.start, nowMin()) : span.start;
+    setPeople({ kind: 'usual', day: isoDay(dateAt(day)), start: from, end: span.end });
+  }, []);
   const onTargetCb = useCallback((s: number) => latest.current.onTarget(s), []);
   const onCount = useCallback(
     (n: number, s: number) => {
@@ -427,7 +440,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     },
     [],
   );
-  const closeAsk = useCallback(() => setAsk(null), []);
+  const closePeople = useCallback(() => setPeople(null), []);
   const closeLesson = useCallback(() => setOpen(null), []);
   const skipFromSheet = useCallback(
     (l: Lesson) => {
@@ -517,6 +530,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
             onPressLesson={onPressLesson}
             onPressOverlap={onPressOverlap}
             onPressTogether={onPressTogether}
+            onPressAlone={onPressAlone}
             onTarget={onTargetCb}
             onCount={onCount}
             onDoubleTap={onDoubleTap}
@@ -579,7 +593,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
         <Legend items={legend} />
       </AView>
       <OverlapSheet choice={choose} onClose={closeChoice} onPick={pickChoice} />
-      <BreakSheet target={ask} onClose={closeAsk} />
+      <PeopleSheet target={people} onClose={closePeople} />
       <LessonSheet lesson={open?.lesson ?? null} onClose={closeLesson} friends={friends.data} together={open?.together} onSkip={skipFromSheet} onUnskip={unskipFromSheet} />
     </PerfProfile>
   );

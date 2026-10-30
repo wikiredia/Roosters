@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T12:30:00Z
+updated: 2026-10-30T15:07:49Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -14,7 +14,8 @@ Gestures (Gesture Handler, all on the grid):
   the left (zooming out adds days on the right, never back in time; zooming in narrows towards that day), whatever the
   fingers are over; settles on whole days;
 - **double tap**: `onDoubleTap` (the screen zooms the hours);
-- **tap**: finds the lesson (or shared break: `onPressTogether(day, span)`) under the finger. Taps go through the gesture system instead of a
+- **tap**: finds the lesson (or shared break: `onPressTogether(day, span)`; or your own break with nobody:
+  `onPressAlone(day, span)`) under the finger. Taps go through the gesture system instead of a
   Pressable per lesson, so a swipe or a pinch never ends as a tap on the lesson it lets go of. Blocks are still
   buttons for screen readers. The gesture first asks the UI thread whether anything under the finger opens a sheet
   (`TapTargets`, filled from the days' `taps`): a tap on nothing never wakes JS. `tapAt` (JS) then decides which sheet.
@@ -35,7 +36,10 @@ its data, or gets it out of sight, shows them as they are. There are **no layout
 hours change (zoom, a swipe to days with earlier lessons) they jump to the new place. A layout animation per block restarted
 a 200 ms animation for every block on every frame of a pinch or of dragging the strip's handle. Today has the 'now' line. Free moments between
 lessons (`Timetable.freeGaps`) are light grey with a small coffee cup, drawn behind everything: a shared break or a
-cancelled lesson goes over them. They aren't tappable (screen readers read 'Vrij, 10:00 tot 11:00').
+cancelled lesson goes over them. Today they follow your plan (`DayCache.DayPlan`: none when you're busy in your breaks,
+after school too when you stay). A tap on one where no shared break is drawn (`DayData.taps`, `TAP_ALONE`), today from now
+on or later, calls `onPressAlone` with that stretch ("Meestal ga je met:"); screen readers read 'Vrij, 10:00 tot 11:00' and
+can activate the whole gap when it isn't over.
 
 ## `DayGrid`, `Props`, `GridView`
 
@@ -47,7 +51,8 @@ As above. `data(day)` gives a day's `DayData` (`DayCache`: everything is worked 
 
 With `drag` a class of yours can be picked up and dropped into the bin to skip it: the gesture is
 `SkipDrag.useSkipGesture`, first in the gesture tree (the swipe and taps wait until it fails, which is at once
-when the finger isn't on a draggable class). A tap on a skipped class opens it, unless a shared break is over it.
+when the finger isn't on a draggable class). A tap on a skipped class opens it, unless a shared break is over it. The order of `tapAt`: overlap, lesson, shared
+break (not muted, not over), skipped class, your own break with nobody (not over).
 
 ## `ColumnProps`
 
@@ -64,4 +69,5 @@ The date row above the columns; the spring of a swipe; the spring the number of 
 
 Memoised: give it stable callbacks (`Calendar` does), so opening a sheet doesn't re-render every column. A single tap
 waits 200 ms for a possible double tap. A tap on a hatched (`muted`) shared break does nothing, and for today that includes
-the ones that ended before `nowMin`.
+the ones that ended before `nowMin`; the same goes for today's own breaks that are over (dropped from the tap targets here,
+like the shared ones, since the cache doesn't know the time).

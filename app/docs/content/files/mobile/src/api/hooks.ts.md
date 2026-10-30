@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:00:00Z
+updated: 2026-10-30T16:00:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -53,6 +53,10 @@ Break requests (`/api/v1/breaks`): the list (off for guests), asking, and yes / 
 back. Every write answers with the whole list: it replaces `keys.breaks` and Today and the chats ask again (Today
 carries the requests too, in its one request; a chat shows each request as a card). Asking and 'Ander uur' also
 answer `chats`: the chats the card went to, so the app can open that chat.
+
+## `useUsualPartners`
+
+`GET /breaks/usual`: the friends you most often had a planned break with (Rooster tab: tapping a break you share with nobody, 'Meestal ga je met:'). Off for guests.
 
 ## `useAskAccess`, `useAnswerAccess`
 

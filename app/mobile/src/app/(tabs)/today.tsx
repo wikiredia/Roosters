@@ -379,10 +379,12 @@ const AFTER: { value: Status; label: 'plan.chilling' | 'plan.wantChill' }[] = [
 ];
 
 /**
- * Your own status for friends, in two parts. "In je pauze" (break_status) only while a break between classes is
- * still ahead today, with the next one's time; "Na school" (status) until your last class ends, or longer when you
- * said you stay. Nothing about the time before school. Tap a choice again to take it back. "Ik ben er vandaag niet"
- * is a small toggle under it; "naar huis" is the button in the header. A day without classes: "Toch op de campus?".
+ * Your own status for friends, in two parts, always there on a school day (also once school is over, so you see and
+ * can change what you said). "In je pauze" (break_status), with the next break's time: busy means nobody is matched
+ * with you in your breaks. "Na school" (status): staying makes after school count as a break, so friends who stay
+ * too are matched with you (the server's `logic.day_info`; the Rooster tab draws it as your break). Nothing about the
+ * time before school. Tap a choice again to take it back. "Ik ben er vandaag niet" is a small toggle under it; "naar
+ * huis" is the button in the header. A day without classes: "Toch op de campus?".
  */
 function Plan({ d, t, onStatus, onBreak }: { d: Today; t: T; onStatus: (s: Status | null) => void; onBreak: (b: BreakStatus) => void }) {
   const status = d.me.checkin?.status ?? null;
@@ -406,49 +408,39 @@ function Plan({ d, t, onStatus, onBreak }: { d: Today; t: T; onStatus: (s: Statu
       </Section>
     );
   }
-  const away = status === 'home' || status === 'absent';
   const last = Math.max(...lessons.map((l) => l.end));
-  const staying = status === 'chilling' || status === 'want_chill';
-  // The next break between classes that isn't over yet
+  // The next break between classes that isn't over yet (none left: still there, so you can see and change your plan)
   const next = freeGaps(d.me.lessons).find((g) => g.end > d.now);
-  const showBreak = !away && !!next;
-  const showAfter = !away && (d.now < last || staying);
-  // Not there today: only while the day is still on (or to take it back)
-  const showAbsent = d.now < last || status === 'absent';
-  if (!showBreak && !showAfter && !showAbsent) return null;
   return (
     <View className="gap-5">
-      {showBreak ? (
-        <Section>
-          <SectionHead title={t('plan.break')} aside={next.start <= d.now ? t('plan.breakNow', { t: hhmm(next.end) }) : range(next.start, next.end)} />
-          <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
-            {BREAK.map((o) => (
-              <StatusOption key={o.value} label={t(o.label)} on={brk === o.value} onPress={() => onBreak(o.value)} />
-            ))}
-          </View>
-        </Section>
-      ) : null}
-      {showAfter ? (
-        <Section>
-          <SectionHead title={t('plan.after')} aside={d.now < last ? t('plan.afterAt', { t: hhmm(last) }) : undefined} />
-          <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
-            {AFTER.map((o) => (
-              <StatusOption key={o.value} label={t(o.label)} on={status === o.value} onPress={() => onStatus(o.value)} />
-            ))}
-          </View>
-        </Section>
-      ) : null}
-      {showBreak || showAfter ? note : null}
-      {showAbsent ? (
-        <Card>
-          <Row
-            first
-            title={t('plan.absent')}
-            sub={status === 'absent' ? t('plan.absentSub') : undefined}
-            right={<Toggle value={status === 'absent'} onChange={(v) => onStatus(v ? 'absent' : null)} label={t('plan.absent')} />}
-          />
-        </Card>
-      ) : null}
+      <Section>
+        <SectionHead
+          title={t('plan.break')}
+          aside={!next ? t('plan.noBreakLeft') : next.start <= d.now ? t('plan.breakNow', { t: hhmm(next.end) }) : range(next.start, next.end)}
+        />
+        <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
+          {BREAK.map((o) => (
+            <StatusOption key={o.value} label={t(o.label)} on={brk === o.value} onPress={() => onBreak(o.value)} />
+          ))}
+        </View>
+      </Section>
+      <Section>
+        <SectionHead title={t('plan.after')} aside={t('plan.afterAt', { t: hhmm(last) })} />
+        <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
+          {AFTER.map((o) => (
+            <StatusOption key={o.value} label={t(o.label)} on={status === o.value} onPress={() => onStatus(o.value)} />
+          ))}
+        </View>
+      </Section>
+      {note}
+      <Card>
+        <Row
+          first
+          title={t('plan.absent')}
+          sub={status === 'absent' ? t('plan.absentSub') : undefined}
+          right={<Toggle value={status === 'absent'} onChange={(v) => onStatus(v ? 'absent' : null)} label={t('plan.absent')} />}
+        />
+      </Card>
     </View>
   );
 }

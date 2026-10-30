@@ -6,11 +6,13 @@ export const TAP_LESSON = 0;
 export const TAP_OVERLAP = 1;
 export const TAP_TOGETHER = 2;
 export const TAP_SKIPPED = 3;
+export const TAP_ALONE = 4;
 
 /**
  * A stretch of a day (minutes) where a tap opens a sheet: a lesson, lessons that overlap (the stretch includes
- * `OVERLAP_SLOP` minutes on both sides), a shared break you can ask for, or a class you skip. `DayCache` makes them
- * per day, in the order a tap is resolved (overlap, lesson, shared break, skipped class: the grid's `tapAt`).
+ * `OVERLAP_SLOP` minutes on both sides), a shared break you can ask for, a class you skip, or your own break with
+ * nobody (a free gap where no shared break is drawn, today or later). `DayCache` makes them per day, in the order a
+ * tap is resolved (overlap, lesson, shared break, skipped class, own break: the grid's `tapAt`).
  */
 export type TapTarget = { day: number; start: number; end: number; kind: number };
 

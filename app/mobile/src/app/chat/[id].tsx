@@ -1,17 +1,18 @@
 import * as Crypto from 'expo-crypto';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { type ComponentRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, TextInput, useWindowDimensions, View } from 'react-native';
-import { FadeInDown, FadeOut, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
+import { FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, TextInput, useWindowDimensions, View, type ListViewToken } from 'react-native';
+import { FadeIn, FadeInDown, FadeOut, useAnimatedStyle, useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
 import { useBlock, useChat, useMe, useMessages, useOlderMessages, useReadChat, useSendMessage, useToday } from '@/api/hooks';
-import type { BreakRequest, ChatDetail, ChatMessage } from '@/api/types';
+import type { BreakRequest, ChatDetail, ChatMessage, SharedBreak } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
+import { BreakSuggestion } from '@/components/chat/BreakSuggestion';
 import { ChatInfoSheet } from '@/components/chat/ChatInfoSheet';
 import { liftBy, MessageSheet, type Rect } from '@/components/chat/MessageSheet';
-import { RequestCard } from '@/components/chat/RequestCard';
+import { isActiveRequest, RequestBar, RequestCard } from '@/components/chat/RequestCard';
 import { Avatar, AvatarStack, Tag } from '@/components/ui/Bits';
 import { IconButton } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -30,14 +31,21 @@ import { isoDay } from '@/lib/time';
 type Item =
   | { type: 'day'; key: string; label: string }
   | { type: 'msg'; key: string; m: ChatMessage; who: boolean; meta: string | null }
-  | { type: 'out'; key: string; o: Outgoing };
+  | { type: 'out'; key: string; o: Outgoing }
+  | { type: 'suggest'; key: string; b: SharedBreak };
+
+/** Half of a row on screen counts as seen (the pinned request copy covers the top of the list) */
+const VIEWABILITY = { itemVisiblePercentThreshold: 50 };
 
 /**
  * One conversation. Newest at the bottom, scroll up for older ones. Your messages blue on the right, theirs on the
  * left (with a name in groups), events in the middle ("Lotte en Amir pakken samen pauze om 12:30", yellow for
  * breaks), break and access requests as full-width cards with their buttons (components/chat/RequestCard). On bad wifi a message shows "Versturen…" and, if it didn't go, "Tik om opnieuw te proberen" (sent once,
  * however often you tap: same Idempotency-Key). On top: their photo and name with their status line under it ("Vrij
- * tot 12:30"; tap: their page; a group: its info).
+ * tot 12:30"; tap: their page; a group: its info), on the right Vergelijk and "…".
+ * One-to-one: a break you share this week that nobody asked for yet sits as the newest row ("Pauze samen?",
+ * components/chat/BreakSuggestion), hidden while the keyboard is open. The newest active request, once scrolled up
+ * out of view, stays pinned at the top as one line (RequestBar); tapping it scrolls back to the card.
  * Long press a message: copy, report, block, take back; the chat slides up with the sheet and the message stays
  * bright above it. The + left of the box: camera and files (soon), compare timetables, report, block.
  */
@@ -65,8 +73,15 @@ export default function ChatScreen() {
   const [picked, setPicked] = useState<{ m: ChatMessage; rect: Rect | null } | null>(null);
   const [reporting, setReporting] = useState<ChatMessage | null>(null);
   const [info, setInfo] = useState(false);
-  // "Ander uur" on a request card
+  // "Ander uur" on a request card, or "Pauze samen?" on the suggestion
   const [counter, setCounter] = useState<BreakTarget>(null);
+  const keyboard = useKeyboardOpen();
+  const list = useRef<FlatList<Item>>(null);
+  // The keys of the rows on screen (keys, not indexes: the suggestion coming and going shifts every index)
+  const [onScreen, setOnScreen] = useState<string[] | null>(null);
+  // Stable: FlatList doesn't allow a new one later
+  const onViewable = useCallback(({ viewableItems }: { viewableItems: ListViewToken[] }) => setOnScreen(viewableItems.map((v) => v.key)), []);
+  const retried = useRef(false);
   const [menu, setMenu] = useState(false);
   const [barH, setBarH] = useState(60);
   const block = useBlock();
@@ -101,6 +116,23 @@ export default function ChatScreen() {
   // arrives) slides up into place
   const opened = useRef<number | null>(null);
   if (opened.current === null && page.data) opened.current = lastId;
+  const other = c?.kind === 'direct' ? c.people.find((p) => !p.me) : undefined;
+  // Their friend and a break nobody asked for yet: the first one, as the newest row (not while you type)
+  const suggestion = other?.friend ? c?.breaks?.find((b) => !b.asked) : undefined;
+  const rows = useMemo<Item[]>(
+    () => (suggestion && !keyboard ? [{ type: 'suggest', key: `s${suggestion.day}-${suggestion.start}`, b: suggestion }, ...items] : items),
+    [items, suggestion, keyboard],
+  );
+  // The newest active request (the list is newest first), pinned while it's above everything on screen
+  const active = rows.findIndex((i) => i.type === 'msg' && i.m.kind === 'request' && isActiveRequest(i.m));
+  const topSeen = onScreen ? Math.max(-1, ...onScreen.map((k) => rows.findIndex((i) => i.key === k))) : -1;
+  const pinned = active >= 0 && topSeen >= 0 && active > topSeen ? rows[active] : null;
+
+  function toCard(index: number) {
+    retried.current = false;
+    list.current?.scrollToIndex({ index, viewPosition: 0.5 });
+  }
+
   const fresh = (i: Item) => i.type === 'out' || (i.type === 'msg' && opened.current !== null && i.m.id > opened.current && i.m.user_id !== myId);
 
   const gone = (chat.error instanceof ApiError && chat.error.status === 404) || (page.error instanceof ApiError && page.error.status === 404);
@@ -117,7 +149,6 @@ export default function ChatScreen() {
     const s = today.data?.board.find((b) => b.id === p.id)?.status;
     return s ? statusLine(s, t).free : false;
   }).length;
-  const other = c?.kind === 'direct' ? people[0] : undefined;
   // One-to-one: their status line from Today's board ("Vrij tot 12:30", "Les tot 11:45")
   const theirStatus = other ? today.data?.board.find((b) => b.id === other.id)?.status : undefined;
   const line = theirStatus ? statusLine(theirStatus, t) : null;
@@ -133,6 +164,10 @@ export default function ChatScreen() {
   const openPerson = () => (other ? router.push(`/friends/${other.id}`) : setInfo(true));
 
   const otherTime = (request: BreakRequest) => setCounter({ kind: 'counter', request });
+  const askBreak = (b: SharedBreak) => other && setCounter({ kind: 'ask', day: b.day, people: [{ ...other, start: b.start, end: b.end }] });
+  // Everyone in it who's your friend (more than 3 is Premium: Vergelijken says so)
+  const friendIds = people.filter((p) => p.friend).map((p) => p.id);
+  const compare = () => router.push({ pathname: '/compare', params: { ids: friendIds.join(',') } });
 
   function longPress(m: ChatMessage, r: Rect | null) {
     rect.set(r);
@@ -153,8 +188,7 @@ export default function ChatScreen() {
     {
       icon: 'swap',
       label: t('chat.compare'),
-      // Everyone in it who's your friend (more than 3 is Premium: Vergelijken says so)
-      onPress: () => router.push({ pathname: '/compare', params: { ids: people.filter((p) => p.friend).map((p) => p.id).join(',') } }),
+      onPress: compare,
     },
     ...(other
       ? [
@@ -222,20 +256,37 @@ export default function ChatScreen() {
           </Pressable>
         ) : undefined
       }
-      navRight={<IconButton icon="more" label={t('chat.info')} onPress={() => setInfo(true)} disabled={!c} />}
+      navRight={
+        // Two buttons against the back button's one: the row leans one button into the middle so the photo stays
+        // centred over the name (the photo is narrow; nothing in the middle sits under it)
+        <View className="flex-row -ml-11">
+          <IconButton icon="swap" label={t('chat.compare')} onPress={compare} disabled={!c || !friendIds.length} />
+          <IconButton icon="more" label={t('chat.info')} onPress={() => setInfo(true)} disabled={!c} />
+        </View>
+      }
       scroll={false}
       contentClassName="flex-1 px-0 pb-0 gap-0"
     >
       <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top + 52 + 20 + (sub ? 16 : 0)}>
         <AView className="flex-1" style={liftStyle}>
           <FlatList
+            ref={list}
             className="flex-1 border-t border-line"
             inverted
-            data={items}
+            data={rows}
             keyExtractor={(i) => i.key}
             contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 10 }}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
+            onViewableItemsChanged={onViewable}
+            viewabilityConfig={VIEWABILITY}
+            onScrollToIndexFailed={({ index, averageItemLength }) => {
+              // Not measured yet (far up): jump close by estimate, then try once more
+              list.current?.scrollToOffset({ offset: averageItemLength * index, animated: false });
+              if (retried.current) return;
+              retried.current = true;
+              setTimeout(() => list.current?.scrollToIndex({ index, viewPosition: 0.5 }), 120);
+            }}
             onEndReachedThreshold={0.3}
             onEndReached={() => page.data?.more && !older.isPending && messages[0] && older.mutate(messages[0].id)}
             ListEmptyComponent={
@@ -246,7 +297,11 @@ export default function ChatScreen() {
               ) : undefined
             }
             renderItem={({ item }) =>
-              fresh(item) ? (
+              item.type === 'suggest' ? (
+                <AView entering={FadeIn.duration(160)}>
+                  <BreakSuggestion b={item.b} onAsk={() => askBreak(item.b)} />
+                </AView>
+              ) : fresh(item) ? (
                 // The list is upside down: "down" here comes up from the box
                 <AView entering={FadeInDown.duration(200)}>
                   <Bubble item={item} c={c} myId={myId} onLong={longPress} onRetry={deliver} onOtherTime={otherTime} t={t} />
@@ -256,6 +311,11 @@ export default function ChatScreen() {
               )
             }
           />
+          {pinned?.type === 'msg' ? (
+            <AView entering={FadeIn.duration(160)} exiting={FadeOut.duration(120)} className="absolute left-3 right-3 top-2">
+              <RequestBar m={pinned.m} onPress={() => toCard(active)} />
+            </AView>
+          ) : null}
           {error ? (
             <Text variant="sm" bold tone="danger" className="px-4 pb-1" accessibilityLiveRegion="polite">
               {error}
@@ -358,6 +418,21 @@ export default function ChatScreen() {
 
 type T = ReturnType<typeof useT>['t'];
 
+/** Whether the on-screen keyboard is up (iOS: as it starts moving; Android: once it's there; web: never). */
+function useKeyboardOpen() {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const ios = Platform.OS === 'ios';
+    const show = Keyboard.addListener(ios ? 'keyboardWillShow' : 'keyboardDidShow', () => setOpen(true));
+    const hide = Keyboard.addListener(ios ? 'keyboardWillHide' : 'keyboardDidHide', () => setOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  return open;
+}
+
 /** Oldest to newest with a day line above each new day, then turned around for the inverted list. */
 function build(messages: ChatMessage[], outbox: (Outgoing & { after: number })[], c: ChatDetail | undefined, myId: number | undefined, t: T, lang: 'nl' | 'en'): Item[] {
   const out: Item[] = [];
@@ -414,6 +489,8 @@ function Bubble({
   lifted?: boolean;
 }) {
   const box = useRef<ComponentRef<typeof View>>(null);
+  // The suggestion is drawn by the list itself
+  if (item.type === 'suggest') return null;
   if (item.type === 'day') {
     return (
       <Text variant="sm" bold tone="ink2" className="self-center py-1">

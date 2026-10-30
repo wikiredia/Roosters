@@ -157,6 +157,11 @@ export type BreakRequest = {
   now: boolean;
   /** Its time has passed (only seen on a card in a chat: Today's lists leave those out) */
   over?: boolean;
+  /** Not over and not cancelled, but someone in it isn't free then any more (only on a card in a chat). */
+  possible?: boolean;
+  /** Why not, only when it's out of everyone's hands: a new lesson was scheduled, or a lesson moved. null: no reason
+   * is given (someone skipped less, went home, said they're busy …) */
+  blocked?: 'new_lesson' | 'moved' | null;
 };
 
 /** "Mag ik je rooster zien?": a friend asks to see more of your timetable (`visibility`: what they ask for).
@@ -321,9 +326,18 @@ export type Chat = {
 };
 
 /** One chat with everyone in it (you too) and how far each of them read. */
+/** A break you share with the friend of a one-to-one chat, this school week from now on. `asked`: there's a request
+ * (from either of you) for it already, so the chat doesn't suggest it. */
+export type SharedBreak = { day: string; start: number; end: number; asked: boolean };
+
 export type ChatDetail = Omit<Chat, 'last'> & {
+  /** One-to-one chats: the breaks you share this school week (for the "Pauze samen?" suggestion above the box) */
+  breaks?: SharedBreak[];
   people: (ChatPerson & { last_read_id: number; me: boolean; friend: boolean })[];
   created_by: number;
 };
+
+/** "Meestal ga je met:": the friends you most often had a planned break with lately (`count`), else your pinned ones. */
+export type UsualPartner = BreakPerson & { count: number };
 
 export type ReportReason = 'spam' | 'mean' | 'unsafe' | 'other';

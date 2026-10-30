@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T10:30:00Z
+updated: 2026-10-30T15:06:00Z
 ---
 
 **A break or access request as a card in a chat** (`ChatMessage.kind === 'request'`), drawn by `app/chat/[id].tsx`
@@ -13,7 +13,11 @@ any more) is a dashed "Dit verzoek is er niet meer".
   (never you).
 - **Break**: who asked whom ("Lotte vraagt jou (en Amir)", "Jij vroeg Lotte en Amir"), day + time and who walks
   (`lib/breaks` `dayWord`, `howText`), the note. Tags in Today's old colours: Gepland (together), Gevraagd / Vraagt
-  jou (line), Zei nee (bad); Ingetrokken and Voorbij muted, without buttons. Buttons (`useAnswerBreak`): asked and
+  jou (line), Zei nee (bad); Ingetrokken and Voorbij muted, without buttons. **Niet meer mogelijk** (muted): the
+  server says someone in it isn't free for the whole time any more (`possible: false`, only sent while it's open and
+  nobody said no, `api/roosters/breaks.py`); no Ja / Nee / Ander uur / Toch niet, the asker keeps Weghalen. Under it
+  the reason only when it's out of your hands (`blocked`): "Er werd een nieuwe les ingepland" / "Een les werd
+  verplaatst". Buttons (`useAnswerBreak`): asked and
   not answered → Ja / Nee / Ander uur (`onOtherTime`: the chat opens `BreakSheet` with a counter, which itself
   navigates after sending); you said yes → Toch niet; yours → Terugnemen (Weghalen once everyone said no).
 - **Access**: "Lotte vraagt je volledige rooster / je rooster zonder lokalen te zien" → Aanvaarden / Weigeren
@@ -38,6 +42,17 @@ An access request and its tag.
 
 The top row, and Vergelijk in its corner.
 
-## `CANCELLED`, `OVER`, `State`, `TagKind`, `T`
+## `isActiveRequest`
+
+Whether a request card is still going: a break pending or planned (not over, taken back, declined or impossible: as
+its tag says), an access request pending. The chat pins the newest such card while it's scrolled away.
+
+## `RequestBar`
+
+The compact copy the chat pins at the top while the card is above everything on screen: one line with the
+request in words (`lib/chat` `requestText`), its tag, and the answer when it's yours to give (Ja for a break you were
+asked, Aanvaarden for access) or an arrow. Tapping the rest of it scrolls to the card (`onPress`).
+
+## `CANCELLED`, `OVER`, `IMPOSSIBLE`, `State`, `TagKind`, `T`
 
 The muted tags, the tag's shape, the translate function's type.

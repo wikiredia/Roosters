@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T13:30:00Z
+updated: 2026-10-30T15:07:00Z
 ---
 
 Routes for **chat** (`/api/v1/chats`); the rules are in `chat.py`. Everything needs a signed-in, non-guest
@@ -18,7 +18,8 @@ Errors (translated in `i18n.py`): `chat_gone`, `not_friends`, `chat_name`, `chat
 
 ## `DirectIn`, `direct`
 
-`POST /api/v1/chats/direct` `{user_id}` → `{chat}`: the one-to-one chat with a friend (made the first time).
+`POST /api/v1/chats/direct` `{user_id}` → `{chat}`: the one-to-one chat with a friend (made the first time),
+with `breaks` like `get_chat`.
 
 ## `GroupIn`, `new_group`
 
@@ -26,7 +27,9 @@ Errors (translated in `i18n.py`): `chat_gone`, `not_friends`, `chat_name`, `chat
 
 ## `get_chat`
 
-`GET /api/v1/chats/{id}` → `{chat}` with everyone in it and how far they read.
+`GET /api/v1/chats/{id}` → `{chat}` with everyone in it and how far they read; a one-to-one chat also
+`breaks: [{day, start, end, asked}]` (`breaks.shared_with`: the breaks you share this school week, for the "Pauze
+samen?" suggestion). ETag: the body changes when one is asked.
 
 ## `ChatPatch`, `edit_chat`
 
