@@ -100,6 +100,7 @@ def _sign_in(c, provider: str, subject: str, email: str | None, email_verified: 
         db.run("UPDATE auth_identities SET last_used_at=UTC_TIMESTAMP() WHERE id=%s", (ident["id"],), c)
         return _existing(c, ident["user_id"], guest_id)
     user = None
+    welcome = False  # a new account, or a guest who just got one: the welcome mail goes out
     if email and email_verified:
         user = db.one("SELECT id FROM users WHERE email=%s FOR UPDATE", (email,), c)
     if user:
@@ -114,16 +115,45 @@ def _sign_in(c, provider: str, subject: str, email: str | None, email_verified: 
                (email if email_verified else None, new_name, guest_id), c)
         # The guest's own session ends: the phone gets a fresh one with this answer
         tokens.revoke_all(guest_id, "guest_signed_in", c)
+        welcome = True
     else:
         user_id, how = _new_user(c, name, email if email_verified else None, lang_), "new"
+        welcome = True
     db.run("INSERT INTO auth_identities (user_id, provider, subject, email, last_used_at) "
            "VALUES (%s,%s,%s,%s,UTC_TIMESTAMP())", (user_id, provider, subject, email), c)
+    if welcome and email and email_verified:
+        _welcome_mail(c, user_id, email, lang_)
     return user_id, how
 
 
-def _answer(user_id: int, how: str, body: Device, c) -> dict:
+def _welcome_mail(c, user_id: int, email: str, lang_: str):
+    """Queues the welcome. Greets by name only when the name is a real one (not 'Student', not made from the address)."""
+    name = db.one("SELECT display_name FROM users WHERE id=%s", (user_id,), c)["display_name"]
+    if name == "Student" or name == email.split("@")[0][:60]:
+        name = None
+    jobs.enqueue("send_welcome", {"email": email, "name": name, "lang": lang_}, dedupe=f"welcome:{user_id}", priority=3, c=c)
+
+
+def _warn_new_device(c, user_id: int, body: Device, lang_: str):
+    """Mails the account's address when this phone (name + platform) never had a session on it before."""
+    user = db.one("SELECT email, is_guest FROM users WHERE id=%s", (user_id,), c)
+    if not user["email"] or user["is_guest"]:
+        return
+    platform = body.platform if body.platform in ("ios", "android", "web") else "other"
+    name = (body.device_name or "")[:80] or None
+    if db.one("SELECT 1 AS x FROM sessions WHERE user_id=%s AND device_name <=> %s AND platform=%s LIMIT 1",
+              (user_id, name, platform), c):
+        return
+    jobs.enqueue("send_new_device", {"email": user["email"], "device": name, "platform": platform, "lang": lang_,
+                                     "at": db.utcnow().isoformat()}, priority=1, c=c)
+
+
+def _answer(user_id: int, how: str, body: Device, c, lang_: str = "nl") -> dict:
     """Tokens plus what happened to the account: the app tells 'you already had an account, you're signed in'
-    (account=existing, also when you tapped 'Create account') from 'no account with this address yet' (new)."""
+    (account=existing, also when you tapped 'Create account') from 'no account with this address yet' (new).
+    Signing in to an account that was already there from a phone it never saw mails a new-device warning."""
+    if how != "new":
+        _warn_new_device(c, user_id, body, lang_)
     out = tokens.start_session(user_id, body.device_name, body.platform, c)
     out["is_new"] = how == "new"
     out["account"] = how
@@ -136,7 +166,7 @@ def guest(body: Device, request: Request):
     redisx.rate_limit(f"guest-ip:{_client_ip(request)}", 60, 600)  # a whole school shares one IP
     with db.tx() as c:
         user_id = _new_user(c, None, None, lang(request), guest=True)
-        return _answer(user_id, True, body, c)
+        return _answer(user_id, "new", body, c)
 
 
 @router.post("/email/start", status_code=204)
@@ -176,7 +206,7 @@ def email_verify(body: EmailVerify, request: Request):
             raise ApiError(400, "code_invalid")
         db.run("UPDATE login_codes SET used_at=UTC_TIMESTAMP() WHERE id=%s", (row["id"],), c)
         user_id, how = _sign_in(c, "email", email, email, True, None, lang(request), _guest_id(request))
-        return _answer(user_id, how, body, c)
+        return _answer(user_id, how, body, c, lang(request))
 
 
 def _provider_login(ident: providers.Identity, name: str | None, body: Device, request: Request) -> dict:
@@ -186,7 +216,7 @@ def _provider_login(ident: providers.Identity, name: str | None, body: Device, r
             with db.tx() as c:
                 user_id, how = _sign_in(c, ident.provider, ident.subject, ident.email, ident.email_verified, name,
                                         lang(request), guest_id)
-                return _answer(user_id, how, body, c)
+                return _answer(user_id, how, body, c, lang(request))
         except pymysql.err.IntegrityError as e:
             # Two simultaneous first logins (double tap on slow wifi): the second one finds the account
             if e.args[0] != db.DUPLICATE or attempt:

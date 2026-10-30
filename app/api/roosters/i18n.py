@@ -1,4 +1,4 @@
-"""Dutch and English texts the server itself has to write: error messages and e-mails.
+"""Dutch and English texts the server itself has to write: error messages (the e-mails are in `mails.py`).
 
 Everything else (screens) the app translates from codes. Push texts are in push.py: they're written when the app
 isn't running."""
@@ -76,21 +76,3 @@ def lang_of(accept_language: str | None) -> str:
 def error(code: str, lang: str) -> str:
     pair = ERRORS.get(code) or ERRORS["server"]
     return pair[0] if lang == "nl" else pair[1]
-
-
-def login_mail(code: str, lang: str) -> tuple[str, str]:
-    """(subject, body) of the e-mail with the 6-digit code."""
-    spaced = f"{code[:3]} {code[3:]}"
-    if lang == "nl":
-        return (
-            f"Je code voor Roosters+: {spaced}",
-            f"Hallo!\n\nJe code om aan te melden bij Roosters+ is:\n\n    {spaced}\n\n"
-            "Hij is 10 minuten geldig. Heb je niets aangevraagd? Dan mag je deze mail negeren.\n\n"
-            "Groetjes,\nRoosters+\n",
-        )
-    return (
-        f"Your Roosters+ code: {spaced}",
-        f"Hi!\n\nYour code to sign in to Roosters+ is:\n\n    {spaced}\n\n"
-        "It's valid for 10 minutes. Didn't ask for it? Then you can ignore this e-mail.\n\n"
-        "Cheers,\nRoosters+\n",
-    )

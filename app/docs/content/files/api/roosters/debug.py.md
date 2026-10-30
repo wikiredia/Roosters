@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-30T09:25:00Z
 ---
 
 **Troubleshooting** the login-mail path: API → job in MySQL → worker → SMTP (Mailpit on the laptop).
@@ -30,4 +30,4 @@ All of the above plus the last 5 login-mail jobs, as one JSON answer.
 
 ## `send_test_mail`
 
-Sends right away (not through the worker), so the SMTP error comes back to the caller.
+Sends `mails.mail_check()` right away (not through the worker), so the SMTP error comes back to the caller.

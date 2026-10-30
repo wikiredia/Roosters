@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:29:00Z
+updated: 2026-10-30T09:41:00Z
 ---
 
 **Signing in**, with no passwords: a 6-digit code by e-mail, Sign in with Apple, Sign in with Google, or
@@ -22,7 +22,10 @@ account. Every answer says what happened in `account` (`_answer`), so the app ca
 only told *after* the code proved the address is yours.
 
 The app side: `mobile/src/lib/onboarding.ts` (sends the guest token along, after freshening it).
-Tests: `tests/test_auth.py`, `tests/test_guests.py`.
+**Mails that come with signing in** (all from jobs, see `mailer.py` / `mails.py`): the login code, a **welcome**
+when an account is created or a guest gets one (with a verified address), and a **new-device notice** when an
+existing account signs in on a phone (name + platform) it never had a session on.
+Tests: `tests/test_auth.py`, `tests/test_guests.py`, `tests/test_mails.py`.
 
 ## `Device`, `EmailStart`, `EmailVerify`, `AppleLogin`, `GoogleLogin`, `RefreshIn`
 
@@ -38,6 +41,7 @@ Starts a session and adds what happened to the account: `account` = `existing` (
 also when found through the same verified address; a guest on the phone was folded in), `guest` (this phone's guest
 account became the account) or `new`; and `is_new` (= `account == "new"`, kept for older apps). The app uses
 `account` in `lib/onboarding.routeAfterSignIn`.
+For an account that was already there (not `new`) it first checks for a new phone (`_warn_new_device`).
 
 ## `_client_ip`
 
@@ -59,6 +63,14 @@ Inserts a user. The name defaults to the part before @ (or 'Student'), with a ra
 
 Shared by Apple and Google: sign in in a transaction, retrying once on a duplicate-key error (two simultaneous first sign-ins after a double tap on slow wifi).
 
+## `_welcome_mail`
+
+Queues the welcome (`send_welcome`, deduped per user). The name is only used when it is a real one: not 'Student' and not the part of the address before @.
+
+## `_warn_new_device`
+
+Queues `send_new_device` when the account has an address and no session with this device name and platform exists yet (revoked ones count, so a guest who signs in on the same phone doesn't trigger it). New accounts and guests get nothing.
+
 ## `_sign_in`
 
 Finds or creates the account for an identity (provider + subject). Order:
@@ -66,6 +78,7 @@ Finds or creates the account for an identity (provider + subject). Order:
 2. the e-mail is **verified** and an account has it → that account (links Apple/Google/e-mail);
 3. a guest is signing in → the guest becomes the account. A guest who never picked a name gets one the way a new account would (Apple's name, or the part of the address before @);
 4. otherwise a new account.
+Cases 3 and 4 also queue the welcome mail (when the address is verified).
 Returns `(user_id, how)` with how = `existing`, `guest` or `new` (`_answer`). An unverified e-mail never links to an existing account (`test_unverified_email_does_not_take_over_an_account`).
 
 ## `apple`, `google`
@@ -74,7 +87,7 @@ Returns `(user_id, how)` with how = `existing`, `guest` or `new` (`_answer`). An
 
 ## `email_start`
 
-`POST /api/v1/auth/email/start`: always 204, also for unknown addresses (nobody can find out who has an account). Rate-limited per IP and per address; older unused codes for the address stop working. The mail goes out from a job (`mailer._job_send_code`).
+`POST /api/v1/auth/email/start`: always 204, also for unknown addresses (nobody can find out who has an account). Rate-limited per IP and per address; older unused codes for the address stop working. The mail goes out from a job (`mailer._job_send_code`; text and look in `mails.login_code`).
 
 ## `email_verify`
 
