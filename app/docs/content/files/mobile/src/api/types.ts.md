@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:00:00Z
+updated: 2026-10-30T16:00:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -51,7 +51,7 @@ Now-board status codes and times (`break_busy`: in a break but said they're busy
 ## `BreakRequest`, `BreakMode`, `BreakResponse`, `BreakPerson`
 
 A break request (`api/roosters/breaks.py`). `mode` is as the one who asked put it: `lib/breaks.howText` turns it
-into words from your side. Today carries them in `breaks` (optional: an API from before break requests leaves it out, and Today shows none instead of crashing). On a card in a chat it may also be `cancelled` or `over`.
+into words from your side. Today carries them in `breaks` (optional: an API from before break requests leaves it out, and Today shows none instead of crashing). On a card in a chat it may also be `cancelled` or `over`, and says whether it can still happen (`possible`) and, only when that's out of everyone's hands, why not (`blocked`: a new lesson, a moved lesson).
 
 ## `AccessRequest`, `RequestRef`
 
@@ -65,7 +65,11 @@ bell is on, only for you), one chat
 with everyone in it and how far they read, a message (`body` null when taken back or removed), an event (the app
 writes the sentence, `lib/chat.ts`), and the report reasons. A message of kind `request` is a card for a break or
 access request (`components/chat/RequestCard.tsx`); it carries the request as it is now in `request`. `Chat.requests`:
-open requests in that chat (the yellow 'Verzoek' tag in the Chat tab).
+open requests in that chat (the yellow 'Verzoek' tag in the Chat tab). `ChatDetail.breaks` (`SharedBreak`): in a one-to-one chat, the breaks you share with that friend this school week, for the 'Pauze samen?' suggestion above the text box.
+
+## `UsualPartner`
+
+'Meestal ga je met:': a friend you often had a planned break with lately (`count`), or a pinned friend (count 0).
 
 ## `Today`, `Schedule`, `FriendSchedule`, `Compare`
 

@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-30T12:00:00Z
+updated: 2026-10-30T16:00:00Z
 ---
 
 ## Becoming friends
@@ -69,6 +69,18 @@ After asking (a break, Ander uur, access) the app opens that chat (several separ
 a request opens that chat too. Tapping a friend who has a status or an open request (Today's 'Wie is er nu?', the
 state tag of a shared break, '… is ook vrij' in a lesson) opens your chat with them. Each chat in the list with an
 open request has a small yellow 'Verzoek' tag (`requests` in `GET /chats`).
+
+In a one-to-one chat: the friend's status under their name (in class or not, on campus or not), Vergelijk next to the
+three dots, and, when you share a break this school week that nobody asked for yet (`breaks` in `GET /chats/{id}`), a
+small 'Pauze samen?' suggestion right above the text box, as the newest item of the conversation (gone while the
+keyboard is open). An active request that scrolls up out of view stays pinned at the top of the conversation. A card
+whose break can't happen any more says so ('Niet meer mogelijk'); why only when nobody in it caused it (a new lesson,
+a moved lesson: `possible`, `blocked`).
+
+In the Rooster tab and Vergelijken, tapping a shared break lists who you can take it with ('Pauze mogelijk met:'), and
+tapping a break you share with nobody lists who you usually go with ('Meestal ga je met:', `GET /breaks/usual`: the
+most planned breaks in the last 8 weeks, else your pinned friends). Each row opens your chat with them (Vergelijk on
+the side); asking happens there.
 
 ## Break requests (breaks.py)
 

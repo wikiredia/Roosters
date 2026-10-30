@@ -37,6 +37,7 @@ import type {
   SkipAnswer,
   Source,
   Today,
+  UsualPartner,
   User,
   Visibility,
 } from './types';
@@ -665,6 +666,15 @@ function useBreakWrite<V>(fn: (v: V) => Promise<BreakAnswer>) {
       qc.invalidateQueries({ queryKey: keys.chats });
       qc.invalidateQueries({ queryKey: ['chat-messages'] });
     },
+  });
+}
+
+/** "Meestal ga je met:" (tapping a break of yours that you share with nobody, in the Rooster tab). */
+export function useUsualPartners(enabled = true) {
+  return useQuery({
+    queryKey: ['usual-partners'],
+    queryFn: () => api.get<{ people: UsualPartner[] }>('/api/v1/breaks/usual').then((r) => r.people),
+    enabled: useSocial() && enabled,
   });
 }
 
