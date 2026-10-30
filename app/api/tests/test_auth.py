@@ -14,8 +14,8 @@ from .conftest import login, run_jobs
 
 
 def _code_from(mails, email):
-    body = next(b for to, _, b in reversed(mails) if to == email)
-    return re.search(r"(\d{3}) (\d{3})", body).group(0).replace(" ", "")
+    return next(m.group(0).replace(" ", "") for to, _, b in reversed(mails)
+                if to == email and (m := re.search(r"(\d{3}) (\d{3})", b)))
 
 
 def test_email_code_creates_the_account_once(client, mails):

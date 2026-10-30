@@ -53,7 +53,7 @@ def client():
 @pytest.fixture
 def mails(monkeypatch):
     sent = []
-    monkeypatch.setattr(mailer, "send", lambda to, subject, body: sent.append((to, subject, body)))
+    monkeypatch.setattr(mailer, "send", lambda to, subject, body, html=None: sent.append((to, subject, body)))
     return sent
 
 
@@ -68,15 +68,16 @@ def login(client: TestClient, email: str, mails: list | None = None) -> dict:
     """Signs in with an e-mail code and returns the token answer + headers."""
     captured = mails if mails is not None else []
     original = mailer.send
-    mailer.send = lambda to, subject, body: captured.append((to, subject, body))
+    mailer.send = lambda to, subject, body, html=None: captured.append((to, subject, body))
     try:
         r = client.post("/api/v1/auth/email/start", json={"email": email})
         assert r.status_code == 204, r.text
         run_jobs()
     finally:
         mailer.send = original
-    body = next(b for to, _, b in reversed(captured) if to == email.lower())
-    code = re.search(r"(\d{3}) (\d{3})", body).group(0).replace(" ", "")
+    # Other mails (the welcome) can sit between: take the newest one that holds a code
+    code = next(m.group(0).replace(" ", "") for to, _, b in reversed(captured)
+                if to == email.lower() and (m := re.search(r"(\d{3}) (\d{3})", b)))
     r = client.post("/api/v1/auth/email/verify", json={"email": email, "code": code, "platform": "ios"})
     assert r.status_code == 200, r.text
     out = r.json()

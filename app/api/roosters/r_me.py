@@ -14,6 +14,7 @@ from . import (
     crypto,
     db,
     friends,
+    jobs,
     logic,
     netfetch,
     notifications,
@@ -571,6 +572,10 @@ def export(ctx: Ctx = Depends(auth)):
 @router.delete("", status_code=204)
 def delete_account(ctx: Ctx = Depends(auth)):
     """Deletes your account and everything linked to it, right away (App Store + GDPR)."""
+    user = ctx.user
     with db.tx() as c:
+        if user["email"] and not user["is_guest"]:
+            # The only thing left of the account: one goodbye mail (the address lives in the job until it is sent)
+            jobs.enqueue("send_account_deleted", {"email": user["email"], "lang": user["locale"] or "nl"}, priority=3, c=c)
         accounts.delete_user(c, ctx.uid)
     return Response(status_code=204)

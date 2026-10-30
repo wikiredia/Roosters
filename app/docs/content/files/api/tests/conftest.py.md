@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:10:00Z
+updated: 2026-10-30T09:25:00Z
 ---
 
 Test setup. The tests run against a **real MySQL and Valkey**, not mocks: start them with
@@ -11,11 +11,11 @@ console: nothing leaves the machine) is set at the top, before `roosters` is imp
 
 ## `client`, `mails`
 
-A TestClient for the public API; `mails` captures what would be sent, as (to, subject, body).
+A TestClient for the public API; `mails` captures what would be sent, as (to, subject, text body). The HTML version isn't captured: test it through `mails.py` directly.
 
 ## `login`
 
-Signs in with a real e-mail code (start → run the mail job → read the code from the mail → verify) and returns the tokens, auth headers and user id.
+Signs in with a real e-mail code (start → run the mail job → read the code from the newest mail that has one, since a welcome mail can come after it → verify) and returns the tokens, auth headers and user id.
 
 ## `onboard`, `befriend`
 
