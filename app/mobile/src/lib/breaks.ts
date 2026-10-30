@@ -33,12 +33,12 @@ export function breakError(e: unknown, names: Map<number, string>, t: T) {
   if (e instanceof NetworkError) return t('common.offline');
   if (!(e instanceof ApiError)) return t('common.tryAgain');
   const busy = (reason: unknown, name: string) =>
-    t(reason === 'home' ? 'break.busyHome' : reason === 'no_classes' ? 'break.busyNone' : 'break.busyClass', { name });
+    t(reason === 'home' ? 'break.busyHome' : reason === 'no_classes' ? 'break.busyNone' : reason === 'busy' ? 'break.busyBusy' : 'break.busyClass', { name });
   if (e.code === 'break_busy' && Array.isArray(e.extra.people)) {
     return (e.extra.people as { id: number; reason: string }[]).map((p) => busy(p.reason, names.get(p.id) ?? '?')).join('. ');
   }
   if (e.code === 'break_busy_me') {
-    return t(e.extra.reason === 'home' ? 'break.meHome' : e.extra.reason === 'no_classes' ? 'break.meNone' : 'break.meClass');
+    return t(e.extra.reason === 'home' ? 'break.meHome' : e.extra.reason === 'no_classes' ? 'break.meNone' : e.extra.reason === 'busy' ? 'break.meBusy' : 'break.meClass');
   }
   if (e.code === 'break_dup') {
     return t(e.extra.state === 'accepted' ? 'break.dupPlanned' : e.extra.kind === 'theirs' ? 'break.dupTheirs' : 'break.dupMine');

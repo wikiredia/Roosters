@@ -182,7 +182,7 @@ def list_for(user: dict) -> dict:
     nb, nbargs = _not_blocked("msg.user_id", blocked)
     unread = {r["chat_id"]: r["n"] for r in db.rows(
         f"SELECT msg.chat_id, COUNT(*) AS n FROM chat_messages msg JOIN chat_members m ON m.chat_id=msg.chat_id "
-        f"AND m.user_id=%s WHERE msg.chat_id IN ({ph}) AND msg.id > m.last_read_id AND msg.kind='text' "
+        f"AND m.user_id=%s WHERE msg.chat_id IN ({ph}) AND msg.id > m.last_read_id AND msg.kind IN ('text','request') "
         f"AND msg.deleted_at IS NULL AND msg.user_id <> %s{nb} GROUP BY msg.chat_id",
         [uid] + args + [uid] + nbargs)}
     requests = _open_requests(user, ids)

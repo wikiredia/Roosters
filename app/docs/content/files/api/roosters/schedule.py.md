@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:30:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 **Reading timetables**: someone's lessons from the classes they follow and their own calendar links,
@@ -54,4 +54,4 @@ A `logic.PersonDay` per user for one day: lessons that take place, campus, today
 
 ## `status`
 
-The now-board line as **codes** (in_class, later, break, chilling, wants_to_chill, done, no_classes, absent, home) with times; the app writes the sentence.
+The now-board line as **codes** (in_class, later, break, break_busy, chilling, wants_to_chill, done, no_classes, absent, home) with times; the app writes the sentence. `wants_to_chill`: after school with status want_chill, or during a break with break_status want_chill; `break_busy`: during a break with break_status busy.

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:10:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 Routes for **chat** (`/api/v1/chats`); the rules are in `chat.py`. Everything needs a signed-in, non-guest

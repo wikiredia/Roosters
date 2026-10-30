@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T05:26:38Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 Routes for **break requests** (`/api/v1/breaks`); the rules are in `breaks.py`. Everything needs a signed-in,
@@ -17,7 +17,8 @@ Errors (translated in `i18n.py`): `break_day`, `break_time`, `break_people`, `no
 
 ## `BreakIn`, `ask`
 
-`POST /api/v1/breaks` `{to_ids, day, start, end, mode, place, note}` → 201.
+`POST /api/v1/breaks` `{to_ids, day, start, end, mode, place, note}` → 201, with `chats`: where the card went
+(one chat, or several direct chats: the app then goes to the Chat tab).
 
 ## `RespondIn`, `respond`
 
@@ -33,4 +34,4 @@ Errors (translated in `i18n.py`): `break_day`, `break_time`, `break_people`, `no
 
 ## `_answer`
 
-The answer of every write.
+The answer of every write: `{breaks, break}`, plus `chats` after ask and counter.

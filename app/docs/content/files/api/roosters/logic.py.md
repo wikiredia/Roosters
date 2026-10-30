@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 **Breaks, shared free time, the now-board and travelling together.** Only pure functions, no database:
@@ -9,7 +9,9 @@ Definitions that matter:
 - A **break** is time without class **between** your first and last lesson. Before your first and after
   your last lesson you're not at school, and a day without lessons isn't free time.
 - **Check-ins** change that: *chilling* / *want to chill* extends your free time after class (until a time
-  or 22:00); *going home* cuts everything after that moment; *absent* means not there at all.
+  or 22:00); *going home* cuts everything after that moment; *absent* means not there at all. The break part
+  (`break_status`): *busy* ("Ik ben bezig") takes the breaks between classes out of your free time (no shared
+  breaks, nobody can ask you then); *want_chill* ("Ik wil afspreken") only changes your board code.
 - A **shared break** needs at least 30 minutes on the same campus, or more than 30 on different campuses
   (you need time to walk).
 
@@ -21,7 +23,7 @@ The check-in statuses that mean 'still around after class'.
 
 ## `DayInfo`, `day_info`
 
-What a day looks like for one person: present?, first and last lesson, busy blocks, free blocks (breaks, plus chilling time), and when they left (going home).
+What a day looks like for one person: present?, first and last lesson, busy blocks, free blocks (breaks, plus chilling time), when they left (going home), and `breaks_busy` (break_status 'busy': the breaks aren't in `free`).
 
 ## `LATE`
 
@@ -86,3 +88,8 @@ Breaks between lessons only (no chilling time), cut off when someone went home.
 ## `travel_pairs`
 
 Who can travel to or from school together: same home town, same campus (unless both added each other), first/last lesson within 15 minutes, and no 'never'.
+
+## `_busy_gap`
+
+The break between two classes you're in now if you said you're busy in your breaks: `now_status` and
+`board_status` then say `pauze_bezig` (`schedule.status` → `break_busy`), can't be pinged.

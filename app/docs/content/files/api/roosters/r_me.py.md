@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:41:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -15,7 +15,11 @@ Ghost mode, check-ins and sources change what **friends** see. That logic lives 
 
 ## `CheckinIn`, `checkin`
 
-`PUT /api/v1/me/checkin`: today's status (chilling, want_chill, home, absent) or null to clear it. It changes your breaks (`logic.day_info`): chilling extends your free time after class, home cuts it.
+`PUT /api/v1/me/checkin` `{status?, break_status?, until_min?}`: today's plan in two parts. `break_status`
+(want_chill, busy) for your breaks between classes, `status` (chilling, want_chill after school; home, absent) for
+the rest of the day. Only the fields sent change (`model_fields_set`; null clears one); both cleared deletes the
+row → `{"checkin": null}`. `since_min` is when `status` was last set. It changes your breaks (`logic.day_info`):
+chilling extends your free time after class, home cuts it, busy takes your breaks out.
 
 ## `GhostIn`, `ghost`
 
@@ -65,7 +69,7 @@ Soft-deletes the source, forgets its encrypted link and deletes its personal les
 ## `export`
 
 `GET /api/v1/me/export`: everything stored about you (GDPR art. 15/20) as JSON, without secrets (no encrypted links),
-including your friends (with what you show each and whether you pinned them), the classes you skip, the break requests you made and your answers, your chats, the messages you wrote and the reports you made,
+including your friends (with what you show each and whether you pinned them), the classes you skip, the break requests you made and your answers, the access requests from and to you, your chats, the messages you wrote and the reports you made,
 your Meldingen and which devices get push (without the tokens), and how you show lesson details (`lesson_details_layouts`).
 
 ## `my_notifications`, `ReadIn`, `read`
@@ -119,7 +123,7 @@ Summary for the app's banners: how many sources, oldest 'updated at', still sync
 ## `today`
 
 `GET /api/v1/me/today?day=`: **one round trip** for the Today screen and each day column of the Rooster tab (slow wifi), with `loading` like `my_schedule`: your status now, your
-check-in, today's lessons, friends (pinned first, then by name) with their status on the now-board (sorted: the
+check-in (`{status, break_status, since_min, until_min}` or null), today's lessons, friends (pinned first, then by name) with their status on the now-board (sorted: the
 friends you pinned on top, then on a break first),
 who you share breaks with (`logic.partners`), today's and upcoming changes, your break requests (`breaks.list_for`:
 today and the coming days, none for guests) and the sources' state.

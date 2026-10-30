@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:30:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 Operations on **whole accounts**, used by several routes so they behave the same everywhere:
@@ -21,7 +21,7 @@ them; `push_settings` is Meldingen; `detail_layouts` is how you show lesson deta
 ## `delete_user`
 
 Deletes the account and everything linked to it, inside the caller's transaction: the test people it made
-(`testdata.py`), owned rows, both sides of friendships, requests and blocks, break requests and answers (`breaks.delete_user`), chats, messages and reports (`chat.delete_user`), then the user row. Nothing is soft-deleted.
+(`testdata.py`), owned rows, both sides of friendships, requests and blocks, break requests and answers (`breaks.delete_user`), access requests from and to them (`access.delete_user`), chats, messages and reports (`chat.delete_user`), then the user row. Nothing is soft-deleted.
 
 ## `fold_guest`
 

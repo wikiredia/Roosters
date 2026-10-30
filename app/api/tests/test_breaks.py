@@ -191,8 +191,9 @@ def test_the_card_goes_in_the_direct_chat(client, mails, school):
 
 
 def test_a_group_of_exactly_them_gets_one_card(client, mails, school):
-    reda, kayra = _setup(client, mails, school)
+    # Signed in first: signing in runs the queued jobs, which would sync (and empty) the test timetables
     lotte = login(client, "lotte@example.com", mails)
+    reda, kayra = _setup(client, mails, school)
     onboard(client, lotte, school, school["classes"][0])
     befriend(client, reda, lotte)
     befriend(client, kayra, lotte)

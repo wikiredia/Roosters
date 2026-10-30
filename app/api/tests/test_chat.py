@@ -158,8 +158,9 @@ def test_turning_the_writer_off(client, three):
 
 
 def test_a_planned_break_shows_up_in_the_chats_they_share(client, mails, school):
-    reda, kayra = _setup(client, mails, school)
+    # Signed in first: signing in runs the queued jobs, which would sync (and empty) the test timetables
     lotte = login(client, "lotte@example.com", mails)
+    reda, kayra = _setup(client, mails, school)
     befriend(client, reda, lotte)
     befriend(client, kayra, lotte)
     g = client.post("/api/v1/chats", headers=reda["headers"],
@@ -188,8 +189,9 @@ def test_a_request_card_shows_the_request_as_it_is_now(client, mails, school):
     assert (req["type"], req["id"], req["mine"], req["my_response"], req["state"], req["over"]) == \
         ("break", bid, False, "pending", "pending", False)
     assert client.get(url, headers=reda["headers"]).json()["messages"][-1]["request"]["mine"] is True
-    # Open request: the "Verzoek" tag on both sides; it doesn't count as unread
-    assert [(c["id"], c["requests"], c["unread"]) for c in _chats(client, kayra)["chats"]] == [(d, 1, 0)]
+    # Open request: the "Verzoek" tag on both sides; unread for the one asked (the Chat tab's badge), not the asker
+    assert [(c["id"], c["requests"], c["unread"]) for c in _chats(client, kayra)["chats"]] == [(d, 1, 1)]
+    assert _chats(client, reda)["unread"] == 0
     assert _chats(client, kayra)["chats"][0]["last"]["request"]["id"] == bid
     assert _chats(client, reda)["chats"][0]["requests"] == 1
     # Answered: the same URL answers with something new (the ETag changes with the request)

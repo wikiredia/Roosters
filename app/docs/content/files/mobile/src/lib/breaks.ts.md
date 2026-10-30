@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T11:30:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 Words for **break requests** (`components/BreakSheet.tsx`, the 'Pauzeverzoeken' section on Today).
@@ -19,7 +19,7 @@ jou" for Kayra and "jij gaat naar Kayra" for Reda; a place reads "op cafetaria".
 
 ## `breakError`
 
-What went wrong in words: who can't then and why (`break_busy` names them), that you can't yourself, that it was
+What went wrong in words: who can't then and why (`break_busy` names them: class, gone home, no classes, or busy in their break), that you can't yourself, that it was
 asked already (by you, by them, or that it's planned), offline, or the server's message.
 
 ## `duration`

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:10:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 **Push notifications** through Expo's push service (`https://exp.host/--/api/v2/push/send`, no account needed; an
@@ -39,7 +39,7 @@ Android channel id the app creates. `DEFAULTS`: everything on, no quiet hours (n
 
 Pure. `quiet`: is this minute in the quiet hours (from > until runs past midnight; equal = off)?
 
-## `break_text`, `change_text`, `chat_text`
+## `break_text`, `access_text`, `change_text`, `chat_text`
 
 Pure: title and body in Dutch or English. "Pauze samen? / Lotte wil pauze met jou om 12:30. Kan jij?",
 "Roosterwijziging morgen / Databases verplaatst: 10:30 → 13:00, B204 → C102.", several changes of one day as one
@@ -49,7 +49,9 @@ short line, a group message as "Kayra: …" under the group's name. Tested in `t
 
 One user's new notifications → messages without `to`. Break requests and counter-proposals get `categoryId
 break_request` (Ja / Nee / Ander uur on the phone) and `data.request`; the changes of one day become one push with
-`collapseId changes-<day>`, so a later one replaces it on the phone.
+`collapseId changes-<day>`, so a later one replaces it on the phone. Requests (break_* and access_*) have
+`data {kind, request, chat, url: "/chat/<chat>"}`: a tap opens the chat with the card (`/today` for older
+notifications without a chat). Access requests have no day.
 
 ## `register`, `unregister`, `forget`, `tokens_of`, `has_token`
 
