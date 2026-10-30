@@ -77,7 +77,8 @@ type Props = {
  * `days.snap`), as far back or ahead as you like. Every column is placed from the shared `offset` and `count`
  * on the UI thread, so the strip above, the columns and their widths move together in the same frame:
  * dragging the strip's handle or pinching makes the columns thinner while the next days slide in from the side.
- * Double tap zooms the hours in on your lessons (the screen decides); pinch shows more or fewer days. A class of yours
+ * Double tap zooms the hours in on your lessons (the screen decides); pinch shows more or fewer days, always from
+ * the day on the left (it stays there; zooming out adds days on the right). A class of yours
  * can be picked up and dragged into the bin on the right to skip it (`drag`; see SkipDrag.useSkipGesture for how
  * that's told apart from a swipe or a tap).
  * Memo: give it stable callbacks (Calendar does), so opening a sheet doesn't re-render every column. The gestures are
@@ -90,7 +91,6 @@ export const DayGrid = memo(function DayGrid(p: Props) {
   const pxPerHour = (height - LABEL_H) / Math.max(1, h1 - h0);
   const startOffset = useSharedValue(0);
   const startCount = useSharedValue(1);
-  const focal = useSharedValue(0);
 
   const pan = useMemo(
     () =>
@@ -117,17 +117,16 @@ export const DayGrid = memo(function DayGrid(p: Props) {
   const pinch = useMemo(
     () =>
       Gesture.Pinch()
-        .onBegin((e) => {
+        .onBegin(() => {
           startCount.set(count.get());
           startOffset.set(offset.get());
-          focal.set(e.focalX);
         })
         .onUpdate((e) => {
           const n = Math.max(1, Math.min(MAX_DAYS, startCount.get() / e.scale));
-          // The day under your fingers stays under your fingers
-          const anchor = startOffset.get() + focal.get() / (width / startCount.get());
+          // The day on the left stays on the left: zooming out shows more days to the right (never further back),
+          // zooming in narrows towards that first day
           count.set(n);
-          offset.set(anchor - focal.get() / (width / n));
+          offset.set(startOffset.get());
         })
         .onEnd(() => {
           const n = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
@@ -136,7 +135,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
           offset.set(withSpring(start, SWIPE));
           scheduleOnRN(onCount, n, start);
         }),
-    [offset, count, startCount, startOffset, focal, width, onCount],
+    [offset, count, startCount, startOffset, onCount],
   );
 
   // What the grid shows is in `data`, `nowMin` and the size at this render; the tap gesture below is made once and

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T00:15:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -17,7 +17,9 @@ days slide past it). Columns glide to their new width when their number changes 
 
 ## `TimeAxis`, `axisWidth`
 
-The hours on the left of a grid, on its own; its width (narrower when compact). `TimeAxis` is `memo`: give it the same
+The hours on the left of a grid, on its own; its width (narrower when compact). The first and last hour are always shown
+(also when compact, where the hours in between are every other one) and a little brighter (`ink2` instead of `ink3`):
+on the Rooster tab they are what you drag to change the hours (`Calendar`). `TimeAxis` is `memo`: give it the same
 `hours` array while the hours are the same (`Calendar` does).
 
 ## `Legend`, `LegendItem`

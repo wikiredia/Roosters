@@ -1,7 +1,7 @@
 import { memo, type RefObject, useCallback, useEffect, useImperativeHandle, useInsertionEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { useSharedValue, withSpring } from 'react-native-reanimated';
+import { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { useBreaks, useFriends, useSkip, useWeeks } from '@/api/hooks';
@@ -32,6 +32,8 @@ import { TodayPill } from './TodayPill';
 /** Hours always on screen; earlier or later lessons stretch them. */
 const HOURS: [number, number] = [8, 18];
 const AXIS_W = 30;
+/** The fewest hours the axis can be dragged down to */
+const MIN_SPAN = 2;
 /** What the legend shows when there's nothing to show yet */
 const DEFAULT_LEGEND: LegendItem[] = ['theory', 'lab'];
 
@@ -81,7 +83,8 @@ type Props = {
  * with the shared breaks in yellow. The week strip on top, the grid's columns and their widths share the same
  * animated values (offset, count), so they move together in the same frame. Data comes a week at a time and only
  * the columns wait for it; dates are there before you land. Pinch or drag the strip's handle for more or fewer
- * days, double tap to zoom in on your lessons, tap a lesson or a shared break for its sheet. Drag a class into the
+ * days (the day on the left stays there), double tap to zoom in on your lessons, drag the first or last hour on the axis
+ * to show fewer or more hours, tap a lesson or a shared break for its sheet. Drag a class into the
  * bin on the right (or 'Skip' in its sheet) to skip it: a short summary of what that changes, with Undo, comes up
  * at the bottom (SkipToast).
  * The Rooster tab and Vergelijken (with `only`: the friends you picked) both show this.
@@ -104,6 +107,8 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   /** Which way a move to `target` goes: the lessons of the columns that arrive slide in from that side */
   const heading = useCallback((target: number) => view.set((v) => ({ ...v, dir: target >= v.start ? 1 : -1 })), [view]);
   const [zoomed, setZoomed] = useState(false);
+  // Hours you set by dragging the first or last hour on the axis; they win over the standard and the zoomed hours
+  const [range, setRange] = useState<[number, number] | null>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [stripW, setStripW] = useState(0);
   const [hint, setHint] = useState<'days' | 'zoom' | null>(null);
@@ -273,6 +278,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   /** Back to the standard view: this week (or the one it opened on), Monday to Friday, zoomed out. */
   function reset() {
     setZoomed(false);
+    setRange(null);
     setDays(5, false);
     moveTo(initialStart ?? homeStart(5, today, emptyWeekend), 5);
   }
@@ -292,10 +298,12 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const sunday = firstEmpty < visible.length ? mondayOf(visible[firstEmpty]) + 6 : 0;
   const onward = firstEmpty < visible.length ? (!visible.includes(sunday) && byDay.get(sunday) && !empty(sunday) ? sunday : sunday + 1) : null;
   // The hours are an array with the same identity while the two numbers are the same (the columns and the axis are memo)
-  const span = hoursFor(
-    visible.map((d) => byDay.get(d)),
-    zoomed,
-  );
+  const span =
+    range ??
+    hoursFor(
+      visible.map((d) => byDay.get(d)),
+      zoomed,
+    );
   const hoursKey = `${span[0]}:${span[1]}`;
   const hours = useMemo(() => hoursKey.split(':').map(Number) as [number, number], [hoursKey]);
   const legendItems = new Set<LegendItem>();
@@ -303,7 +311,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const legendKey = [...legendItems].join();
   const legend = useMemo<LegendItem[]>(() => (legendKey ? (legendKey.split(',') as LegendItem[]) : DEFAULT_LEGEND), [legendKey]);
   // Anything else than the standard view (zoomed, other than 5 days, not starting on a Monday): the screen's title becomes 'Reset'
-  const custom = zoomed || want !== 5 || weekdayOf(start) !== 0;
+  const custom = zoomed || range != null || want !== 5 || weekdayOf(start) !== 0;
   useEffect(() => {
     onView?.({ start, want, custom });
   }, [start, want, custom]);
@@ -313,9 +321,9 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   // Stable callbacks for everything below (all of it memo): opening a sheet re-renders this component and that
   // sheet, never the 20-odd day columns, the strip or the other sheets, so a tap on a lesson answers at once. They
   // read the newest state through `latest`, which is up to date before any event handler runs.
-  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today });
+  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today, hours, pxPerHour, range });
   useInsertionEffect(() => {
-    latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today };
+    latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today, hours, pxPerHour, range };
   });
   const data = useCallback((d: number) => byDay.get(d), [byDay]);
   const onPressLesson = useCallback((lesson: Lesson, day: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), []);
@@ -330,7 +338,42 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     },
     [k],
   );
-  const onDoubleTap = useCallback(() => setZoomed((z) => !z), []);
+  // Double tap: zoom in on the lessons and back; with hours you dragged yourself it goes back to the standard ones
+  const onDoubleTap = useCallback(() => {
+    if (latest.current.range) {
+      setRange(null);
+      setZoomed(false);
+    } else setZoomed((z) => !z);
+  }, []);
+  const onZoomOut = useCallback(() => {
+    setZoomed(false);
+    setRange(null);
+  }, []);
+  // Dragging the axis: the first hour (top half) or the last (bottom half) follows your finger, an hour per hour-height
+  // as the axis was when you touched it; the grid shows those hours at once
+  const [axisFrom] = useState(() => createStore<{ top: boolean; hours: [number, number]; px: number } | null>(null));
+  const onAxisBegin = useStable((top: boolean) => axisFrom.set({ top, hours, px: pxPerHour }));
+  const onAxisMove = useStable((dy: number) => {
+    const f = axisFrom.get();
+    if (!f) return;
+    const dh = Math.round(dy / f.px);
+    let [a, b] = f.hours;
+    if (f.top) a = Math.max(0, Math.min(b - MIN_SPAN, a + dh));
+    else b = Math.min(24, Math.max(a + MIN_SPAN, b + dh));
+    setRange((r) => (r && r[0] === a && r[1] === b ? r : [a, b]));
+  });
+  const axisH = size.h;
+  const axisPan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY([-6, 6])
+        .failOffsetX([-24, 24])
+        .onBegin((e) => scheduleOnRN(onAxisBegin, e.y < axisH / 2))
+        .onUpdate((e) => scheduleOnRN(onAxisMove, e.translationY)),
+    [axisH, onAxisBegin, onAxisMove],
+  );
+  // The 'onward' arrow steps aside while you drag a class (the bin may come in on that side)
+  const onwardFade = useAnimatedStyle(() => ({ opacity: withTiming(drag.phase.get() >= 2 ? 0 : 1, { duration: 120 }) }));
   // The strip above the grid
   const onStripPick = useCallback(
     (day: number) => {
@@ -445,9 +488,11 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
         ) : null}
       </View>
       <AView layout={layout} className="flex-1 flex-row" onLayout={(e) => setSize({ w: e.nativeEvent.layout.width - AXIS_W, h: e.nativeEvent.layout.height })}>
-        <View style={{ width: AXIS_W, paddingTop: LABEL_H }}>
-          <TimeAxis pxPerHour={pxPerHour} hours={hours} compact />
-        </View>
+        <GestureDetector gesture={axisPan}>
+          <View collapsable={false} style={{ width: AXIS_W, paddingTop: LABEL_H }} accessibilityHint={t('rooster.axisHint')}>
+            <TimeAxis pxPerHour={pxPerHour} hours={hours} compact />
+          </View>
+        </GestureDetector>
         {size.w ? (
           <PerfProfile id="DayGrid">
           <DayGrid
@@ -482,34 +527,32 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
             <DragLayer drag={drag} lesson={lifted} width={size.w} height={size.h} compact={size.w / want < 120} />
           </View>
         ) : null}
-        {zoomed ? (
+        {zoomed || range ? (
           // Small and round, over the hours on the left: covers no lesson, moves nothing
           <AView entering={enter} exiting={exit} className="absolute left-0" style={{ top: 0 }}>
-            <IconButton icon="zoomOut" filled label={t('rooster.zoomOut')} onPress={() => setZoomed(false)} className="w-9 h-9" />
+            <IconButton icon="zoomOut" filled label={t('rooster.zoomOut')} onPress={onZoomOut} className="w-9 h-9" />
           </AView>
         ) : null}
         {onward != null && size.w ? (
-          <AView
-            entering={enter}
-            exiting={exit}
-            className="absolute items-center justify-center"
-            style={{ left: AXIS_W + (firstEmpty * size.w) / want, width: ((visible.length - firstEmpty) * size.w) / want, top: LABEL_H, bottom: 0 }}
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('rooster.onward', { day: `${weekdayShort(dateAt(onward), lang)} ${dateAt(onward).getDate()}` })}
-              onPress={() => moveTo(onward)}
-              hitSlop={12}
-              className="items-center gap-1 rounded-card bg-surface border-[1.5px] border-line-strong px-2.5 py-2 active:bg-surface-sunken"
-            >
-              <Icon name="forward" size={22} color="ink" strokeWidth={2} />
-              <Text variant="xs" bold tone="ink2">
-                {weekdayShort(dateAt(onward), lang).toUpperCase()}
-              </Text>
-              <Text variant="sm" bold>
-                {String(dateAt(onward).getDate())}
-              </Text>
-            </Pressable>
+          // Against the right edge, a tab that starts there; the rest of the empty weekend stays swipeable (box-none)
+          <AView entering={enter} exiting={exit} pointerEvents="box-none" className="absolute right-0 justify-center" style={{ top: LABEL_H, bottom: 0 }}>
+            <AView style={onwardFade}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('rooster.onward', { day: `${weekdayShort(dateAt(onward), lang)} ${dateAt(onward).getDate()}` })}
+                onPress={() => moveTo(onward)}
+                hitSlop={{ top: 12, bottom: 12, left: 12 }}
+                className="items-center gap-1 rounded-l-card bg-surface border-[1.5px] border-r-0 border-line-strong pl-2.5 pr-2 py-2 active:bg-surface-sunken"
+              >
+                <Icon name="forward" size={22} color="ink" strokeWidth={2} />
+                <Text variant="xs" bold tone="ink2">
+                  {weekdayShort(dateAt(onward), lang).toUpperCase()}
+                </Text>
+                <Text variant="sm" bold>
+                  {String(dateAt(onward).getDate())}
+                </Text>
+              </Pressable>
+            </AView>
           </AView>
         ) : null}
         {!showsToday && size.w ? <TodayPill width={size.w + AXIS_W} height={size.h} top={LABEL_H} onPress={onTodayPress} /> : null}

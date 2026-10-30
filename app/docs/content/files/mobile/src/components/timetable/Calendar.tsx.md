@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T00:15:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -12,9 +12,15 @@ everything moves together in the same frame, on the UI thread.
   (`lib/days.snap`); an empty weekend is calm. Where a swipe lands is known as the finger lets go: dates and data
   switch then. Only the columns wait for data.
 - **How many days**: drag the dash on the strip, pinch the grid, or − / + (until you've used the dash:
-  `days.learned`). With `remember` (Rooster) it's remembered (`rooster.days`), 7 when this week's weekend is
+  `days.learned`). Whichever way, **the day on the left stays on the left**: zooming out adds days on the right (it
+  never goes back in time), zooming in narrows towards that first day. With `remember` (Rooster) it's remembered (`rooster.days`), 7 when this week's weekend is
   busy; Vergelijken always starts on 5 days and no tips.
 - **Zoom**: double tap on the grid stretches the hours to your lessons; double tap again or the magnifier undoes it.
+  **Dragging on the hour axis** zooms the hours by hand (`range`): the top half of the axis moves the first hour, the
+  bottom half the last one, an hour per hour-height as the axis was when you touched it (at least `MIN_SPAN` hours
+  stay). The first and last hour on the axis are a little brighter (`TimeAxis`): they are the handles. `range` wins over
+  the standard and the zoomed hours, makes the view 'custom' (the Rooster tab's 'Reset') and is undone by the magnifier,
+  a double tap or Reset.
 - **Reset**: double tap on the day strip above the grid = the Rooster tab's 'Reset' (standard view: this week, Monday to Friday, not zoomed).
 - **Vandaag** (`TodayPill`) when you've moved away from today and from where it opened (`initialStart`).
 - **Shared breaks** are yellow blocks with who they're with (`Timetable.TogetherBlock`). With `only` just the
@@ -22,9 +28,11 @@ everything moves together in the same frame, on the UI thread.
   `api breaks.MAX_DAYS_AHEAD`), is **hatched** (`muted`) and a tap does nothing: you can't ask for it, so the app
   doesn't let you try. Tapping a yellow one opens `BreakSheet`.
 - Each shared break shows what you did with it (asked, planned, declined: `lib/breaks.slotState` over `useBreaks`).
-- **An empty weekend** at the right end of the view (nothing on Saturday and/or Sunday): an arrow in that empty space
-  with the day it goes to ("MA 27"). It moves the view so that day is on the left, same number of days: Sunday when
-  Sunday has something (and isn't on screen yet), otherwise Monday.
+- **An empty weekend** at the right end of the view (nothing on Saturday and/or Sunday): a tab against the right edge of the
+  screen with the day it goes to ("MA 27"). It moves the view so that day is on the left, same number of days: Sunday when
+  Sunday has something (and isn't on screen yet), otherwise Monday. Its wrapper is `pointerEvents="box-none"`, so only the
+  tab takes touches: the empty weekend itself can still be swiped (a full-size wrapper used to swallow the swipe, which
+  looked like the calendar was locked). It fades out while you drag a class (the bin may come in on that side).
 - Tapping a lesson opens `LessonSheet`; where lessons overlap, `OverlapSheet` first.
 
 **Fast, because little renders** (guide 'Plan: a fast Rooster tab', Phase 1):
@@ -50,7 +58,8 @@ The single tap still waits 200 ms for a possible double tap (`DayGrid`); the she
 As above. `onView` tells the screen the first day, the number of days and whether it's not the standard view
 (the Rooster tab's 'Reset' and the eyebrow); `control.reset()` goes back to the standard view.
 
-**Skipping**: drag a class into the bin (`SkipDrag`, the card and bin drawn over the grid) or 'Skip this class' in
+**Skipping**: drag a class into the bin (`SkipDrag`, the card and bin drawn over the grid; the bin comes in on the half
+opposite where you picked the class up) or 'Skip this class' in
 its sheet. `doSkip` keeps the day as it was (lessons and shared breaks) to say what changed, shows `SkipToast`
 right away (your breaks first, friends once the server answers) and Undo takes the last skip back (`unskip`, also
 'I'll go after all' in a skipped class's sheet).
@@ -67,8 +76,8 @@ What `onView` reports, and what `control` can do.
 
 A small dark tip with 'Oké', over the content but never the whole screen.
 
-## `HOURS`, `AXIS_W`, `DEFAULT_LEGEND`, `hoursFor`
+## `HOURS`, `AXIS_W`, `MIN_SPAN`, `DEFAULT_LEGEND`, `hoursFor`
 
-Hours always on screen (8–18, lessons stretch them), the width of the hours on the left, and what the legend shows before
-anything is loaded. `hoursFor`: the hours of the visible days, from their `bounds` (zoomed: only those of the lessons).
+Hours always on screen (8–18, lessons stretch them), the width of the hours on the left, the fewest hours the axis can be
+dragged down to (`MIN_SPAN`), and what the legend shows before anything is loaded. `hoursFor`: the hours of the visible days, from their `bounds` (zoomed: only those of the lessons).
 How far ahead a shared break can be asked for (`ASK_DAYS`) moved to `DayCache`.
