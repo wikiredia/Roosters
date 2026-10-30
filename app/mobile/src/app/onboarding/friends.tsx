@@ -12,8 +12,8 @@ import { useT } from '@/i18n';
 import { useFinishOnboarding } from '@/lib/onboarding';
 import { pushAvailable } from '@/lib/push';
 
-/** Step 7: send your link, or add classmates who are already on Roosters+. Skipping is fine. Then notifications
- * (step 8), or Today when this phone can't get them (web, Expo Go on Android, no EAS project). */
+/** Step 8: send your link, or add classmates who are already on Roosters+. Skipping is fine. Then notifications
+ * (step 9), or Today when this phone can't get them (web, Expo Go on Android, no EAS project). */
 export default function FriendsStep() {
   const { t } = useT();
   const mates = useClassmates();
@@ -24,7 +24,7 @@ export default function FriendsStep() {
   return (
     <Screen
       back
-      progress={[7, 8]}
+      progress={[8, 9]}
       navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={next} />}
       footer={<Button label={t('common.next')} loading={busy} onPress={next} />}
     >

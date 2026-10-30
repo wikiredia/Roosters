@@ -19,6 +19,8 @@ import type {
   ClassLessons,
   Compare,
   Courses,
+  DetailLayout,
+  DetailOrigin,
   Friend,
   FriendSchedule,
   Invite,
@@ -43,6 +45,7 @@ export const keys = {
   today: (day?: string) => ['today', day ?? 'now'] as const,
   schedule: (start: string, days: number) => ['schedule', start, days] as const,
   sources: ['sources'] as const,
+  details: ['details'] as const,
   friends: ['friends'] as const,
   requests: ['requests'] as const,
   invite: ['invite'] as const,
@@ -113,6 +116,17 @@ export function useSources() {
     queryFn: () => api.get<{ sources: Source[] }>('/api/v1/me/sources').then((r) => r.sources),
     // While a class is being fetched for the first time, check again soon
     refetchInterval: (q) => (q.state.data?.some((s) => s.syncing) ? 2500 : false),
+  });
+}
+
+/** How your lessons' details break up and how you show them, per origin (onboarding/details.tsx, the lesson sheet).
+ * While a source was never fetched, asked again every few seconds (nothing to learn from yet). */
+export function useDetails() {
+  return useQuery({
+    queryKey: keys.details,
+    queryFn: () => api.get<{ origins: DetailOrigin[] }>('/api/v1/me/details').then((r) => r.origins),
+    staleTime: 5 * 60_000,
+    refetchInterval: (q) => (q.state.data?.some((o) => o.syncing) ? 3000 : false),
   });
 }
 
@@ -473,7 +487,11 @@ export function useAddClass() {
   return useMutation({
     mutationFn: (body: { class_id: number; semester?: Semester | null; include?: string[]; exclude?: string[] }) =>
       api.post<{ source: Source }>('/api/v1/me/sources/untis', body).then((r) => r.source),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sources }),
+    // A new class (or link) can be a new origin of lesson details
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.sources });
+      qc.invalidateQueries({ queryKey: keys.details });
+    },
   });
 }
 
@@ -482,7 +500,10 @@ export function useAddIcs() {
   return useMutation({
     mutationFn: (body: { url: string; label?: string }) =>
       api.post<{ source: Source }>('/api/v1/me/sources/ics', body).then((r) => r.source),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.sources }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.sources });
+      qc.invalidateQueries({ queryKey: keys.details });
+    },
   });
 }
 
@@ -496,6 +517,16 @@ export function useUpdateSource() {
       qc.invalidateQueries({ queryKey: ['schedule'] });
       qc.invalidateQueries({ queryKey: ['today'] });
     },
+  });
+}
+
+/** 'Looks right': saves your layout for one origin; the answer replaces that origin in the cached list. */
+export function useSaveDetails() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ origin, layout }: { origin: string; layout: DetailLayout }) =>
+      api.put<{ origin: DetailOrigin }>(`/api/v1/me/details/${encodeURIComponent(origin)}`, { layout }).then((r) => r.origin),
+    onSuccess: (o) => qc.setQueryData<DetailOrigin[]>(keys.details, (list) => list?.map((x) => (x.origin === o.origin ? o : x))),
   });
 }
 

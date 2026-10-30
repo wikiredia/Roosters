@@ -34,8 +34,9 @@ def lessons(user_ids, day_from: dt.date, day_to: dt.date) -> dict[int, list[dict
         hidden[r["user_id"]].add(r["course"])
     cfgs = {}
     for r in db.rows(
-            f"SELECT s.id AS source_id, s.user_id, s.config, s.semester, sch.year_start, sch.s2_start, sch.year_end, "
-            f"cl.day, cl.start_min, cl.end_min, cl.course, cl.location, cl.kind, cl.state, cl.changed_at "
+            f"SELECT s.id AS source_id, s.user_id, s.config, s.semester, sch.id AS school_id, sch.year_start, sch.s2_start, "
+            f"sch.year_end, cl.day, cl.start_min, cl.end_min, cl.course, cl.location, cl.kind, cl.student_group, cl.state, "
+            f"cl.changed_at "
             f"FROM sources s JOIN class_lessons cl ON cl.school_class_id=s.school_class_id "
             f"JOIN school_classes sc ON sc.id=s.school_class_id JOIN schools sch ON sch.id=sc.school_id "
             f"WHERE s.user_id IN ({ph}) AND s.kind='untis' AND s.deleted_at IS NULL AND cl.day BETWEEN %s AND %s",
@@ -45,12 +46,14 @@ def lessons(user_ids, day_from: dt.date, day_to: dt.date) -> dict[int, list[dict
             cfg = cfgs[r["source_id"]] = db.unjs(r["config"], {}) or {}
         # A class followed in one semester only counts on the days of that semester
         if wanted(r["course"], cfg, hidden[r["user_id"]]) and terms.covers(r["semester"], r, r["day"]):
+            r["origin"] = f"untis:{r['school_id']}"
             out[r["user_id"]].append(r)
     for r in db.rows(
-            f"SELECT sl.user_id, sl.day, sl.start_min, sl.end_min, sl.course, sl.location, sl.kind, sl.state, sl.changed_at "
+            f"SELECT sl.user_id, sl.source_id, sl.day, sl.start_min, sl.end_min, sl.course, sl.location, sl.kind, sl.state, sl.changed_at "
             f"FROM source_lessons sl JOIN sources s ON s.id=sl.source_id AND s.deleted_at IS NULL "
             f"WHERE sl.user_id IN ({ph}) AND sl.day BETWEEN %s AND %s", (*args, day_from, day_to)):
         if r["course"] not in hidden[r["user_id"]]:
+            r["origin"] = f"ics:{r['source_id']}"
             out[r["user_id"]].append(r)
     skips = defaultdict(list)
     for r in db.rows(f"SELECT user_id, day, course, start_min, end_min FROM skipped_lessons "
@@ -131,12 +134,17 @@ def ensure_class_weeks(classes: list[int], mondays: list[dt.date], today: dt.dat
 
 def lesson_out(l: dict, detail: bool = True) -> dict:
     """One lesson for the app. Without detail (friend shares only free/busy): only when. `skipped` is only ever
-    your own (friends get lessons without the skipped ones, see r_friends.friend_schedule)."""
+    your own (friends get lessons without the skipped ones, see r_friends.friend_schedule). `origin` says whose
+    layout breaks up its details (r_details: 'untis:<school>' or 'ics:<source>'), `group` is Untis' student group."""
     item = {"day": l["day"].isoformat(), "start": l["start_min"], "end": l["end_min"], "busy": takes_place(l)}
     if detail:
         changed = l.get("changed_at")
         item.update({"course": l["course"], "location": l["location"], "state": l["state"], "kind": l.get("kind") or "other",
                      "recently_changed": bool(changed and db.utcnow() - changed < RECENT)})
+        if l.get("origin"):
+            item["origin"] = l["origin"]
+        if l.get("student_group"):
+            item["group"] = l["student_group"]
         if l.get("skipped"):
             item["skipped"] = True
     return item

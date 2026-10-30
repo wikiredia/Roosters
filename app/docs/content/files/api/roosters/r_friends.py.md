@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-30T09:30:00Z
 ---
 
 **Friends**: the social side. Friend list, visibility and pins, requests within your school, invite links,
@@ -69,7 +69,7 @@ An invite that exists, isn't revoked or expired and has uses left, or 404 `invit
 
 ## `friend_schedule`
 
-`GET /api/v1/friends/{id}/schedule`: a friend's lessons for up to 28 days, full, without rooms, or free/busy only (`schedule.busy_only`), or nothing while they're hidden. Far weeks are fetched on demand (`loading`, see `schedule.ensure_weeks`). Classes they skip are left out: you see free time, never that they skipped.
+`GET /api/v1/friends/{id}/schedule`: a friend's lessons for up to 28 days, full, without rooms, or free/busy only (`schedule.busy_only`), or nothing while they're hidden. Far weeks are fetched on demand (`loading`, see `schedule.ensure_weeks`). Classes they skip are left out: you see free time, never that they skipped. Lessons from their calendar links lose their `origin` (`ics:<id>` is theirs alone); a school's (`untis:<id>`) stays, so a friend at your school is shown with your layout of the details (`mobile/src/lib/details.ts`).
 
 ## `invite_preview`
 

@@ -11,14 +11,15 @@ import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { resetTo } from '@/lib/nav';
-import { afterSignIn, device, freshenGuestToken, startAsGuest } from '@/lib/onboarding';
+import { afterSignIn, type AuthMode, device, freshenGuestToken, routeAfterSignIn, startAsGuest } from '@/lib/onboarding';
 
 const RESEND_AFTER = 60;
 
 export default function CodeLogin() {
   const { t } = useT();
-  const { email, from } = useLocalSearchParams<{ email: string; from?: string }>();
+  const { email, from, mode: m } = useLocalSearchParams<{ email: string; from?: string; mode?: string }>();
   const inApp = from === 'steps';
+  const mode: AuthMode | undefined = inApp ? undefined : m === 'login' ? 'login' : 'new';
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -46,7 +47,8 @@ export default function CodeLogin() {
       await freshenGuestToken();
       const tokens = await api.post<Tokens>('/api/v1/auth/email/verify', { email, code: value, ...device });
       await afterSignIn(tokens);
-      resetTo('/');
+      // Same address as an existing account: signed in to it (and told so), whichever button brought you here
+      routeAfterSignIn(tokens, { mode, email, wasGuest: inApp });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : e instanceof NetworkError ? t('common.offline') : t('common.tryAgain'));
       setCode('');
@@ -92,8 +94,8 @@ export default function CodeLogin() {
   return (
     <Screen
       back
-      progress={inApp ? undefined : [1, 8]}
-      navRight={<Button variant="ghost" size="sm" label={inApp ? t('login.later') : t('common.skip')} onPress={later} />}
+      progress={mode === 'new' ? [1, 9] : undefined}
+      navRight={mode === 'login' ? undefined : <Button variant="ghost" size="sm" label={inApp ? t('login.later') : t('common.skip')} onPress={later} />}
       noBanner
     >
       <View className="gap-2">
@@ -132,9 +134,11 @@ export default function CodeLogin() {
         <Text variant="sm" tone="ink3">
           {t('login.spam')}
         </Text>
-        <Text variant="sm" tone="ink3">
-          {inApp ? t('login.laterInApp') : t('login.skipBody')}
-        </Text>
+        {mode === 'login' ? null : (
+          <Text variant="sm" tone="ink3">
+            {inApp ? t('login.laterInApp') : t('login.skipBody')}
+          </Text>
+        )}
       </View>
     </Screen>
   );

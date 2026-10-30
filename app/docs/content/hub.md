@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-30T09:25:00Z
+updated: 2026-10-30T09:41:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -63,11 +63,12 @@ notifies the people affected.
 | I want to … | Look at |
 | --- | --- |
 | Add or change an API route | the `r_*.py` file for the area (`r_me`, `r_friends`, `r_breaks`, `r_chat`, `r_schools`, `r_auth`); errors in `i18n.py` |
-| Change sign-in, sessions, guests | `api/roosters/r_auth.py`, `tokens.py`, `providers.py`, `accounts.py`; the app's `mobile/src/app/welcome.tsx`, `login/`, `mobile/src/lib/google.ts`; guide **Auth, sessions and guests** (Google client ids: **Running and operating**) |
+| Change sign-in, sessions, guests | `api/roosters/r_auth.py`, `tokens.py`, `providers.py`, `accounts.py`; the app's `mobile/src/app/welcome.tsx`, `login/` (`found.tsx`: 'you already had an account'), `mobile/src/lib/google.ts`, `lib/onboarding.routeAfterSignIn`; guide **Auth, sessions and guests** (Google client ids: **Running and operating**) |
 | Change when two people 'share a break' | `api/roosters/logic.py` (pure functions, tested in `tests/test_logic.py`) |
 | Change what friends can see | `api/roosters/friends.py`, `r_friends.py`, `schedule.py`; guide **Friends and privacy** |
 | Change pinned friends (where they come first) | `api/roosters/friends.py` (`visible_friends`, `set_pinned`), `r_friends.edit_friend`, `r_me.today`, `mobile/src/lib/friends.ts`, `mobile/src/app/friends/` |
 | Change how timetables are fetched | `api/roosters/sync.py`, `untis.py`, `ics.py`, `netfetch.py`; guide **Timetables** |
+| Change a lesson's details (Type, Building, Floor, Classroom, ...: how they're found, renamed, merged) | `api/roosters/details.py`, `r_details.py`; the app's `mobile/src/lib/details.ts`, `app/onboarding/details.tsx`, `components/timetable/LessonSheet.tsx`; guide **Timetables** |
 | Add a table or column | a new `api/roosters/migrations/NNNN_*.sql`; guide **Database** |
 | Add a background job | `@jobs.handler` in the owning module, import it in `worker.py` |
 | Add or change a screen | `mobile/src/app/` (file = route); texts in `mobile/src/i18n/nl.ts` + `en.ts` |

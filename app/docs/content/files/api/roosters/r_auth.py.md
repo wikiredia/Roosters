@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:25:00Z
+updated: 2026-10-30T09:41:00Z
 ---
 
 **Signing in**, with no passwords: a 6-digit code by e-mail, Sign in with Apple, Sign in with Google, or
@@ -14,6 +14,12 @@ When a request to `/email/verify`, `/apple` or `/google` carries a **guest's bea
   timetable and settings; `is_guest` is cleared and its old session is revoked, reason `guest_signed_in`);
 - an account exists → that account wins and the guest is folded into it (`accounts.fold_guest`).
 A signed-in non-guest who signs in again is never merged.
+
+**Same address, same account.** Whichever button brought you to sign in ('Create an account' or 'I already have an
+account', `mobile/src/app/welcome.tsx`), a verified address that already has an account signs you in to **that**
+account. Every answer says what happened in `account` (`_answer`), so the app can tell you
+(`mobile/src/app/login/found.tsx`). `email_start` still answers 204 for every address: whether an account exists is
+only told *after* the code proved the address is yours.
 
 The app side: `mobile/src/lib/onboarding.ts` (sends the guest token along, after freshening it).
 **Mails that come with signing in** (all from jobs, see `mailer.py` / `mails.py`): the login code, a **welcome**
@@ -31,7 +37,11 @@ A loose e-mail check (something@something.tld); addresses are lower-cased and tr
 
 ## `_answer`
 
-Starts a session and adds `is_new` (the app shows onboarding for new accounts). For an existing account it first checks for a new phone (`_warn_new_device`).
+Starts a session and adds what happened to the account: `account` = `existing` (an account that was already there,
+also when found through the same verified address; a guest on the phone was folded in), `guest` (this phone's guest
+account became the account) or `new`; and `is_new` (= `account == "new"`, kept for older apps). The app uses
+`account` in `lib/onboarding.routeAfterSignIn`.
+For an account that was already there (not `new`) it first checks for a new phone (`_warn_new_device`).
 
 ## `_client_ip`
 
@@ -39,7 +49,7 @@ The caller's IP: the first `X-Forwarded-For` hop (our own proxy sets it) or the 
 
 ## `_existing`
 
-Signing in to an account that exists: refused when it was turned off (403 `account_disabled`); folds the guest in when there is one.
+Signing in to an account that exists: refused when it was turned off (403 `account_disabled`); folds the guest in when there is one. Returns `(user_id, "existing")`.
 
 ## `_guest_id`
 
@@ -69,7 +79,7 @@ Finds or creates the account for an identity (provider + subject). Order:
 3. a guest is signing in → the guest becomes the account. A guest who never picked a name gets one the way a new account would (Apple's name, or the part of the address before @);
 4. otherwise a new account.
 Cases 3 and 4 also queue the welcome mail (when the address is verified).
-An unverified e-mail never links to an existing account (`test_unverified_email_does_not_take_over_an_account`).
+Returns `(user_id, how)` with how = `existing`, `guest` or `new` (`_answer`). An unverified e-mail never links to an existing account (`test_unverified_email_does_not_take_over_an_account`).
 
 ## `apple`, `google`
 

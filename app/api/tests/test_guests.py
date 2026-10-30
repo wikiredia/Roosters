@@ -70,7 +70,7 @@ def test_signing_in_keeps_the_guest_account(client, school, mails):
     g = guest(client)
     onboard(client, g, school, school["classes"][0])
     out = verify_as(client, mails, "bo@example.com", g["headers"])
-    assert out["is_new"] is False
+    assert out["is_new"] is False and out["account"] == "guest"
     me = client.get("/api/v1/me", headers=out["headers"]).json()["user"]
     assert me["id"] == g["user_id"] and me["guest"] is False and me["email"] == "bo@example.com"
     assert me["display_name"] == "bo"
@@ -86,6 +86,7 @@ def test_signing_in_to_an_existing_account_folds_the_guest_in(client, school, ma
     g = guest(client)
     onboard(client, g, school, school["classes"][0])
     out = verify_as(client, mails, "bo@example.com", g["headers"])
+    assert out["account"] == "existing"
     me = client.get("/api/v1/me", headers=out["headers"]).json()["user"]
     assert me["id"] == old["user_id"] and me["school_id"] == school["id"]
     # The account had no timetable: the guest's came along; the guest itself is gone

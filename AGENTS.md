@@ -13,3 +13,6 @@
 - Expo app: also read `app/mobile/AGENTS.md`.
 - API tests need MySQL + Valkey: `docker compose -f app/docker-compose.test.yml up -d`, then
   `cd app/api && pytest`. Docs service tests: `cd app/docs && pytest`.
+- **Don't block on slow commands.** The full API suite takes ~6 minutes: run the test files you touched first
+  (`pytest tests/test_x.py`, seconds), and start the full suite in the background and keep working instead of
+  waiting on it. Never set long timeouts (minutes) on a command you sit and wait for.

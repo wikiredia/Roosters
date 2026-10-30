@@ -12,7 +12,7 @@ import { api, ApiError, NetworkError } from '@/lib/api';
 import { describe } from '@/lib/debuglog';
 import { googleSupport } from '@/lib/google';
 import { resetTo } from '@/lib/nav';
-import { startAsGuest } from '@/lib/onboarding';
+import { type AuthMode, startAsGuest } from '@/lib/onboarding';
 import { debugEnabled } from '@/lib/server';
 import { session } from '@/lib/session';
 
@@ -23,9 +23,11 @@ export default function EmailLogin() {
   const [error, setError] = useState<string | undefined>();
   const [detail, setDetail] = useState<string | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
-  // Already in the app as a guest (from Today's steps): no onboarding progress, no skip
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  // Already in the app as a guest (from Today's steps): no onboarding progress, no skip.
+  // Else mode: 'Create an account' (onboarding step 1) or 'I already have an account' (welcome.tsx → login/index.tsx)
+  const { from, mode: m } = useLocalSearchParams<{ from?: string; mode?: string }>();
   const inApp = from === 'steps' || session.get().status === 'signedIn';
+  const mode: AuthMode | undefined = inApp ? undefined : m === 'login' ? 'login' : 'new';
   // A guest can also keep their account with Google (welcome has the button for everyone else)
   const google = inApp && googleSupport() === 'ready';
 
@@ -53,7 +55,7 @@ export default function EmailLogin() {
     setDetail(null);
     try {
       await api.post('/api/v1/auth/email/start', { email: value }, { auth: false });
-      router.push({ pathname: '/login/code', params: { email: value, ...(inApp ? { from: 'steps' } : {}) } });
+      router.push({ pathname: '/login/code', params: { email: value, ...(inApp ? { from: 'steps' } : { mode }) } });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : e instanceof NetworkError ? t('common.offline') : t('common.tryAgain'));
       if (debugEnabled) setDetail(e instanceof NetworkError && e.log ? describe(e.log) : e instanceof Error ? e.message : String(e));
@@ -65,13 +67,13 @@ export default function EmailLogin() {
   return (
     <Screen
       back
-      progress={inApp ? undefined : [1, 8]}
+      progress={mode === 'new' ? [1, 9] : undefined}
       navTitle={inApp ? t('steps.email') : undefined}
-      navRight={inApp ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={skip} />}
+      navRight={mode === 'new' ? <Button variant="ghost" size="sm" label={t('common.skip')} onPress={skip} /> : undefined}
       noBanner
     >
       <Text variant="title" accessibilityRole="header">
-        {t('login.emailTitle')}
+        {t(mode === 'login' ? 'login.emailTitleLogin' : 'login.emailTitle')}
       </Text>
       <Text tone="ink2" className="-mt-4">
         {t('login.emailBody')}

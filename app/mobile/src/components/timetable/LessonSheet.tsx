@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { memo, useState } from 'react';
 import { View } from 'react-native';
 
+import { useDetails } from '@/api/hooks';
 import type { Friend, Lesson, Together } from '@/api/types';
 import { Avatar, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +11,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/cn';
+import { detailRows, layoutFor } from '@/lib/details';
 import { canSkip } from '@/lib/skips';
 import { hhmm, isoDay, nowMin, parseDay, range, shortDate } from '@/lib/time';
 
@@ -26,11 +28,13 @@ type Props = {
   onUnskip?: (l: Lesson) => void;
 };
 
-/** Tap on a lesson: when, what, where, who else is free if it's cancelled or you skip it, and skipping it.
+/** Tap on a lesson: when, its details (Type, Building, Floor, Classroom, ... after the layout of its origin, lib/details.ts),
+ * who else is free if it's cancelled or you skip it, and skipping it.
  * Memo (like the other two sheets of the calendar): opening it renders this sheet and nothing else, as long as the
  * callbacks it gets keep their identity. */
 export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends = [], together = [], onSkip, onUnskip }: Props) {
   const { t, lang } = useT();
+  const details = useDetails();
   // Keep showing the last lesson while the sheet slides away
   const [last, setLast] = useState(lesson);
   if (lesson && lesson !== last) setLast(lesson);
@@ -55,7 +59,17 @@ export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends 
     >
       <Card>
         <Row first title={t('lesson.when')} right={<Text>{`${when} ${range(l.start, l.end)}`}</Text>} />
-        <Row title={t('lesson.kind')} right={<Text>{[kind, l.location].filter(Boolean).join(' · ')}</Text>} />
+        {detailRows(l, kind, layoutFor(l.origin, details.data), t).map((r) => (
+          <Row
+            key={`${r.index}:${r.title}`}
+            title={r.title}
+            right={
+              <Text className="max-w-52 text-right" selectable>
+                {r.value}
+              </Text>
+            }
+          />
+        ))}
         {l.state && l.state !== 'normal' ? (
           <Row
             title={t('lesson.state')}

@@ -1,7 +1,7 @@
 ---
 title: The mobile app
 position: 60
-updated: 2026-10-30T00:15:00Z
+updated: 2026-10-30T09:31:00Z
 ---
 
 Expo (React Native) with Expo Router: **a file in `mobile/src/app/` is a screen**.
@@ -21,8 +21,14 @@ the first unfinished onboarding step, or Today (always Today once onboarding was
 
 ## Onboarding you can race through
 
-Welcome → (Apple, Google, e-mail → code, or **continue without signing in**) → profile → school → campus → classes → courses → week
-→ friends → notifications (guests skip friends; phones that can't get push skip notifications). Classes are picked **per semester** (S1 and S2 sections on one screen), and courses per semester
+Welcome (**Create an account** / **I already have an account** → Apple, Google, e-mail → code; or **continue without
+signing in**) → profile → school → campus → classes → courses → **lesson details** → week → friends → notifications
+(guests skip friends; phones that can't get push skip notifications). Signing in with an address that already has an
+account signs you in to it, whichever button you tapped, and `login/found.tsx` says so (guide **Auth, sessions and
+guests**). The lesson details step (`onboarding/details.tsx`) shows how we read your source's data about a lesson
+(Type, Building, Floor, Classroom, ...) and lets you rename, merge or hide fields, or take over your schoolmates'
+layout (guide **Timetables**); skipping it keeps what we found, and it's in Timetable sources → Class details later,
+so it has no item in Today's steps. Classes are picked **per semester** (S1 and S2 sections on one screen), and courses per semester
 from the **whole school year**, nothing chosen until you choose it, with a preview of the timetable you'll get
 ('Ik volg dit vak niet', 'Ik mis een les') before saving (`onboarding/classes.tsx`, `onboarding/courses.tsx`,
 `components/onboarding/CoursePreview.tsx`). Every step has **Skip**. What's skipped shows on Today as **Complete the following steps**

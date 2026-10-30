@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import config, i18n, r_auth, r_breaks, r_chat, r_debug, r_friends, r_me, r_schools
+from . import config, i18n, r_auth, r_breaks, r_chat, r_debug, r_details, r_friends, r_me, r_schools
 from .deps import json_error, lang
 from .errors import ApiError
 from .idempotency import IdempotencyMiddleware
@@ -72,5 +72,5 @@ def health():
     return {"ok": True}
 
 
-for r in (r_auth.router, r_me.router, r_schools.router, r_friends.router, r_breaks.router, r_chat.router, r_debug.router):
+for r in (r_auth.router, r_me.router, r_details.router, r_schools.router, r_friends.router, r_breaks.router, r_chat.router, r_debug.router):
     app.include_router(r)

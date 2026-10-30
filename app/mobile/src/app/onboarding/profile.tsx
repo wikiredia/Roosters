@@ -50,7 +50,7 @@ export default function ProfileStep() {
   return (
     <Screen
       back
-      progress={[2, 8]}
+      progress={[2, 9]}
       navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={() => router.push('/onboarding/school')} />}
       footer={<Button label={t('common.next')} loading={update.isPending} onPress={next} />}
     >

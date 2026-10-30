@@ -8,7 +8,8 @@ import { useT } from '@/i18n';
 import type { Key } from '@/i18n/nl';
 import { ApiError, NetworkError } from '@/lib/api';
 import { GoogleError, type GoogleProblem, googleSupport, signInWithGoogle } from '@/lib/google';
-import { resetTo } from '@/lib/nav';
+import { type AuthMode, routeAfterSignIn } from '@/lib/onboarding';
+import { session } from '@/lib/session';
 
 const PROBLEM: Record<GoogleProblem, Key> = {
   playServices: 'google.playServices',
@@ -20,8 +21,10 @@ const PROBLEM: Record<GoogleProblem, Key> = {
  * 'Ga verder met Google', after Google's branding guidelines: the full-colour G, Google's light or dark fill
  * with its 1px stroke (tokens --color-google-*), the same size and corners as the Apple button next to it.
  * Renders nothing where it can't work (web, Expo Go, no client ids, a build without the module).
+ * `mode`: which welcome button brought you here; afterwards lib/onboarding.routeAfterSignIn says so when the account
+ * isn't what you asked for.
  */
-export function GoogleButton({ onError }: { onError: (message: string | null, detail?: string) => void }) {
+export function GoogleButton({ onError, mode }: { onError: (message: string | null, detail?: string) => void; mode?: AuthMode }) {
   const { t } = useT();
   const [busy, setBusy] = useState(false);
   const press = usePressScale(0.97);
@@ -32,7 +35,10 @@ export function GoogleButton({ onError }: { onError: (message: string | null, de
     onError(null);
     setBusy(true);
     try {
-      if (await signInWithGoogle()) resetTo('/');
+      // Signed in already = a guest keeping their account
+      const wasGuest = session.get().status === 'signedIn';
+      const tokens = await signInWithGoogle();
+      if (tokens) routeAfterSignIn(tokens, { mode, wasGuest });
     } catch (e) {
       if (e instanceof GoogleError) {
         onError(t(PROBLEM[e.problem]), e.detail);

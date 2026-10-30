@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:25:00Z
+updated: 2026-10-30T09:41:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -60,13 +60,13 @@ With `semester`, the same class can be followed once per semester (two sources, 
 
 ## `delete_source`
 
-Soft-deletes the source, forgets its encrypted link and deletes its personal lessons.
+Soft-deletes the source, forgets its encrypted link and deletes its personal lessons, and a calendar link's own layout of lesson details (`detail_layouts`, origin `ics:<id>`; the school's layout stays for your other classes).
 
 ## `export`
 
 `GET /api/v1/me/export`: everything stored about you (GDPR art. 15/20) as JSON, without secrets (no encrypted links),
 including your friends (with what you show each and whether you pinned them), the classes you skip, the break requests you made and your answers, your chats, the messages you wrote and the reports you made,
-your Meldingen and which devices get push (without the tokens).
+your Meldingen and which devices get push (without the tokens), and how you show lesson details (`lesson_details_layouts`).
 
 ## `my_notifications`, `ReadIn`, `read`
 

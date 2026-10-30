@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-24T13:45:00Z
+updated: 2026-10-30T09:29:00Z
 ---
 
-**'Ga verder met Google'**, used on the welcome screen (next to Sign in with Apple) and, for guests, on the e-mail
-screen. Renders **nothing** unless `lib/google.googleSupport()` is `ready` (web, Expo Go, no client ids, an old build),
+**'Ga verder met Google'**, used on the sign-in screen (`app/login/index.tsx`, next to Sign in with Apple) and, for
+guests, on the e-mail screen. Renders **nothing** unless `lib/google.googleSupport()` is `ready` (web, Expo Go, no client ids, an old build),
 so screens don't have to check; they only check to pick the e-mail button's variant or show 'of'.
 
 Google's branding guidelines, fitted to our tokens: the full-colour 'G' (never recoloured), Google's own fill, 1px
@@ -13,7 +13,9 @@ The label is in our UI font (bold), not Google Sans: that font is 2 MB, loaded a
 
 ## `GoogleButton`
 
-Runs `signInWithGoogle` and goes to `/` (the gate decides: onboarding or Today). Errors go to the screen through
+Runs `signInWithGoogle`, then `lib/onboarding.routeAfterSignIn` with `mode` (which welcome button you came from) and
+whether you were a guest: usually `/` (the gate decides: onboarding or Today), or `login/found` when the account isn't
+what you asked for. Errors go to the screen through
 `onError(message, detail)`: a short text in the user's language, plus Google's code for debug builds.
 
 ## `PROBLEM`

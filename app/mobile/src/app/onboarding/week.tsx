@@ -14,7 +14,7 @@ import { useFinishOnboarding } from '@/lib/onboarding';
 import { pushAvailable } from '@/lib/push';
 import { addDays, isoDay, monday } from '@/lib/time';
 
-/** Step 6 of 8, the "aha": your week, right away. */
+/** Step 7 of 9, the "aha": your week, right away. */
 export default function WeekStep() {
   const { t } = useT();
   const now = new Date();
@@ -33,7 +33,7 @@ export default function WeekStep() {
   return (
     <Screen
       back
-      progress={[6, 8]}
+      progress={[7, 9]}
       navRight={<Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       footer={<Button label={t('week.next')} loading={busy} onPress={next} />}
     >
@@ -52,7 +52,7 @@ export default function WeekStep() {
         <WeekView monday={start} lessons={lessons} todayIso={isoDay(now)} nowMin={null} pxPerHour={36} />
       </Card>
       <Legend items={['theory', 'lab']} />
-      <Text bold tone="you" variant="sm" className="underline" accessibilityRole="link" onPress={() => router.back()}>
+      <Text bold tone="you" variant="sm" className="underline" accessibilityRole="link" onPress={() => router.dismissTo('/onboarding/courses')}>
         {t('week.fix')}
       </Text>
     </Screen>

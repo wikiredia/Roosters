@@ -1,72 +1,37 @@
-import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { Linking, Platform, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { Tokens } from '@/api/types';
-import { GoogleButton } from '@/components/GoogleButton';
 import { Mascot, Wordmark } from '@/components/ui/Brand';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { api, ApiError } from '@/lib/api';
-import { googleSupport } from '@/lib/google';
+import { ApiError } from '@/lib/api';
 import { debugEnabled } from '@/lib/server';
 import { resetTo } from '@/lib/nav';
 import { session } from '@/lib/session';
-import { afterSignIn, startAsGuest } from '@/lib/onboarding';
+import { startAsGuest } from '@/lib/onboarding';
 
 const LEGAL_URL = process.env.EXPO_PUBLIC_LEGAL_URL ?? 'https://github.com/wikiredia/Roosters';
 
+/**
+ * The first screen: two clear ways in, 'Create an account' and 'I already have an account' (both go to /login, which
+ * has Apple, Google and e-mail for that choice), and going in as a guest. Picking the 'wrong' one is fine: the
+ * server finds an account by its verified address either way, and login/found.tsx says what happened.
+ */
 export default function Welcome() {
   const { t } = useT();
   const insets = useSafeAreaInsets();
-  const [apple, setApple] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // What exactly went wrong with Google, for debug builds (a wrong SHA-1 or client id says so here)
-  const [detail, setDetail] = useState<string | null>(null);
-  const google = googleSupport() === 'ready';
   const [guestBusy, setGuestBusy] = useState(false);
   // Here because the server ended the session (not because you signed out yourself): say so
   const s = session.use();
   const ended = s.status === 'signedOut' && s.ended ? s.ended : null;
 
-  useEffect(() => {
-    if (Platform.OS === 'ios') AppleAuthentication.isAvailableAsync().then(setApple).catch(() => {});
-  }, []);
-
-  async function signInWithApple() {
-    setError(null);
-    setDetail(null);
-    try {
-      // Apple gets the hash of a one-time value, our server the value itself: a stolen token can't be replayed
-      const raw = Crypto.randomUUID();
-      const hashed = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, raw);
-      const cred = await AppleAuthentication.signInAsync({
-        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
-        nonce: hashed,
-      });
-      if (!cred.identityToken) return;
-      const name = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(' ') || undefined;
-      const tokens = await api.post<Tokens>(
-        '/api/v1/auth/apple',
-        { id_token: cred.identityToken, nonce: raw, name, platform: 'ios', device_name: 'iPhone' },
-        { auth: false },
-      );
-      await afterSignIn(tokens);
-      resetTo('/');
-    } catch (e) {
-      if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') return;
-      setError(e instanceof ApiError ? e.message : t('common.tryAgain'));
-    }
-  }
-
   /** On campus, on the way to class: straight in, sign in later from Today */
   async function continueAsGuest() {
     setError(null);
-    setDetail(null);
     setGuestBusy(true);
     try {
       await startAsGuest();
@@ -99,34 +64,13 @@ export default function Welcome() {
         </View>
       </View>
       <View className="px-5 gap-2">
-        {apple ? (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-            cornerRadius={12}
-            style={{ height: 52 }}
-            onPress={signInWithApple}
-          />
-        ) : null}
-        <GoogleButton
-          onError={(message, why) => {
-            setError(message);
-            setDetail(why ?? null);
-          }}
-        />
-        <Button variant={apple || google ? 'secondary' : 'primary'} icon="mail" label={t('welcome.email')} onPress={() => router.push('/login/email')} />
+        <Button icon="user" label={t('welcome.create')} onPress={() => router.push({ pathname: '/login', params: { mode: 'new' } })} />
+        <Button variant="secondary" label={t('welcome.login')} onPress={() => router.push({ pathname: '/login', params: { mode: 'login' } })} />
         <Button variant="ghost" label={t('welcome.guest')} loading={guestBusy} onPress={continueAsGuest} />
         {error ? (
-          <View className="gap-1">
-            <Text variant="sm" tone="danger" className="text-center">
-              {error}
-            </Text>
-            {debugEnabled && detail ? (
-              <Text variant="xs" tone="ink2" className="text-center" selectable>
-                {detail}
-              </Text>
-            ) : null}
-          </View>
+          <Text variant="sm" tone="danger" className="text-center">
+            {error}
+          </Text>
         ) : ended ? (
           <Text variant="sm" tone="ink2" className="text-center">
             {t(ended === 'reuse' ? 'welcome.endedElsewhere' : 'welcome.ended')}

@@ -99,14 +99,15 @@ async function idToken(): Promise<string | null> {
 
 /**
  * The whole sign-in: Google, then our server, then `afterSignIn`. A guest sends their token along (like the
- * e-mail code), so the server upgrades that account. Returns false when the student cancelled.
+ * e-mail code), so the server upgrades that account. Returns the tokens (what happened to the account is in
+ * `account`), or null when the student cancelled.
  * Throws GoogleError (the phone's side) or ApiError / NetworkError (our server).
  */
-export async function signInWithGoogle(): Promise<boolean> {
+export async function signInWithGoogle(): Promise<Tokens | null> {
   const token = await idToken();
-  if (!token) return false;
+  if (!token) return null;
   await freshenGuestToken();
   const tokens = await api.post<Tokens>('/api/v1/auth/google', { id_token: token, ...device });
   await afterSignIn(tokens);
-  return true;
+  return tokens;
 }
