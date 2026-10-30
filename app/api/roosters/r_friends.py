@@ -7,9 +7,9 @@ import secrets
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from . import access, config, db, friends, logic, redisx, schedule
+from . import access, config, db, friends, logic, redisx, schedule, skipasks
 from .deps import Ctx, auth, etag_json, parse_day, verified
 from .errors import ApiError
 
@@ -277,6 +277,41 @@ def block(body: RequestIn, ctx: Ctx = Depends(verified)):
 def unblock(user_id: int, ctx: Ctx = Depends(verified)):
     db.run("DELETE FROM blocks WHERE user_id=%s AND blocked_id=%s", (ctx.uid, user_id))
     return Response(status_code=204)
+
+
+# ---- Skip questions ("Volg je Python?") --------------------------------------------
+
+class SkipAskIn(BaseModel):
+    day: str
+    start: int = Field(ge=0, le=24 * 60)
+    end: int = Field(ge=0, le=24 * 60)
+
+
+@router.post("/friends/{friend_id}/skip-request", status_code=201)
+def ask_skip(friend_id: int, body: SkipAskIn, ctx: Ctx = Depends(verified)):
+    """Vergelijken: one of a friend's classes dragged into the bin asks them whether they'd skip it, then you'd share
+    a break. The card lands in your direct chat (`chat_id`). Rules in skipasks.py."""
+    redisx.rate_limit(f"skip-request:{ctx.uid}", 30, 3600)
+    if body.end <= body.start:
+        raise ApiError(400, "invalid")
+    d = parse_day(body.day, schedule.local_now(ctx.user).date())
+    with db.tx() as c:
+        rid, chat_id = skipasks.ask(c, ctx.user, friend_id, d, body.start, body.end)
+    return {"skip": skipasks.one(ctx.uid, rid), "chat_id": chat_id}
+
+
+@router.get("/skip-requests")
+def list_skip_requests(ctx: Ctx = Depends(verified)):
+    """Open skip questions, yours and the ones for you, from today on."""
+    return {"skips": skipasks.list_for(ctx.user)}
+
+
+@router.post("/skip-requests/{request_id}/{action}")
+def answer_skip(request_id: int, action: Literal["accept", "decline", "cancel"], ctx: Ctx = Depends(verified)):
+    """Yes (your class becomes a skip of your own), no, or (the one who asked) take it back."""
+    with db.tx() as c:
+        skipasks.answer(c, ctx.uid, request_id, action)
+    return {"skip": skipasks.one(ctx.uid, request_id)}
 
 
 # ---- A friend's timetable & Compare ----------------------------------------------

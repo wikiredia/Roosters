@@ -2,7 +2,7 @@
 
 Two ways in, both a job (a slow or unreachable push service must never make a request wait):
 - `notifications.enqueue` stores an in-app notification and queues `push` for that user; the job pushes what
-  hasn't been pushed yet (break and access requests and answers, timetable changes), several changes of one day
+  hasn't been pushed yet (break and access requests, skip questions and their answers, timetable changes), several changes of one day
   as one push. A request's push opens the chat with its card (`chat` in the notification's payload).
 - `chat.send` queues `push_chat` for the message: everyone in the chat with the bell on gets it.
 
@@ -37,6 +37,7 @@ TOKEN = re.compile(r"^Expo(nent)?PushToken\[[A-Za-z0-9_-]{8,180}\]$")
 # Notification kind -> category in Meldingen (also the Android channel the app creates)
 CATEGORY = {"break_request": "requests", "break_counter": "requests", "break_answer": "requests",
             "break_cancelled": "requests", "access_request": "requests", "access_answer": "requests",
+            "skip_request": "requests", "skip_answer": "requests",
             "schedule_change": "changes"}
 CATEGORIES = ("requests", "changes", "chat")
 DEFAULTS = {"requests": True, "changes": True, "chat": True, "quiet_from": None, "quiet_until": None}
@@ -121,6 +122,31 @@ def access_text(kind: str, p: dict, name: str, lang: str) -> tuple[str, str]:
             ("No access", f"{name} would rather not share their timetable."))
 
 
+def skip_text(kind: str, p: dict, day: dt.date, name: str, lang: str, today: dt.date) -> tuple[str, str]:
+    """(title, body) of a skip question ("Kayra vraagt of je Python volgt ...") or the answer to it. The answer
+    never names the course: the asker may only see when their friend is free."""
+    nl = lang == "nl"
+    when = _when(day, p.get("start", 0), lang, today)
+    dur = logic.duration(p.get("minutes") or 0) if nl else _duration_en(p.get("minutes") or 0)
+    if kind == "skip_request":
+        course = p.get("course") or ("je les" if nl else "your class")
+        return ((f"Volg je {course}?", f"{name} vraagt of je {course} volgt {when}. Zo niet, dan heb je {dur} samen pauze.")
+                if nl else
+                (f"Going to {course}?", f"{name} asks if you're going to {course} {when}. If not, you'd have {dur} of break together."))
+    if p.get("response") == "accepted":
+        return (("Pauze samen", f"{name} skipt de les {when}: jullie hebben {dur} samen pauze.") if nl else
+                ("Break together", f"{name} skips the class {when}: you have {dur} of break together."))
+    return (("Toch naar de les", f"{name} gaat {when} toch naar de les.") if nl else
+            ("Going to class", f"{name} is going to class {when} after all."))
+
+
+def _duration_en(m: int) -> str:
+    h, r = divmod(m, 60)
+    if h and r:
+        return f"{h}h{r:02d}"
+    return f"{h} hour{'s' if h > 1 else ''}" if h else f"{r} min"
+
+
 def _moved(ch: dict, lang: str) -> list[str]:
     """What changed about a lesson: 10:30 → 13:00, B204 → C102, di → wo."""
     old = ch.get("old") or {}
@@ -178,6 +204,8 @@ def build(notes: list[dict], names: dict[int, str], lang: str, today: dt.date) -
         name = names.get(p.get("from"), "?")
         if kind in ("access_request", "access_answer"):
             title, body = access_text(kind, p, name, lang)
+        elif kind in ("skip_request", "skip_answer") and n["day"] is not None:
+            title, body = skip_text(kind, p, n["day"], name, lang, today)
         elif kind in CATEGORY and n["day"] is not None:
             title, body = break_text(kind, p, n["day"], name, lang, today)
         else:

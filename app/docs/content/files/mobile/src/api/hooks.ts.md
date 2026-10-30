@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T16:00:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -63,6 +63,13 @@ answer `chats`: the chats the card went to, so the app can open that chat.
 Access requests (`POST /friends/{id}/access`, `POST /access/{id}/{action}`): ask a friend to see more of their
 timetable (the answer has the chat its card went to), say yes / no to one, or take yours back. A yes changes what
 you show them, so friends and their timetables are asked again.
+
+## `useFriendSchedules`, `useSkipAsks`, `useAskSkip`, `useAnswerSkip`
+
+Vergelijken: several friends' timetables at once (the same cache as `useFriendSchedule`), and skip questions
+(`api/roosters/skipasks.py`): your open ones (`GET /skip-requests`, the classes you asked about show as skipped for
+you only), asking (`POST /friends/{id}/skip-request`: in the list at once, put back when it fails) and answering
+(`POST /skip-requests/{id}/{action}`: a yes changes your timetable, so it's asked again).
 
 ## `useAcceptInvite`, `useResetInvite`, `useFriendRequest`, `useAnswerRequest`, `useSetVisibility`, `useRemoveFriend`, `useBlock`
 

@@ -1,6 +1,6 @@
 """Chat: one-to-one with a friend, and groups of friends ("De bende"). Text messages, events the app turns
 into a sentence ("Lotte en Amir pakken samen pauze om 12:30"), and request cards: a break request (breaks.py) or an
-access request (access.py) as a message of kind 'request' that always shows the request as it is now. Read up to where (unread counts, "gelezen"),
+access request (access.py) or a skip question (skipasks.py) as a message of kind 'request' that always shows the request as it is now. Read up to where (unread counts, "gelezen"),
 pinned chats, and moderation: report a message (the writer never knows), block the writer, take back your own.
 The routes are in r_chat.py; the moderators' side (open reports) is in admin.py.
 
@@ -124,20 +124,21 @@ def _summary(uid: int, chat: dict, members: list[dict], mine: dict, last: dict |
 def _ref(m: dict) -> tuple[str, int] | None:
     """(type, request id) of a request card."""
     p = m.get("payload") or {}
-    if m["kind"] != "request" or p.get("type") not in ("break", "access") or not isinstance(p.get("request"), int):
+    if m["kind"] != "request" or p.get("type") not in ("break", "access", "skip") or not isinstance(p.get("request"), int):
         return None
     return p["type"], p["request"]
 
 
 def with_requests(user: dict, msgs: list[dict]) -> list[dict]:
     """Adds `request` to the request cards among these messages: the request as it is now, from `user`'s side
-    (breaks.cards / access.cards), or None when it isn't for them any more."""
-    from . import access, breaks  # they post cards through this module
+    (breaks.cards / access.cards / skipasks.cards), or None when it isn't for them any more."""
+    from . import access, breaks, skipasks  # they post cards through this module
     refs = [r for m in msgs if (r := _ref(m))]
     if not refs:
         return msgs
     found = {("break", k): v for k, v in breaks.cards(user, [i for t, i in refs if t == "break"]).items()}
     found |= {("access", k): v for k, v in access.cards(user["id"], [i for t, i in refs if t == "access"]).items()}
+    found |= {("skip", k): v for k, v in skipasks.cards(user["id"], [i for t, i in refs if t == "skip"]).items()}
     for m in msgs:
         if m["kind"] == "request":
             r = _ref(m)
@@ -147,11 +148,12 @@ def with_requests(user: dict, msgs: list[dict]) -> list[dict]:
 
 def _open_requests(user: dict, chat_ids: list[int]) -> dict[int, int]:
     """Per chat: how many request cards in it are still open and involve you. A break request: still pending and
-    not over, and you asked or haven't answered yet; an access request: pending (you asked, or it's for you)."""
-    from . import access, breaks
+    not over, and you asked or haven't answered yet; an access request or a skip question: pending (you asked, or it's for you)."""
+    from . import access, breaks, skipasks
     open_ = {("break", b["id"]) for b in breaks.list_for(user)
              if b["state"] == "pending" and (b["mine"] or b["my_response"] == "pending")}
     open_ |= {("access", i) for i in access.open_ids(user["id"])}
+    open_ |= {("skip", i) for i in skipasks.open_ids(user["id"])}
     if not open_ or not chat_ids:
         return {}
     ph, args = db.in_list(chat_ids)

@@ -35,6 +35,7 @@ import type {
   SchoolClasses,
   Semester,
   SkipAnswer,
+  SkipRequest,
   Source,
   Today,
   UsualPartner,
@@ -64,6 +65,7 @@ export const keys = {
   chat: (id: number) => ['chat', id] as const,
   messages: (id: number) => ['chat-messages', id] as const,
   push: ['push'] as const,
+  skipAsks: ['skip-asks'] as const,
 };
 
 // ---- Reading ------------------------------------------------------------------------
@@ -174,6 +176,29 @@ export function useFriendSchedule(id: number, start: string, days: number) {
     queryKey: keys.friendSchedule(id, start, days),
     queryFn: () => api.get<FriendSchedule>(`/api/v1/friends/${id}/schedule?start=${start}&days=${days}`),
     refetchInterval: (q) => (q.state.data?.loading ? 2000 : false),
+  });
+}
+
+/** Several friends' timetables from `start` for `days` days (Vergelijken: one column each), in the order of `ids`.
+ * The same cache entries as `useFriendSchedule`. */
+export function useFriendSchedules(ids: number[], start: string, days: number) {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: keys.friendSchedule(id, start, days),
+      queryFn: () => api.get<FriendSchedule>(`/api/v1/friends/${id}/schedule?start=${start}&days=${days}`),
+      refetchInterval: (q: { state: { data?: FriendSchedule } }) => (q.state.data?.loading ? 2000 : false),
+    })),
+  });
+}
+
+/** Open skip questions ("Volg je Python?"), the ones you asked and the ones for you, from today on. Vergelijken draws
+ * the classes you asked about as skipped, only for you. */
+export function useSkipAsks() {
+  return useQuery({
+    queryKey: keys.skipAsks,
+    queryFn: () => api.get<{ skips: SkipRequest[] }>('/api/v1/skip-requests').then((r) => r.skips),
+    enabled: useSocial(),
+    refetchInterval: 30_000,
   });
 }
 
@@ -721,6 +746,42 @@ export function useAnswerAccess() {
       qc.invalidateQueries({ queryKey: keys.chats });
       qc.invalidateQueries({ queryKey: ['chat-messages'] });
       qc.invalidateQueries({ queryKey: ['friend-schedule'] });
+    },
+  });
+}
+
+/** Vergelijken: a friend's class dropped in the bin asks them whether they'd skip it (the card goes in your chat).
+ * It shows as skipped for you at once (the list is updated before the server answers, and put back if it fails). */
+export function useAskSkip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ friend, day, start, end }: { friend: number; day: string; start: number; end: number }) =>
+      api.post<{ skip: SkipRequest; chat_id: number }>(`/api/v1/friends/${friend}/skip-request`, { day, start, end }),
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: keys.skipAsks });
+      const prev = qc.getQueryData<SkipRequest[]>(keys.skipAsks);
+      const who = { id: v.friend, display_name: '', avatar_color: 0, photo: null };
+      const draft: SkipRequest = { id: -Date.now(), from: who, to: who, mine: true, day: v.day, start: v.start, end: v.end, course: null, minutes: 0, status: 'pending', created_at: new Date().toISOString() };
+      qc.setQueryData<SkipRequest[]>(keys.skipAsks, [...(prev ?? []), draft]);
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => qc.setQueryData(keys.skipAsks, ctx?.prev),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.skipAsks });
+      qc.invalidateQueries({ queryKey: keys.chats });
+      qc.invalidateQueries({ queryKey: ['chat-messages'] });
+    },
+  });
+}
+
+/** Yes / no to a skip question you got (a yes skips your class: your timetable changes), or taking back your own. */
+export function useAnswerSkip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: number; action: 'accept' | 'decline' | 'cancel' }) =>
+      api.post<{ skip: SkipRequest }>(`/api/v1/skip-requests/${id}/${action}`).then((r) => r.skip),
+    onSuccess: () => {
+      for (const key of [keys.skipAsks, keys.chats, ['chat-messages'], ['schedule'], ['today'], ['friend-schedule'], ['compare']]) qc.invalidateQueries({ queryKey: key });
     },
   });
 }

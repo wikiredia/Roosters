@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T10:30:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 Pure helpers for the chat screens: times, the sentence for an event, the one-line preview. No hooks, no API.
@@ -17,7 +17,7 @@ you and the names as they were then (from the payload: someone who left still ha
 ## `requestText`
 
 A request card in one line: "Pauze samen? morgen 12:30", "Ander uur: vandaag 13:00", "Mag ik je rooster zien?",
-"Dit verzoek is er niet meer" (the language from the `lang` store unless given).
+"Volg je Python?" / "Skip je die les?", "Dit verzoek is er niet meer" (the language from the `lang` store unless given).
 
 ## `messageText`, `preview`
 

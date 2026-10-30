@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-30T12:00:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -66,7 +66,7 @@ notifies the people affected.
 | Change sign-in, sessions, guests | `api/roosters/r_auth.py`, `tokens.py`, `providers.py`, `accounts.py`; the app's `mobile/src/app/welcome.tsx`, `login/` (`found.tsx`: 'you already had an account'), `mobile/src/lib/google.ts`, `lib/onboarding.routeAfterSignIn`; guide **Auth, sessions and guests** (Google client ids: **Running and operating**) |
 | Change when two people 'share a break' | `api/roosters/logic.py` (pure functions, tested in `tests/test_logic.py`) |
 | Change what friends can see | `api/roosters/friends.py`, `r_friends.py`, `schedule.py`; guide **Friends and privacy** |
-| Change requests (break, access, friend requests: cards in the chat, the Chat tab's 'Verzoeken') | `api/roosters/breaks.py`, `chat.py`, `r_friends.py`, migration `0016`; the app's `components/chat/RequestCard.tsx`, `app/(tabs)/chat.tsx`; guide **Friends and privacy** → 'Requests' |
+| Change requests (break, access, skip questions, friend requests: cards in the chat, the Chat tab's 'Verzoeken') | `api/roosters/breaks.py`, `chat.py`, `r_friends.py`, migration `0016`; the app's `components/chat/RequestCard.tsx`, `app/(tabs)/chat.tsx`; guide **Friends and privacy** → 'Requests' |
 | Change pinned friends (where they come first) | `api/roosters/friends.py` (`visible_friends`, `set_pinned`), `r_friends.edit_friend`, `r_me.today`, `mobile/src/lib/friends.ts`, `mobile/src/app/friends/` |
 | Change how timetables are fetched | `api/roosters/sync.py`, `untis.py`, `ics.py`, `netfetch.py`; guide **Timetables** |
 | Change a lesson's details (Type, Building, Floor, Classroom, ...: how they're found, renamed, merged) | `api/roosters/details.py`, `r_details.py`; the app's `mobile/src/lib/details.ts`, `app/onboarding/details.tsx`, `components/timetable/LessonSheet.tsx`; guide **Timetables** |
@@ -75,7 +75,9 @@ notifies the people affected.
 | Add or change a screen | `mobile/src/app/` (file = route); texts in `mobile/src/i18n/nl.ts` + `en.ts` |
 | Change onboarding or 'Complete the following steps' | `mobile/src/app/onboarding/`, `mobile/src/lib/onboarding.ts`, `mobile/src/components/SetupSteps.tsx` (the notifications step: `onboarding/notifications.tsx` + `lib/push.ts`) |
 | Change semesters or the course list of the school year | `api/roosters/terms.py`, `sync.scan_courses`, `r_schools.courses`; guide **Timetables** |
-| Change the calendar (Rooster tab and Vergelijken) | `mobile/src/components/timetable/Calendar.tsx`, `DayGrid.tsx`, `DayStrip.tsx`; what's worked out per day: `DayCache.ts`; guide **Plan: a fast Rooster tab** |
+| Change the calendar (Rooster tab) | `mobile/src/components/timetable/Calendar.tsx`, `DayGrid.tsx`, `DayStrip.tsx`; what's worked out per day: `DayCache.ts`; guide **Plan: a fast Rooster tab** |
+| Change Vergelijken (you and friends side by side) or skip questions ("Volg je Python?") | `mobile/src/app/compare.tsx`, `components/timetable/CompareView.tsx`; API `skipasks.py`, `r_friends.ask_skip`, migration `0017` |
+| Change the mini timetable of a break (who's there when) | `mobile/src/components/PeopleSheet.tsx` (`breakTarget`, `BreakPlan`), `lib/breaks.breakPlan` |
 | Measure speed (fps, renders, cache size) | the fps overlay: Server & debug → Performance (`mobile/src/components/PerfOverlay.tsx`, `mobile/src/lib/perf.tsx`) |
 | Change skipping a class (drag to the bin, summary, Undo) | `mobile/src/components/timetable/SkipDrag.tsx`, `SkipToast.tsx`, `mobile/src/lib/skips.ts`; API `r_me.skip`, `schedule.takes_place` |
 | Change an e-mail (login code, welcome, new sign-in, account deleted) or add one | `api/roosters/mails.py` (texts + the shared HTML look, `nl` + `en`), `mailer.py` (the jobs that send them, the inline logo `mail_assets/logo.png`); preview in Mailpit (`:8025`) |

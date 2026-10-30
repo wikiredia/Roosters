@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:07:49Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -26,13 +26,15 @@ everything moves together in the same frame, on the UI thread.
 - **Shared breaks** are yellow blocks with who they're with (`Timetable.TogetherBlock`). With `only` just the
   friends you picked (Vergelijken). One that's over, or further ahead than you can ask (more than 13 days:
   `api breaks.MAX_DAYS_AHEAD`), is **hatched** (`muted`) and a tap does nothing: you can't ask for it, so the app
-  doesn't let you try. Tapping a yellow one opens `PeopleSheet` "Pauze mogelijk met:" (`askBreak`: the friends in it,
-  each with their own free window, today from now on); a row there opens your chat with that friend, where you ask.
+  doesn't let you try. Tapping a yellow one opens `PeopleSheet` "Pauze mogelijk met:" (`askBreak` → `PeopleSheet.breakTarget`: your
+  whole break as a mini timetable of who's there when, and the friends in it, each with their own free window, today
+  from now on); a row there opens your chat with that friend, where you ask.
 - **Today's plan** (`useToday().data.me.checkin`) goes to `useDays` as a memoised `DayCache.DayPlan`: staying after
   school makes after school a grey break of yours today, "Ik ben bezig" in your breaks makes today's breaks between
   classes not yours (not drawn, not tappable). Only today's day is rebuilt when it changes.
 - **Your own break with nobody** (a free gap with the coffee cup where no shared break is drawn, today from now on or
-  later): tapping it opens `PeopleSheet` "Meestal ga je met:" (`onPressAlone`, `useUsualPartners`). The calendar no
+  later): tapping it does the same (`onPressAlone` → `askBreak`): who joins later in it, or, with nobody at all,
+  "Meestal ga je met:" (`useUsualPartners`). The calendar no
   longer opens `BreakSheet` itself (Today and the chat still do).
 - Each shared break shows what you did with it (asked, planned, declined: `lib/breaks.slotState` over `useBreaks`).
 - **An empty weekend** at the right end of the view (nothing on Saturday and/or Sunday): a tab against the right edge of the

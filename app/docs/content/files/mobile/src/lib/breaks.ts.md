@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T13:30:00Z
+updated: 2026-10-30T15:40:00Z
 ---
 
 Words for **break requests** (`components/BreakSheet.tsx`, the 'Pauzeverzoeken' section on Today).
@@ -36,3 +36,8 @@ and won't ask twice.
 
 A shared break with several friends as one block (calendar, Today): planned when one of them is, asked while a
 question is open, declined only when every one of them said no.
+
+## `breakPlan`, `PlanPart`
+
+Pure: your break cut where a friend comes or goes, each stretch with who's in it (none: alone); the same people next to
+each other become one stretch. For `PeopleSheet.BreakPlan`.
