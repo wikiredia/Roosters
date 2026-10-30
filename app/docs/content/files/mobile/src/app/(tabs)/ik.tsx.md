@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T13:20:00Z
+updated: 2026-10-30T12:30:00Z
 ---
 
-**Me**: profile, Premium (soon), ghost mode, friends, timetable sources, notifications (Meldingen: `settings/notifications.tsx`; the row says "2 van 3 aan · stil 22:00–07:30", or that this phone doesn't get them), language, privacy, download your data, sign out (one row that opens a sheet: on this phone, or on every device, both red), delete account. Development builds also get **Server & debug** (`debug.tsx`) and **Test data & users**
+**Me**: profile, Premium (soon), ghost mode, friends, timetable sources, notifications (Meldingen: `settings/notifications.tsx`; the row says "2 van 3 aan · stil 22:00–07:30", or that this phone doesn't get them), language, **Experimenten** (A/B tests with a switch, saved on this phone: `lib/labs.ts`; now 'Verticaal slepen in de kalender', `weekDrag`), privacy, download your data, sign out (one row that opens a sheet: on this phone, or on every device, both red), delete account. Development builds also get **Server & debug** (`debug.tsx`) and **Test data & users**
 (`dev.tsx`). **Guests** see 'Confirm your e-mail' at the top of the account section; signing out a guest asks first (there's no way back in), and signs out right away (no sheet: 'everywhere' means nothing for a guest).
 
 ## `Choice`, `GhostSheet`

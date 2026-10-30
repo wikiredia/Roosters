@@ -13,6 +13,7 @@ import { AView, enter, exit, layout } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { dateAt, dayIndex, homeStart, MAX_DAYS, mondayOf, weekdayOf } from '@/lib/days';
+import { useWeekDrag } from '@/lib/labs';
 import { useStable } from '@/lib/latest';
 import { PerfProfile } from '@/lib/perf';
 import { skipChanges, skipTarget, type SkipTarget } from '@/lib/skips';
@@ -96,6 +97,8 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const { t, lang } = useT();
   const friends = useFriends();
   const breaks = useBreaks();
+  // Experiment (Ik → Experimenten): drag the strip up/down to the week before or after
+  const weekDrag = useWeekDrag();
   const today = dayIndex(new Date());
   const [want, setWant] = useState(5);
   const [start, setStart] = useState(() => initialStart ?? homeStart(5, today, () => true));
@@ -464,6 +467,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
           onResize={setWant}
           onResizeEnd={onStripResizeEnd}
           nudge={hint === 'days'}
+          weekDrag={weekDrag}
         />
         </View>
         </GestureDetector>

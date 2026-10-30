@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T16:00:00Z
+updated: 2026-10-30T12:30:00Z
 ---
 
-Two kinds of storage: `prefs` (AsyncStorage, small preferences: language, server override, pending invite; never secrets) and `secrets` (the keychain/keystore through expo-secure-store; the web build falls back to AsyncStorage).
+Two kinds of storage: `prefs` (AsyncStorage, small preferences: language, server override, pending invite, experiments (`lib/labs.ts`); never secrets) and `secrets` (the keychain/keystore through expo-secure-store; the web build falls back to AsyncStorage).
 
 ## `prefs`, `secrets`
 

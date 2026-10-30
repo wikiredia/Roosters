@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T00:15:00Z
+updated: 2026-10-30T12:30:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -34,6 +34,8 @@ everything moves together in the same frame, on the UI thread.
   tab takes touches: the empty weekend itself can still be swiped (a full-size wrapper used to swallow the swipe, which
   looked like the calendar was locked). It fades out while you drag a class (the bin may come in on that side).
 - Tapping a lesson opens `LessonSheet`; where lessons overlap, `OverlapSheet` first.
+- **Experiment: vertical calendar dragging** (`lib/labs.useWeekDrag`, off unless turned on in Ik → Experimenten): passed to
+  `DayStrip` as the boolean `weekDrag` (memo-friendly), which then lets you drag the strip up/down to the week before or after.
 
 **Fast, because little renders** (guide 'Plan: a fast Rooster tab', Phase 1):
 - `Calendar` is `memo`, so the Rooster screen changing its header (`onView`) doesn't render it a second time.

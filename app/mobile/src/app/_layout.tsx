@@ -13,6 +13,7 @@ import { useCSSVariable } from 'uniwind';
 import { PerfOverlay } from '@/components/PerfOverlay';
 import { loadLanguage } from '@/i18n';
 import { fonts } from '@/lib/fonts';
+import { loadLabs } from '@/lib/labs';
 import { startNetworkWatch } from '@/lib/net';
 import { persister, queryClient, shouldPersist, startFocusWatch } from '@/lib/query';
 import { loadServer } from '@/lib/server';
@@ -29,7 +30,7 @@ export default function RootLayout() {
   useEffect(() => {
     startNetworkWatch();
     startFocusWatch();
-    Promise.all([loadServer(), loadSession(), loadLanguage()]).finally(() => setReady(true));
+    Promise.all([loadServer(), loadSession(), loadLanguage(), loadLabs()]).finally(() => setReady(true));
     // Signing out: forget everything that was cached for that account. Ended by the server (wherever you
     // are: onboarding, a sheet, settings): back to welcome, which says why, instead of errors on every screen
     let was = session.get().status;
