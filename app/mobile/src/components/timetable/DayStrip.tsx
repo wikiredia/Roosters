@@ -36,11 +36,11 @@ function rubber(d: number, cap: number) {
 }
 
 /** How opaque a row of dates is at `y` (px from the strip's row): full on the row, fading away from it, and half
- * as a "ghost" on the side being pulled into view (`ghost`, or `carry` just after a week change; + = above). */
+ * as a "ghost" on the side being pulled into view (`ghost`, or `carry` just after a week change; + = below). */
 function fade(y: number, ghost: number, carry: number) {
   'worklet';
   const a = Math.abs(y) / H;
-  const side = y < 0 ? 1 : -1;
+  const side = y > 0 ? 1 : -1;
   const g = Math.max(0, side * ghost, side * carry) * GHOST * Math.max(0, Math.min(1, 2 - a));
   return Math.max(1 - Math.min(1, a), g);
 }
@@ -72,7 +72,7 @@ type Props = {
   onResizeEnd: (n: number, start?: number) => void;
   /** First time: the dash wiggles to show it can be dragged. */
   nudge?: boolean;
-  /** A/B test: pull the picked-up group up or down to see the week before (above) or after (below) and change to
+  /** A/B test: pull the picked-up group down or up to see the week after (below) or before (above) and change to
    * it, a week at a time. Off: up and down it only follows the finger a little and never changes the week. */
   weekDrag?: boolean;
 };
@@ -89,8 +89,8 @@ type Props = {
  * like a rubber band (never more than LIFT × H away, back on the row when you let go). Across it sticks softly to
  * each day, with a tick each time the first day changes. It never leaves the strip: push it against the edge and
  * the dates scroll further in time (faster the further you push). Let go and it settles on a whole day.
- * With `weekDrag` (an A/B test), pulling it down shows the week before above the row, half see-through (pulling it
- * up: the week after, below); pull on and the row scrolls a week, the new one sliding in as the old one slides
+ * With `weekDrag` (an A/B test), pulling it down shows the week after below the row, half see-through (pulling it
+ * up: the week before, above); pull on and the row scrolls a week, the new one sliding in as the old one slides
  * out, and you can keep going a week at a time.
  *
  * Swipe the dates themselves (not the group) and they move with your finger like a carousel, with a flick, and
@@ -121,7 +121,7 @@ export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, fro
   const push = useSharedValue(0);
   const told = useSharedValue(0);
   // Up and down: the group (px from the row), the rows of dates (px, springs back to 0 after a week change), the
-  // weeks changed in this drag, and how far the week above (+) or below (-) shows: live, and just after a change
+  // weeks changed in this drag, and how far the week below (+) or above (-) shows: live, and just after a change
   const gy = useSharedValue(0);
   const wy = useSharedValue(0);
   const weeks = useSharedValue(0);
@@ -241,14 +241,15 @@ export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, fro
           const dy = e.translationY;
           gy.set(rubber(dy, LIFT * H));
           if (!weekDrag) return;
-          // A week further every WEEK_AT × H of drag (back again when you pull back): down = the week before. The rows
-          // jump a row so nothing moves on screen, then slide on: the new week comes in from outside, the old one goes
+          // A week further every WEEK_AT × H of drag (back again when you pull back): down = the week after, which comes up
+          // from below. The rows jump a row so nothing moves on screen, then slide on: the new week comes in from outside,
+          // the old one goes
           const step = dy >= (weeks.get() + WEEK_AT) * H ? 1 : dy <= (weeks.get() - WEEK_AT) * H ? -1 : 0;
           if (step) {
             weeks.set(weeks.get() + step);
-            win.set(win.get() - 7 * step);
+            win.set(win.get() + 7 * step);
             offset.set(win.get() + kk);
-            wy.set(withSequence(withTiming(wy.get() - step * H, { duration: 0 }), withSpring(0, SWIPE)));
+            wy.set(withSequence(withTiming(wy.get() + step * H, { duration: 0 }), withSpring(0, SWIPE)));
             carry.set(withSequence(withTiming(step, { duration: 0 }), withTiming(0, { duration: 280 })));
             const now = Math.round(offset.get());
             told.set(now);

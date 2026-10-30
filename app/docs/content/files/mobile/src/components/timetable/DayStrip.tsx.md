@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T12:30:00Z
+updated: 2026-10-30T13:00:00Z
 ---
 
 The **week strip** above the timetable: seven equal cells. What you see in the grid is a white cell (the first day)
@@ -27,10 +27,10 @@ a flick goes a few days further (never more than a week) and it settles on a who
 `snap()` when the spring lands.
 
 **Week drag** (`weekDrag`, an A/B test that `Calendar` passes from a setting): pulling the picked-up group down
-shows the week before **above** the row (pulling up: the week after, below), half see-through (`GHOST`), fading in
+shows the week after **below** the row (pulling up: the week before, above), half see-through (`GHOST`), fading in
 from `GHOST_FROM` × `H`. At `WEEK_AT` × `H` of drag the row scrolls a week: `offset` ± 7 (`onMove`, and `onTarget` on
 release), the rows jump one row so nothing moves on screen and then slide on (`wy` springs to 0): the new week comes
-in from outside, the old one slides out and fades (`fade`; `carry` keeps the incoming one visible for that moment).
+in from outside (pulling down, the dates below come up), the old one slides out and fades (`fade`; `carry` keeps the incoming one visible for that moment).
 Each further `WEEK_AT` × `H` goes another week; pulling back undoes it. Off, up and down only follows the rubber band
 and never changes the week. The rows above and below are only rendered with `weekDrag`.
 
