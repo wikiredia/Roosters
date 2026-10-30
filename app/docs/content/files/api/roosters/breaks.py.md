@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T10:30:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 **Break requests** ("Pauze samen?"): you tap a break you share with friends and ask them to spend it together:
@@ -17,16 +17,22 @@ Rules (keep them when you change anything here):
 - **No asking twice** (`already_asked`): the same people at (part of) the same time, from either side, is a 409
   `break_dup` with the request it clashes with. A no doesn't count any more.
 - Today and the next two weeks (`MAX_DAYS_AHEAD`); at least 5 minutes, not already over (school's timezone).
-- Every step leaves an in-app notification (`break_request`, `break_answer`, `break_counter`, `break_cancelled`);
-  sending them as push is the next step on the list (`app/README.md`).
-- A **yes** also shows up in every chat the two share (`chat.post_event`, type `break_planned`): "Lotte en Amir
-  pakken samen pauze om 12:30".
+- Someone who said **"Ik ben bezig"** for today's breaks (checkin `break_status` 'busy') can't be asked during a
+  break between their classes (`conflict` → `busy`; after school still works).
+- Every request is a **card in the chat** (`chat.post_request`, kind 'request'): in the direct chat with each person
+  asked, or once in the group whose members are exactly the asker and them. `create` returns the chats, so
+  `POST /breaks` and the counter can answer with `chats` (the app opens that chat).
+- Every step leaves an in-app notification with a push (`break_request`, `break_answer`, `break_counter`,
+  `break_cancelled`); the payload's `chat` is the chat with the card for whoever gets it (`chat.card_chats`), so
+  the push opens it.
+- A **yes** also shows up in the other chats the two share (`chat.post_event`, type `break_planned`): "Lotte en Amir
+  pakken samen pauze om 12:30"; not in the chats with the card (it shows the yes already).
 
 Tests: `tests/test_breaks.py`.
 
 ## `conflict`, `summarize`, `flip`, `already_asked`
 
-The pure parts. `conflict` → `no_classes` / `home` / `in_class` or None; `summarize` → planned (someone said yes),
+The pure parts. `conflict` → `no_classes` / `home` / `in_class` / `busy` or None; `summarize` → planned (someone said yes),
 declined (everyone said no) or pending; `flip` turns their "I come to you" into my "you come to me" for a
 counter-proposal; `already_asked` finds a running request with the same people at the same time ('mine' or 'theirs').
 
@@ -36,8 +42,9 @@ How far ahead you can ask, the shortest break, the three ways to meet.
 
 ## `create`
 
-Checks everything above and stores the request inside the caller's transaction; notifies the people asked. With
-`counter_of` the clash check ignores the request being answered.
+Checks everything above and stores the request inside the caller's transaction; posts its card in the chat and
+notifies the people asked (with the chat of their card). With `counter_of` the clash check ignores the request
+being answered. → `(request id, [chat ids])`; `counter` returns the same.
 
 ## `respond`, `counter`, `cancel`
 
@@ -48,8 +55,20 @@ request back (only the asker; `break_gone` for anyone else, the same as a reques
 
 ## `list_for`
 
-Requests from and to you that aren't over yet (today and the coming two weeks, or one day), in time order, with
-everyone's answer, your own (`my_response`), the state and whether it's happening `now`. Also in `GET /me/today`.
+Requests from and to you that aren't over yet and not cancelled (today and the coming two weeks, or one day), in
+time order, with everyone's answer, your own (`my_response`), the state and whether it's happening `now`. Also in
+`GET /me/today` and for the chat list's `requests` count.
+
+## `cards`
+
+What the request cards in the chat show (`chat.with_requests`): the same shape as `list_for` plus `type: 'break'`,
+for any day, with `over` and state `cancelled` when taken back. None when it isn't for you (any more): not the
+asker or someone asked, or not friends now.
+
+## `_SELECT`, `_out`
+
+The query both read from, and turning rows into what one user sees (only people who are still your friends;
+`over` from the school's clock).
 
 ## `delete_user`
 

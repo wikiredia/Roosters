@@ -14,8 +14,9 @@ router = APIRouter(prefix="/api/v1/chats", tags=["chat"])
 
 @router.get("")
 def list_chats(request: Request, ctx: Ctx = Depends(verified)):
-    """Pinned first, then the newest message first; `unread` in total for the tab badge."""
-    return etag_json(request, chat.list_for(ctx.uid))
+    """Pinned first, then the newest message first; `unread` in total for the tab badge, `requests` per chat
+    (open request cards: the "Verzoek" tag)."""
+    return etag_json(request, chat.list_for(ctx.user))
 
 
 class DirectIn(BaseModel):
@@ -86,8 +87,9 @@ def leave(chat_id: int, ctx: Ctx = Depends(verified)):
 def messages(chat_id: int, request: Request, after: int = 0, before: int = 0, limit: int = chat.PAGE,
              ctx: Ctx = Depends(verified)):
     """Oldest first. `after`: only what's new (the app asks every few seconds while the chat is open: mostly an
-    empty "not modified"); `before`: the page above."""
-    return etag_json(request, chat.messages(ctx.uid, chat_id, after, before, limit))
+    empty "not modified"); `before`: the page above. Request cards carry the request as it is now, so the ETag
+    changes when one is answered or taken back."""
+    return etag_json(request, chat.messages(ctx.user, chat_id, after, before, limit))
 
 
 class MessageIn(BaseModel):

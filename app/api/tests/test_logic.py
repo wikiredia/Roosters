@@ -179,3 +179,28 @@ def test_board_status_chill_and_home():
     hm = P(2, "Yarno", [(9, 10), (14, 15)], checkin={"status": "home", "since_min": 11 * H})
     s = board_status(hm, day_info(hm), 12 * H)
     assert s["code"] == "home" and not s["can_ping"]
+
+
+def test_busy_in_the_breaks():
+    """'Ik ben bezig' (break_status busy): de pauzes tussen de lessen tellen niet, na school chillen wel nog."""
+    from roosters import schedule
+    from roosters.logic import board_status
+    b = P(1, "Nio", [(9, 10), (12, 13)], checkin={"break_status": "busy", "status": "want_chill", "until_min": 15 * H})
+    other = P(2, "Seba", [(9, 10), (12, 13)])
+    ib = day_info(b)
+    assert ib.free == [(13 * H, 15 * H)] and ib.breaks_busy
+    assert pair_breaks(b, other, ib, day_info(other)) == []
+    s = board_status(b, ib, 11 * H)
+    assert (s["code"], s["until"], s["can_ping"]) == ("pauze_bezig", 12 * H, False)
+    assert now_status(b, ib, 11 * H)["code"] == "pauze_bezig"
+    assert schedule.status(b, ib, 11 * H)["code"] == "break_busy"
+    # Na school: wil chillen
+    assert schedule.status(b, ib, 14 * H)["code"] == "wants_to_chill"
+    # 'Ik wil afspreken' in de pauze
+    w = P(3, "Lotte", [(9, 10), (12, 13)], checkin={"break_status": "want_chill"})
+    iw = day_info(w)
+    assert iw.free == [(10 * H, 12 * H)]
+    assert schedule.status(w, iw, 11 * H)["code"] == "wants_to_chill"
+    assert schedule.status(w, iw, 9 * H + 30)["code"] == "in_class"
+    # Zonder plan na school: naar huis na de laatste les
+    assert schedule.status(w, iw, 14 * H)["code"] == "done"

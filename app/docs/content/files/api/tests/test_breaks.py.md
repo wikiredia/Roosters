@@ -1,11 +1,14 @@
 ---
-updated: 2026-10-24T05:26:38Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 Break requests: the pure parts (who can't when, the state of a request, flipping who walks, no asking twice) and the
 whole flow through the API: asking and saying yes (both sides see it, also on Today, with notifications), no
 asking twice from either side, busy people and bad times refused with who and why, only friends and no guests,
-another time and taking it back, and unfriending or deleting an account making requests disappear.
+another time and taking it back, unfriending or deleting an account making requests disappear, "Ik ben bezig"
+in the breaks (reason `busy`), and the cards in the chat: in the direct chat (with `chats` in the answer and `chat`
+in the notifications, also for the counter and taking it back), or once in the group that is exactly the people
+asked (where a card shows nothing to someone who isn't friends with the asker any more).
 
 ## `DAY`, `_setup`, `_ask`
 

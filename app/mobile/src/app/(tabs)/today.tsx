@@ -2,19 +2,20 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { useAnswerBreak, useCheckin, useOpenDirect, useToday } from '@/api/hooks';
-import type { BreakRequest, Checkin, Friend, Notification, Today } from '@/api/types';
+import { useChats, useCheckin, useOpenDirect, useToday } from '@/api/hooks';
+import type { Checkin, Friend, Notification, Today } from '@/api/types';
 import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { SetupSteps } from '@/components/SetupSteps';
-import { type BreakState, isFree, isOff, mergeLessons, STATE_LABEL } from '@/components/timetable/Timetable';
+import { freeGaps, isFree, isOff, mergeLessons, STATE_LABEL } from '@/components/timetable/Timetable';
 import { Avatar, AvatarStack, Banner, PinMark, StatusOption, Tag } from '@/components/ui/Bits';
+import { Toggle } from '@/components/ui/Inputs';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead, TogetherCard, TogetherIcon } from '@/components/ui/Layout';
 import { Reveal } from '@/components/ui/Motion';
 import { Screen, Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { useT, type Key } from '@/i18n';
-import { dayWord, howText, otherPeople, slotState } from '@/lib/breaks';
+import { useT } from '@/i18n';
+import { slotState } from '@/lib/breaks';
 import { pinnedOnTop } from '@/lib/friends';
 import { currentLesson, isAway, joinNames, nextLesson, statusLine } from '@/lib/status';
 import { addDays, hhmm, isoDay, longDate, minutesAgo, parseDay, range, shortDate } from '@/lib/time';
@@ -43,7 +44,7 @@ export default function TodayScreen() {
             icon={home ? 'logout' : 'pin'}
             label={home ? t('today.atHome') : t('today.atSchool')}
             accessibilityHint={t('today.placeHint')}
-            onPress={() => checkin.mutate(home ? null : 'home')}
+            onPress={() => checkin.mutate({ status: home ? null : 'home' })}
           />
         ) : null
       }
@@ -61,10 +62,8 @@ export default function TodayScreen() {
           <Reveal>
             <NowCard d={d} t={t} />
           </Reveal>
-          <ForYou d={d} t={t} onOtherTime={(request) => setSheet({ kind: 'counter', request })} />
           {/* Skipped in onboarding (e-mail, school, timetable, friends): finish it here */}
           <SetupSteps d={d} />
-          <Requests d={d} t={t} />
           {d.friends.length > 0 ? (
             <Reveal className="gap-6">
               <Together d={d} t={t} onAsk={(people) => setSheet({ kind: 'ask', day: d.day, people })} />
@@ -72,7 +71,13 @@ export default function TodayScreen() {
             </Reveal>
           ) : null}
           <Reveal>
-            <Plan d={d} t={t} onPick={(s) => checkin.mutate(d.me.checkin?.status === s ? null : s)} />
+            <Plan
+              d={d}
+              t={t}
+              // Tapping what you picked again takes it back
+              onStatus={(s) => checkin.mutate({ status: d.me.checkin?.status === s ? null : s })}
+              onBreak={(b) => checkin.mutate({ break_status: d.me.checkin?.break_status === b ? null : b })}
+            />
           </Reveal>
           <Changes changes={d.changes} today={d.day} t={t} lang={lang} />
           <Updated at={d.sources.updated_at} t={t} />
@@ -144,6 +149,7 @@ function NowCard({ d, t }: { d: Today; t: T }) {
       sub = [t('today.until', { t: hhmm(cur?.end ?? status.until) }), cur?.location].filter(Boolean).join(' · ');
       break;
     case 'break':
+    case 'break_busy':
     case 'chilling':
     case 'wants_to_chill':
       title = status.until ? t('today.breakUntil', { t: hhmm(status.until) }) : t('today.free');
@@ -216,9 +222,21 @@ function TomorrowLine({ day, t, lang }: { day: string; t: T; lang: 'nl' | 'en' }
   );
 }
 
-/** "Pak je pauze met:" — shared breaks, grouped per time slot (pinned friends first in each). Tap one to ask "Pauze samen?". */
+/**
+ * "Pak je pauze met:" — shared breaks, grouped per time slot (pinned friends first in each). Tap one to ask "Pauze
+ * samen?"; once asked (or planned, or a no) the row opens the chat where that request's card is instead.
+ */
 function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & { start: number; end: number })[]) => void }) {
   const open = useOpenDirect();
+  const chats = useChats();
+  // One friend: your chat with them. Several: the group with exactly them in it (where the card went), else the
+  // Chat tab (one card in each direct chat)
+  async function openChat(people: Friend[]) {
+    if (people.length === 1) return router.push(`/chat/${(await open.mutateAsync(people[0].id)).id}`);
+    const ids = new Set(people.map((p) => p.id));
+    const group = chats.data?.chats.find((c) => c.kind === 'group' && c.members.length === ids.size && c.members.every((m) => ids.has(m.id)));
+    router.push(group ? `/chat/${group.id}` : '/chat');
+  }
   const byId = new Map(d.friends.map((f) => [f.id, f]));
   const groups = new Map<string, { start: number; end: number; people: Friend[] }>();
   for (const s of d.together) {
@@ -256,7 +274,7 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
               title={joinNames(g.people.map((p) => p.display_name), t('common.and'))}
               sub={live ? t('today.nowUntil', { t: hhmm(g.end) }) : range(g.start, g.end)}
               left={<AvatarStack people={g.people.map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring="together" />}
-              chevron={g.people.length > 1}
+              chevron={g.people.length > 1 || !!state}
               right={
                 // One friend: a chat with them is one tap away (the row itself asks for the break)
                 g.people.length === 1 ? (
@@ -268,10 +286,10 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
                   />
                 ) : undefined
               }
-              accessibilityHint={t('break.title')}
-              onPress={() => onAsk(g.people.map((p) => ({ ...p, start: Math.max(g.start, d.now), end: g.end })))}
+              accessibilityHint={state ? t('today.openChat') : t('break.title')}
+              onPress={() => (state ? openChat(g.people) : onAsk(g.people.map((p) => ({ ...p, start: Math.max(g.start, d.now), end: g.end }))))}
             >
-              {/* Asked already, planned or a no: says so (the sheet won't ask the same twice) */}
+              {/* Asked already, planned or a no: says so, and the row goes to the chat with the card */}
               {state ? (
                 <View className="flex-row pt-1">
                   <Tag kind={STATE_TAG[state]} icon={state === 'planned' ? 'check' : undefined}>
@@ -287,116 +305,16 @@ function Together({ d, t, onAsk }: { d: Today; t: T; onAsk: (people: (Friend & {
   );
 }
 
-/**
- * "Voor jou": breaks friends asked you for and you haven't answered yet (Ja / Nee / Ander uur), right under the
- * Now card, today and the coming days in time order. Nothing when nobody asked.
- */
-function ForYou({ d, t, onOtherTime }: { d: Today; t: T; onOtherTime: (b: BreakRequest) => void }) {
-  const { lang } = useT();
-  const answer = useAnswerBreak();
-  const list = (d.breaks ?? []).filter((b) => !b.mine && b.my_response === 'pending');
-  if (list.length === 0) return null;
-  const act = (b: BreakRequest, action: 'accepted' | 'declined') => answer.mutate({ id: b.id, action });
-  return (
-    <Reveal className="gap-3">
-      <SectionHead title={t('break.forYou')} aside={t('break.questions', { n: list.length })} />
-      <Card>
-        {list.map((b, i) => (
-          <Row
-            key={b.id}
-            first={i === 0}
-            title={b.day === d.day ? t('break.asksAt', { name: b.from.display_name, t: hhmm(b.start) }) : t('break.asksOn', { name: b.from.display_name, day: dayWord(b.day, d.day, t, lang), t: hhmm(b.start) })}
-            sub={[t('break.untilT', { t: hhmm(b.end) }), howText(b, t)].join(' · ')}
-            left={<Avatar name={b.from.display_name} color={b.from.avatar_color} uid={b.from.id} photo={b.from.photo} />}
-          >
-            {b.note ? (
-              <Text variant="sm" tone="ink2" numberOfLines={2}>
-                “{b.note}”
-              </Text>
-            ) : null}
-            <View className="flex-row flex-wrap gap-2 pt-1.5">
-              <Button variant="together" size="sm" label={t('break.yes')} accessibilityHint={t('break.canYou')} onPress={() => act(b, 'accepted')} />
-              <Button variant="secondary" size="sm" label={t('break.no')} onPress={() => act(b, 'declined')} />
-              <Button variant="ghost" size="sm" label={t('break.otherTime')} onPress={() => onOtherTime(b)} />
-            </View>
-          </Row>
-        ))}
-      </Card>
-    </Reveal>
-  );
-}
-
-/**
- * "Jouw pauzes": what you asked and the ones you said yes to, in one plain card: planned first, then the ones waiting
- * for an answer, then the ones nobody can make, each row with a small tag in its state's colour (the same as the
- * calendar's legend), so the section stays calm. You can take a question back, remove a no, or say no after all.
- * Questions you haven't answered are in "Voor jou".
- */
-function Requests({ d, t }: { d: Today; t: T }) {
-  const { lang } = useT();
-  const answer = useAnswerBreak();
-  // A no you gave is done; an open question is in "Voor jou"
-  const list = (d.breaks ?? []).filter((b) => b.mine || b.my_response === 'accepted');
-  if (list.length === 0) return null;
-  const act = (b: BreakRequest, action: 'declined' | 'cancel') => answer.mutate({ id: b.id, action });
-  const stateOf = (b: BreakRequest): BreakState => (b.state === 'planned' || b.my_response === 'accepted' ? 'planned' : b.state === 'declined' ? 'declined' : 'asked');
-  const order: Record<BreakState, number> = { planned: 0, asked: 1, declined: 2 };
-  const items = list.map((b) => ({ b, st: stateOf(b) })).sort((x, y) => order[x.st] - order[y.st]);
-  return (
-    <Reveal className="gap-3">
-      <SectionHead title={t('break.requests')} left={<TogetherIcon />} />
-      <Card>
-            {items.map(({ b, st }, i) => {
-              const names = joinNames(
-                (b.mine && b.state === 'planned' ? b.members.filter((m) => m.response === 'accepted') : otherPeople(b)).map((p) => p.display_name),
-                t('common.and'),
-              );
-              const when = `${dayWord(b.day, d.day, t, lang)} ${range(b.start, b.end)}`;
-              const title = st === 'planned' ? t('break.planned', { names }) : st === 'declined' ? t('break.declined', { names }) : t('break.askedTo', { names });
-              const sub = [when, st === 'asked' ? t('break.waiting') : howText(b, t)].join(' · ');
-              return (
-                <Row
-                  key={b.id}
-                  first={i === 0}
-                  title={title}
-                  sub={sub}
-                  left={<AvatarStack people={otherPeople(b).map((p) => ({ name: p.display_name, color: p.avatar_color, uid: p.id, photo: p.photo }))} size="md" ring="surface" />}
-                  right={
-                    // Small and on the side: the row says what it is, the action doesn't shout
-                    !b.mine ? (
-                      <Button variant="ghost" size="sm" label={t('break.notAnymore')} className="px-2" onPress={() => act(b, 'declined')} />
-                    ) : (
-                      <Button variant="ghost" size="sm" label={b.state === 'declined' ? t('break.remove') : t('break.cancel')} className="px-2" onPress={() => act(b, 'cancel')} />
-                    )
-                  }
-                >
-                  <View className="flex-row pt-0.5">
-                    <Tag kind={STATE_TAG[st]} icon={st === 'planned' ? 'check' : undefined}>
-                      {t(STATE_LABEL[st])}
-                    </Tag>
-                  </View>
-                  {b.note ? (
-                    <Text variant="sm" tone="ink2" numberOfLines={2}>
-                      “{b.note}”
-                    </Text>
-                  ) : null}
-                </Row>
-              );
-            })}
-      </Card>
-    </Reveal>
-  );
-}
-
 /** A break's state as a small tag: the same colours as the calendar, at the size of a word. */
 const STATE_TAG = { planned: 'together', asked: 'line', declined: 'bad' } as const;
 
 /**
- * "Wie is er nu?" — friends you pinned on top (with a thumbtack, also when they're not on campus), then free first;
+ * "Wie is er nu?" — tap a friend for your chat with them. Friends you pinned on top (with a thumbtack, also when they're not on campus), then free first;
  * the others who aren't on campus folded into one row. The server sorts it the same way; sorting here again keeps
  * a pin you just set in place before Today is fetched again.
  */
 function Board({ d, t }: { d: Today; t: T }) {
+  const open = useOpenDirect();
   const byId = new Map(d.friends.map((f) => [f.id, f]));
   const pinned = (id: number) => !!byId.get(id)?.pinned;
   const board = pinnedOnTop(d.board, (b) => pinned(b.id));
@@ -428,7 +346,9 @@ function Board({ d, t }: { d: Today; t: T }) {
                 </Text>
               }
               chevron
-              onPress={() => router.push(`/friends/${f.id}`)}
+              // To your chat with them: where you'd ask, and where their requests are
+              accessibilityHint={t('today.openChat')}
+              onPress={async () => router.push(`/chat/${(await open.mutateAsync(f.id)).id}`)}
             />
           );
         })}
@@ -446,31 +366,90 @@ function Board({ d, t }: { d: Today; t: T }) {
   );
 }
 
-const PLAN: { status: Checkin['status']; label: Key }[] = [
-  { status: 'chilling', label: 'plan.chilling' },
-  { status: 'want_chill', label: 'plan.wantChill' },
-  { status: 'home', label: 'plan.home' },
-  { status: 'absent', label: 'plan.absent' },
+type Status = NonNullable<Checkin['status']>;
+type BreakStatus = NonNullable<Checkin['break_status']>;
+
+const BREAK: { value: BreakStatus; label: 'plan.meet' | 'plan.busy' }[] = [
+  { value: 'want_chill', label: 'plan.meet' },
+  { value: 'busy', label: 'plan.busy' },
+];
+const AFTER: { value: Status; label: 'plan.chilling' | 'plan.wantChill' }[] = [
+  { value: 'chilling', label: 'plan.chilling' },
+  { value: 'want_chill', label: 'plan.wantChill' },
 ];
 
-/** "Wat is je plan deze middag?" — your own status for friends. */
-function Plan({ d, t, onPick }: { d: Today; t: T; onPick: (s: Checkin['status']) => void }) {
-  const mine = d.me.checkin?.status;
-  const hasLessons = d.me.lessons.some((l) => !isFree(l));
-  const options = hasLessons ? PLAN : PLAN.filter((p) => p.status !== 'home');
-  const until = d.me.status.until;
+/**
+ * Your own status for friends, in two parts. "In je pauze" (break_status) only while a break between classes is
+ * still ahead today, with the next one's time; "Na school" (status) until your last class ends, or longer when you
+ * said you stay. Nothing about the time before school. Tap a choice again to take it back. "Ik ben er vandaag niet"
+ * is a small toggle under it; "naar huis" is the button in the header. A day without classes: "Toch op de campus?".
+ */
+function Plan({ d, t, onStatus, onBreak }: { d: Today; t: T; onStatus: (s: Status | null) => void; onBreak: (b: BreakStatus) => void }) {
+  const status = d.me.checkin?.status ?? null;
+  const brk = d.me.checkin?.break_status ?? null;
+  const lessons = d.me.lessons.filter((l) => !isFree(l));
+  const note = (
+    <Text variant="sm" tone="ink2">
+      {t('plan.note')}
+    </Text>
+  );
+  if (lessons.length === 0) {
+    return (
+      <Section>
+        <SectionHead title={t('plan.titleFree')} />
+        <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
+          {AFTER.map((o) => (
+            <StatusOption key={o.value} label={t(o.value === 'chilling' ? 'plan.onCampus' : o.label)} on={status === o.value} onPress={() => onStatus(o.value)} />
+          ))}
+        </View>
+        {note}
+      </Section>
+    );
+  }
+  const away = status === 'home' || status === 'absent';
+  const last = Math.max(...lessons.map((l) => l.end));
+  const staying = status === 'chilling' || status === 'want_chill';
+  // The next break between classes that isn't over yet
+  const next = freeGaps(d.me.lessons).find((g) => g.end > d.now);
+  const showBreak = !away && !!next;
+  const showAfter = !away && (d.now < last || staying);
+  // Not there today: only while the day is still on (or to take it back)
+  const showAbsent = d.now < last || status === 'absent';
+  if (!showBreak && !showAfter && !showAbsent) return null;
   return (
-    <Section>
-      <SectionHead title={hasLessons ? t('plan.title') : t('plan.titleFree')} aside={hasLessons && until ? t('plan.until', { t: hhmm(until) }) : undefined} />
-      <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
-        {options.map((o) => (
-          <StatusOption key={o.status} label={t(o.status === 'chilling' && !hasLessons ? 'plan.onCampus' : o.label)} on={mine === o.status} onPress={() => onPick(o.status)} />
-        ))}
-      </View>
-      <Text variant="sm" tone="ink2">
-        {t('plan.note')}
-      </Text>
-    </Section>
+    <View className="gap-5">
+      {showBreak ? (
+        <Section>
+          <SectionHead title={t('plan.break')} aside={next.start <= d.now ? t('plan.breakNow', { t: hhmm(next.end) }) : range(next.start, next.end)} />
+          <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
+            {BREAK.map((o) => (
+              <StatusOption key={o.value} label={t(o.label)} on={brk === o.value} onPress={() => onBreak(o.value)} />
+            ))}
+          </View>
+        </Section>
+      ) : null}
+      {showAfter ? (
+        <Section>
+          <SectionHead title={t('plan.after')} aside={d.now < last ? t('plan.afterAt', { t: hhmm(last) }) : undefined} />
+          <View accessibilityRole="radiogroup" className="flex-row flex-wrap gap-2.5">
+            {AFTER.map((o) => (
+              <StatusOption key={o.value} label={t(o.label)} on={status === o.value} onPress={() => onStatus(o.value)} />
+            ))}
+          </View>
+        </Section>
+      ) : null}
+      {showBreak || showAfter ? note : null}
+      {showAbsent ? (
+        <Card>
+          <Row
+            first
+            title={t('plan.absent')}
+            sub={status === 'absent' ? t('plan.absentSub') : undefined}
+            right={<Toggle value={status === 'absent'} onChange={(v) => onStatus(v ? 'absent' : null)} label={t('plan.absent')} />}
+          />
+        </Card>
+      ) : null}
+    </View>
   );
 }
 

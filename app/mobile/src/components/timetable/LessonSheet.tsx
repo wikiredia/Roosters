@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { memo, useState } from 'react';
 import { View } from 'react-native';
 
-import { useDetails } from '@/api/hooks';
+import { useDetails, useOpenDirect } from '@/api/hooks';
 import type { Friend, Lesson, Together } from '@/api/types';
 import { Avatar, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
@@ -35,6 +35,7 @@ type Props = {
 export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends = [], together = [], onSkip, onUnskip }: Props) {
   const { t, lang } = useT();
   const details = useDetails();
+  const open = useOpenDirect();
   // Keep showing the last lesson while the sheet slides away
   const [last, setLast] = useState(lesson);
   if (lesson && lesson !== last) setLast(lesson);
@@ -93,9 +94,11 @@ export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends 
                     title={t('lesson.alsoFree', { name: f.display_name })}
                     sub={t('lesson.until', { t: hhmm(s.end) })}
                     chevron
-                    onPress={() => {
+                    // Straight to your chat with them: that's where you'd ask "zullen we?"
+                    onPress={async () => {
+                      const chat = await open.mutateAsync(f.id);
                       onClose();
-                      router.push(`/friends/${f.id}`);
+                      router.push(`/chat/${chat.id}`);
                     }}
                   />
                 );

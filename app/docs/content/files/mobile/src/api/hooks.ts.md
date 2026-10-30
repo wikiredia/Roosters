@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:31:00Z
+updated: 2026-10-30T12:00:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -50,8 +50,15 @@ everything: friends, Today, chats).
 ## `useBreaks`, `useAskBreak`, `useAnswerBreak`, `useBreakWrite`, `BreakAnswer`
 
 Break requests (`/api/v1/breaks`): the list (off for guests), asking, and yes / no / another time / taking it
-back. Every write answers with the whole list: it replaces `keys.breaks` and Today asks again (Today carries the
-requests too, in its one request).
+back. Every write answers with the whole list: it replaces `keys.breaks` and Today and the chats ask again (Today
+carries the requests too, in its one request; a chat shows each request as a card). Asking and 'Ander uur' also
+answer `chats`: the chats the card went to, so the app can open that chat.
+
+## `useAskAccess`, `useAnswerAccess`
+
+Access requests (`POST /friends/{id}/access`, `POST /access/{id}/{action}`): ask a friend to see more of their
+timetable (the answer has the chat its card went to), say yes / no to one, or take yours back. A yes changes what
+you show them, so friends and their timetables are asked again.
 
 ## `useAcceptInvite`, `useResetInvite`, `useFriendRequest`, `useAnswerRequest`, `useSetVisibility`, `useRemoveFriend`, `useBlock`
 
@@ -110,7 +117,8 @@ True for a signed-in non-guest: enables the friend queries.
 
 ## `useUpdateMe`, `useCheckin`, `useGhost`
 
-Profile (also `onboarded`), today's check-in, ghost mode.
+Profile (also `onboarded`), today's plan (`useCheckin`: send `{status}` for after school / the day or
+`{break_status}` for your breaks; only what's sent changes, shown at once), ghost mode.
 
 ## `usePush`, `useSetPush`
 

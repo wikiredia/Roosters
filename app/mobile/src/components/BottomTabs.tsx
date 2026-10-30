@@ -1,7 +1,7 @@
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useChats } from '@/api/hooks';
+import { useChats, useRequests } from '@/api/hooks';
 import { Badge } from '@/components/ui/Bits';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
@@ -16,11 +16,12 @@ export const TABS: Record<string, { icon: IconName; label: Key }> = {
   ik: { icon: 'user', label: 'tabs.me' },
 };
 
-/** The bar itself: the tab layout renders it, and so does a pushed screen that keeps the bar visible (Vergelijken). */
+/** The bar itself: the tab layout renders it, and so does a pushed screen that keeps the bar visible (Vergelijken).
+ * Chat's badge: unread messages plus friend requests you got (they're on top of the Chat tab). */
 export function BottomTabs({ active, onSelect }: { active?: string; onSelect: (name: string) => void }) {
   const { t } = useT();
   const insets = useSafeAreaInsets();
-  const unread = useChats().data?.unread ?? 0;
+  const unread = (useChats().data?.unread ?? 0) + (useRequests().data?.incoming.length ?? 0);
   return (
     <View
       accessibilityRole="tablist"

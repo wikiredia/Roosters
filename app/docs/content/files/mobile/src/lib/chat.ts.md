@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-30T10:30:00Z
 ---
 
 Pure helpers for the chat screens: times, the sentence for an event, the one-line preview. No hooks, no API.
@@ -13,6 +13,11 @@ day in a conversation "Vandaag", "Gisteren", "di 14 okt".
 
 The sentence for an event (`api/roosters/chat.py`: created, added, left, renamed, break_planned), with "Jij" for
 you and the names as they were then (from the payload: someone who left still has a name).
+
+## `requestText`
+
+A request card in one line: "Pauze samen? morgen 12:30", "Ander uur: vandaag 13:00", "Mag ik je rooster zien?",
+"Dit verzoek is er niet meer" (the language from the `lang` store unless given).
 
 ## `messageText`, `preview`
 

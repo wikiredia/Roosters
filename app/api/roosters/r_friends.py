@@ -9,7 +9,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 
-from . import config, db, friends, logic, redisx, schedule
+from . import access, config, db, friends, logic, redisx, schedule
 from .deps import Ctx, auth, etag_json, parse_day, verified
 from .errors import ApiError
 
@@ -73,6 +73,30 @@ def remove_friend(friend_id: int, ctx: Ctx = Depends(verified)):
     with db.tx() as c:
         friends.disconnect(c, ctx.uid, friend_id)
     return Response(status_code=204)
+
+
+# ---- Access requests ("Mag ik je rooster zien?") ---------------------------------
+
+class AccessIn(BaseModel):
+    visibility: Literal["full", "norooms"]
+
+
+@router.post("/friends/{friend_id}/access", status_code=201)
+def ask_access(friend_id: int, body: AccessIn, ctx: Ctx = Depends(verified)):
+    """Ask a friend to show you more of their timetable. The card goes in your direct chat with them (`chat_id`:
+    the app opens it). Rules in access.py."""
+    redisx.rate_limit(f"access-request:{ctx.uid}", 20, 3600)
+    with db.tx() as c:
+        rid, chat_id = access.ask(c, ctx.uid, friend_id, body.visibility)
+    return {"access": access.one(ctx.uid, rid), "chat_id": chat_id}
+
+
+@router.post("/access/{request_id}/{action}")
+def answer_access(request_id: int, action: Literal["accept", "decline", "cancel"], ctx: Ctx = Depends(verified)):
+    """Accept / decline one you got (accept: what you show them becomes what they asked), or cancel your own."""
+    with db.tx() as c:
+        access.answer(c, ctx.uid, request_id, action)
+    return {"access": access.one(ctx.uid, request_id)}
 
 
 # ---- Friend requests -------------------------------------------------------------

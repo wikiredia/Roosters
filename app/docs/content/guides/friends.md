@@ -1,7 +1,7 @@
 ---
 title: Friends, breaks, chat and privacy
 position: 40
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-30T12:00:00Z
 ---
 
 ## Becoming friends
@@ -28,8 +28,7 @@ shared break, Vergelijken's 'Voor jou', and every picker that keeps the API's or
 Chat tab's friends). A pin is **only yours**: it's `friendships.pinned` on your own row (migration `0014`), set with
 `PATCH /api/v1/friends/{id}` `{pinned}` (`r_friends.edit_friend`, `friends.set_pinned`); nothing a friend can ask
 reads it. It goes with the friendship (unfriending, blocking, deleting the account), is in the export, and has no
-cap (like pinned chats). 'Voor jou' break questions on Today stay in time order: the soonest one needs an answer
-first. App: the thumbtack on each row of `app/friends/index.tsx`, the 'Vastzetten' toggle on `app/friends/[id].tsx`,
+cap (like pinned chats). App: the thumbtack on each row of `app/friends/index.tsx`, the 'Vastzetten' toggle on `app/friends/[id].tsx`,
 `PinMark` (`components/ui/Bits.tsx`), `lib/friends.ts`, `usePinFriend`.
 
 ## Breaks together (logic.py)
@@ -45,14 +44,40 @@ first. App: the thumbtack on each row of `app/friends/index.tsx`, the 'Vastzette
   in its sheet, then a short summary of what changed with a 5-second Undo (`mobile/src/lib/skips.ts`,
   `components/timetable/SkipDrag.tsx`, `SkipToast.tsx`).
 
+## Requests: what counts as one, and where it lives
+
+Everything one person asks another lives in the **Chat tab**, never on Today. The kinds there are:
+
+| Kind | What you can do | Where |
+| --- | --- | --- |
+| **Break request** ("Pauze samen?", `breaks.py`) | ask; Ja / Nee / Ander uur (a counter is a new request back); take it back, remove a no, "Toch niet" after a yes | a **card in the chat**: the direct chat with each friend asked, or the group chat whose members are exactly the asker and the people asked (when one exists) |
+| **Access request** ("Mag ik je rooster zien?", `access_requests`) | ask a friend to show you more of their timetable (`full` or `norooms`); they say yes (that becomes what they show you) or no; take yours back | a **card in the direct chat** |
+| **Friend request** (`friend_requests`) | send (Vriend toevoegen, classmates in onboarding); ✓ / ✗; cancel yours | **not** in a chat (a chat only exists between friends): the collapsible 'Verzoeken' section pinned on top of the Chat tab, collapsed, with a red count; the tab icon's badge counts them too. Accepting opens the new chat |
+
+Not requests (no card, nobody approves anything):
+
+- **What you show a friend** (full / without rooms / free-busy, ghost mode): a setting on their profile, changed only by you.
+- **Statuses**: your plan for today (`checkins`: `break_status` for your breaks, want company or busy; `status` after
+  school, staying or wanting to chill; home; absent) and a friend's now-status. A friend's status line shows under their
+  name in your chat with them and on their profile.
+- Invite links: opening one makes you friends at once.
+
+A card is a chat message of kind `request` (migration `0016`): `user_id` is the asker, `payload` points at the request,
+and the API adds the request as it is now, so the card always shows the live state and the buttons for it, plus the
+Vergelijk icon (top right) for the people in it. It sits in the history like any message (full width, not pinned).
+After asking (a break, Ander uur, access) the app opens that chat (several separate chats: the Chat tab); a push about
+a request opens that chat too. Tapping a friend who has a status or an open request (Today's 'Wie is er nu?', the
+state tag of a shared break, '… is ook vrij' in a lesson) opens your chat with them. Each chat in the list with an
+open request has a small yellow 'Verzoek' tag (`requests` in `GET /chats`).
+
 ## Break requests (breaks.py)
 
 Tap a shared break and ask "Pauze samen?": I come, you come or meet somewhere, from–until, a note. Only friends
 who can see you; everyone must be free then; no asking the same people twice for the same time (from either side).
 They answer yes, no or another time; the asker can take it back. Unfriending or blocking makes requests disappear.
-Every step leaves an in-app notification and a push (`push.py`; a request comes with Ja / Nee on the phone); a yes
-also shows up in the chats the two share.
-App: `components/BreakSheet.tsx`, Today's 'Voor jou' (questions to you) and 'Jouw pauzes'.
+Every step leaves an in-app notification and a push (`push.py`; a request comes with Ja / Nee on the phone, and
+opens the chat with its card). Each request is a card in the chat (see above).
+App: `components/BreakSheet.tsx` (asking, Ander uur), `components/chat/RequestCard.tsx` (the card and its answers).
 
 ## Chat (chat.py)
 

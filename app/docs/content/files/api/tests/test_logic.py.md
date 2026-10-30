@@ -1,11 +1,12 @@
 ---
-updated: 2026-10-23T17:30:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 The break rules in `logic.py`, without a database: free time only between classes, no school is not free
 time, 30 minutes on the same campus vs. more across campuses, chilling extending and going home cutting
 breaks, absent, partners and campus windows, Compare finding every group (also across changing groups,
-not counting short overlaps), the now-board lines, travelling together.
+not counting short overlaps), the now-board lines, travelling together, and the break part of the plan
+("Ik ben bezig": no free breaks, `pauze_bezig` / `break_busy`; "Ik wil afspreken": `wants_to_chill`).
 
 ## `H`, `m`, `P`, `infos`
 

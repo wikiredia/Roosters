@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:30:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 **Friends**: the social side. Friend list, visibility and pins, requests within your school, invite links,
@@ -13,6 +13,8 @@ blocking, a friend's timetable, and Compare.
 - A friend sees your full timetable, everything but the rooms, or only free/busy, as **you** choose
   (`edit_friend`), and nothing
   while you're in ghost mode.
+- You can **ask** a friend to show you more of their timetable (`ask_access`, "Mag ik je rooster zien?"); only
+  their yes changes what they show you (`access.py`).
 - A pin is **only yours** (`edit_friend`, on your own `friendships` row): nothing a friend can ask shows it.
 
 The rules for who sees whom are in `friends.py`; break maths in `logic.py`.
@@ -92,3 +94,15 @@ pinned first, then by name (`friends.visible_friends`).
 
 `GET /api/v1/users/{id}/photo`: someone's profile photo for whoever may see it (`friends.may_see_photo`), else 404.
 Cached for good (`immutable`): the app asks with `?v=<photo_v>`, a new photo is a new URL.
+
+## `AccessIn`, `ask_access`
+
+`POST /api/v1/friends/{id}/access` `{visibility: 'full'|'norooms'}` → 201 `{access, chat_id}`: ask a friend to
+show you more. The card goes in your direct chat with them (`chat_id`: the app opens it). 404 `not_friends`, 400
+`access_has` (they show you that much already), 409 `access_dup` (yours is still open); rate limited (20 an hour).
+Rules in `access.py`.
+
+## `answer_access`
+
+`POST /api/v1/access/{id}/{accept|decline|cancel}` → `{access}`: accept or decline one you got (accept sets what
+you show them to what they asked), or cancel your own. 404 `not_found` for anyone else, or when it's no longer open.

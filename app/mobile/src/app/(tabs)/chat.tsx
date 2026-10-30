@@ -1,9 +1,10 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, View } from 'react-native';
 
-import { useChats, useFriends, useMe, useOpenDirect } from '@/api/hooks';
-import type { Chat, Friend } from '@/api/types';
-import { Avatar, AvatarStack, Badge, Banner } from '@/components/ui/Bits';
+import { useAnswerRequest, useChats, useFriends, useMe, useOpenDirect, useRequests } from '@/api/hooks';
+import type { Chat, Friend, PersonCard } from '@/api/types';
+import { Avatar, AvatarStack, Badge, Banner, Tag } from '@/components/ui/Bits';
 import { Button, IconButton } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Card, ListHead, Row } from '@/components/ui/Layout';
@@ -14,8 +15,9 @@ import { useT } from '@/i18n';
 import { preview, when } from '@/lib/chat';
 
 /**
- * Chat: pinned chats, your groups, and your friends (one-to-one; a friend you haven't written yet is there too, so
- * starting a chat is one tap). Unread ones are bold with a count. "+" makes a group.
+ * Chat: friend requests on top ("Verzoeken", folded by default), then pinned chats, your groups, and your friends
+ * (one-to-one; a friend you haven't written yet is there too, so starting a chat is one tap). Unread ones are bold
+ * with a count; a chat with an open break or access request has a yellow "Verzoek" tag. "+" makes a group.
  */
 export default function ChatScreen() {
   const { t } = useT();
@@ -58,6 +60,7 @@ export default function ChatScreen() {
       onRefresh={() => Promise.all([chats.refetch(), friends.refetch()])}
     >
       {chats.error && !chats.data ? <Banner kind="bad" title={t('chat.loadError')} body={t('common.tryAgain')} /> : null}
+      <FriendRequests />
       {loading ? (
         <Card className="p-4 gap-3">
           <Skeleton width={180} />
@@ -107,6 +110,89 @@ export default function ChatScreen() {
   );
 }
 
+/**
+ * "Verzoeken": friend requests, pinned on top and folded (the header shows how many came in). Open: who asked you
+ * (✓ accept, ✗ decline) and who you asked (✗ take it back, "wacht op antwoord"). Accepting opens the chat with them:
+ * a chat only exists between friends. Nothing when there are none.
+ */
+function FriendRequests() {
+  const { t } = useT();
+  const requests = useRequests();
+  const answer = useAnswerRequest();
+  const open = useOpenDirect();
+  const [shown, setShown] = useState(false);
+  const incoming = requests.data?.incoming ?? [];
+  const outgoing = requests.data?.outgoing ?? [];
+  if (!incoming.length && !outgoing.length) return null;
+  const busy = (id: number) => (answer.isPending && answer.variables?.id === id) || open.isPending;
+
+  async function accept(id: number, user: PersonCard) {
+    try {
+      await answer.mutateAsync({ id, action: 'accept' });
+      const c = await open.mutateAsync(user.id);
+      router.push(`/chat/${c.id}`);
+    } catch {
+      // Said under the list (answer.error / open.error)
+    }
+  }
+
+  const person = (u: PersonCard) => <Avatar name={u.display_name} color={u.avatar_color} uid={u.id} photo={u.photo} />;
+  return (
+    <Card>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: shown }}
+        accessibilityLabel={[t('friends.incoming'), incoming.length ? t('friends.newN', { n: incoming.length }) : null].filter(Boolean).join(', ')}
+        onPress={() => setShown((x) => !x)}
+        className="flex-row items-center gap-3 px-4 min-h-14 active:bg-surface-sunken"
+      >
+        <Icon name="users" size={22} color="ink" />
+        <Text bold className="flex-1">
+          {t('friends.incoming')}
+        </Text>
+        {incoming.length ? <Badge n={incoming.length} /> : null}
+        <View style={{ transform: [{ rotate: shown ? '180deg' : '0deg' }] }}>
+          <Icon name="down" size={20} color="ink-3" />
+        </View>
+      </Pressable>
+      {shown ? (
+        <>
+          {incoming.map((r) => (
+            <Row
+              key={`i${r.id}`}
+              className="pr-1.5"
+              left={person(r.user)}
+              title={r.user.display_name}
+              sub={t('friends.wantsToBeFriends')}
+              right={
+                <View className="flex-row">
+                  <IconButton icon="check" color="you-ink" label={t('friends.acceptName', { name: r.user.display_name })} disabled={busy(r.id)} onPress={() => accept(r.id, r.user)} />
+                  <IconButton icon="close" color="ink-2" label={t('friends.declineName', { name: r.user.display_name })} disabled={busy(r.id)} onPress={() => answer.mutate({ id: r.id, action: 'decline' })} />
+                </View>
+              }
+            />
+          ))}
+          {outgoing.map((r) => (
+            <Row
+              key={`o${r.id}`}
+              className="pr-1.5"
+              left={person(r.user)}
+              title={r.user.display_name}
+              sub={t('friends.waiting')}
+              right={<IconButton icon="close" color="ink-2" label={t('friends.cancelName', { name: r.user.display_name })} disabled={busy(r.id)} onPress={() => answer.mutate({ id: r.id, action: 'cancel' })} />}
+            />
+          ))}
+          {answer.error || open.error ? (
+            <Text variant="sm" bold tone="danger" className="px-4 pb-3">
+              {(answer.error ?? open.error)?.message}
+            </Text>
+          ) : null}
+        </>
+      ) : null}
+    </Card>
+  );
+}
+
 function ChatList({ head, chats, me }: { head: string; chats: Chat[]; me: number | undefined }) {
   if (!chats.length) return null;
   return (
@@ -137,7 +223,7 @@ function ChatRow({ chat, first, me }: { chat: Chat; first: boolean; me: number |
         )
       }
       title={name}
-      accessibilityLabel={[name, unread ? t('chat.unreadLabel', { n: chat.unread }) : null, line].filter(Boolean).join(', ')}
+      accessibilityLabel={[name, unread ? t('chat.unreadLabel', { n: chat.unread }) : null, chat.requests > 0 ? t('chat.requestTag') : null, line].filter(Boolean).join(', ')}
       onPress={() => router.push(`/chat/${chat.id}`)}
       sub={
         <Text variant="sm" tone={unread ? 'ink' : 'ink2'} bold={unread} numberOfLines={1}>
@@ -146,11 +232,15 @@ function ChatRow({ chat, first, me }: { chat: Chat; first: boolean; me: number |
       }
       right={
         <View className="items-end gap-1">
-          {chat.last ? (
-            <Text variant="xs" tone={unread ? 'ink' : 'ink3'} bold={unread}>
-              {when(chat.last.created_at, t, lang)}
-            </Text>
-          ) : null}
+          <View className="flex-row items-center gap-1.5">
+            {/* An open break or access request in it: small and yellow in the corner */}
+            {chat.requests > 0 ? <Tag kind="together">{t('chat.requestTag')}</Tag> : null}
+            {chat.last ? (
+              <Text variant="xs" tone={unread ? 'ink' : 'ink3'} bold={unread}>
+                {when(chat.last.created_at, t, lang)}
+              </Text>
+            ) : null}
+          </View>
           <View className="flex-row items-center gap-1">
             {chat.push ? (
               <View accessible accessibilityLabel={t('chat.bellOn')}>

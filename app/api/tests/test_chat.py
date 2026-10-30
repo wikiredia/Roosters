@@ -158,14 +158,54 @@ def test_turning_the_writer_off(client, three):
 
 
 def test_a_planned_break_shows_up_in_the_chats_they_share(client, mails, school):
+    # Signed in first: signing in runs the queued jobs, which would sync (and empty) the test timetables
+    lotte = login(client, "lotte@example.com", mails)
     reda, kayra = _setup(client, mails, school)
-    d = client.post("/api/v1/chats/direct", headers=reda["headers"], json={"user_id": kayra["user_id"]}).json()["chat"]
-    b = _ask(client, reda, kayra, mode="meet", place="cafetaria").json()["break"]
-    client.post(f"/api/v1/breaks/{b['id']}/respond", headers=kayra["headers"], json={"response": "accepted"})
-    ev = client.get(f"/api/v1/chats/{d['id']}/messages", headers=reda["headers"]).json()["messages"][-1]
+    befriend(client, reda, lotte)
+    befriend(client, kayra, lotte)
+    g = client.post("/api/v1/chats", headers=reda["headers"],
+                    json={"name": "x", "user_ids": [kayra["user_id"], lotte["user_id"]]}).json()["chat"]
+    b = _ask(client, reda, kayra, mode="meet", place="cafetaria").json()
+    d = b["chats"][0]
+    client.post(f"/api/v1/breaks/{b['break']['id']}/respond", headers=kayra["headers"], json={"response": "accepted"})
+    ev = client.get(f"/api/v1/chats/{g['id']}/messages", headers=reda["headers"]).json()["messages"][-1]
     assert ev["kind"] == "event" and ev["payload"]["type"] == "break_planned"
     assert ev["payload"]["place"] == "cafetaria" and ev["payload"]["start"] == 630
     assert sorted(ev["payload"]["people"]) == sorted([reda["user_id"], kayra["user_id"]])
+    # Not in the direct chat: its card already says it
+    kinds = [m["kind"] for m in client.get(f"/api/v1/chats/{d}/messages", headers=reda["headers"]).json()["messages"]]
+    assert kinds == ["request"]
+
+
+def test_a_request_card_shows_the_request_as_it_is_now(client, mails, school):
+    reda, kayra = _setup(client, mails, school)
+    r = _ask(client, reda, kayra).json()
+    bid, (d,) = r["break"]["id"], r["chats"]
+    url = f"/api/v1/chats/{d}/messages"
+    first = client.get(url, headers=kayra["headers"])
+    card = first.json()["messages"][-1]
+    assert (card["kind"], card["user_id"], card["payload"]) == ("request", reda["user_id"], {"type": "break", "request": bid})
+    req = card["request"]
+    assert (req["type"], req["id"], req["mine"], req["my_response"], req["state"], req["over"]) == \
+        ("break", bid, False, "pending", "pending", False)
+    assert client.get(url, headers=reda["headers"]).json()["messages"][-1]["request"]["mine"] is True
+    # Open request: the "Verzoek" tag on both sides; unread for the one asked (the Chat tab's badge), not the asker
+    assert [(c["id"], c["requests"], c["unread"]) for c in _chats(client, kayra)["chats"]] == [(d, 1, 1)]
+    assert _chats(client, reda)["unread"] == 0
+    assert _chats(client, kayra)["chats"][0]["last"]["request"]["id"] == bid
+    assert _chats(client, reda)["chats"][0]["requests"] == 1
+    # Answered: the same URL answers with something new (the ETag changes with the request)
+    tag = first.headers["etag"]
+    assert client.get(url, headers={**kayra["headers"], "X-If-None-Match": tag}).headers.get("x-not-modified") == "1"
+    client.post(f"/api/v1/breaks/{bid}/respond", headers=kayra["headers"], json={"response": "accepted"})
+    again = client.get(url, headers={**kayra["headers"], "X-If-None-Match": tag})
+    assert again.headers.get("x-not-modified") is None and again.headers["etag"] != tag
+    assert again.json()["messages"][-1]["request"]["state"] == "planned"
+    assert _chats(client, kayra)["chats"][0]["requests"] == 0
+    # Taken back: still on the card, as cancelled; a card can't be deleted like a message
+    client.post(f"/api/v1/breaks/{bid}/cancel", headers=reda["headers"])
+    assert client.get(url, headers=kayra["headers"]).json()["messages"][-1]["request"]["state"] == "cancelled"
+    assert client.delete(f"{url}/{card['id']}", headers=reda["headers"]).status_code == 404
 
 
 def test_deleting_an_account_takes_its_chats(client, three):

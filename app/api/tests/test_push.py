@@ -101,6 +101,23 @@ def test_build_groups_changes_of_a_day():
     assert [m["channelId"] for m in out] == ["requests", "changes"]
     assert out[0]["categoryId"] == "break_request" and out[0]["data"]["request"] == 3
     assert out[1]["title"] == "2 roosterwijzigingen morgen" and out[1]["collapseId"] == f"changes-{day}"
+    # Without a chat (older notifications): Today
+    assert out[0]["data"]["url"] == "/today"
+
+
+def test_access_texts():
+    notes = [{"kind": "access_request", "payload": {"from": 7, "request": 4, "visibility": "full", "chat": 9}, "day": None},
+             {"kind": "access_answer", "payload": {"from": 7, "request": 4, "visibility": "norooms", "response": "accepted",
+                                                   "chat": 9}, "day": None},
+             {"kind": "access_answer", "payload": {"from": 7, "request": 5, "response": "declined"}, "day": None}]
+    out = push.build(notes, {7: "Lotte"}, "nl", TODAY)
+    assert [(m["title"], m["body"]) for m in out] == [
+        ("Mag ik je rooster zien?", "Lotte vraagt om je volledige rooster te zien."),
+        ("Rooster gedeeld", "Lotte toont je nu het rooster (zonder lokalen)."),
+        ("Geen toegang", "Lotte deelt het rooster liever niet.")]
+    assert out[0]["data"] == {"kind": "access_request", "request": 4, "chat": 9, "url": "/chat/9"}
+    en = push.build(notes[:1], {7: "Lotte"}, "en", TODAY)[0]
+    assert en["body"] == "Lotte asks to see your full timetable."
 
 
 # ---- Tokens and settings -----------------------------------------------------------
@@ -151,6 +168,9 @@ def test_break_request_is_pushed_once(client, mails, school, expo):
     m = expo["sent"][0]
     assert m["to"] == TOKEN_A and m["title"] == "Pauze samen?" and m["categoryId"] == "break_request"
     assert m["body"] == "reda wil pauze met jou morgen om 10:30. Kan jij?" and m["data"]["request"] == b["id"]
+    # It opens the chat with the request's card
+    d = client.post("/api/v1/chats/direct", headers=kayra["headers"], json={"user_id": reda["user_id"]}).json()["chat"]
+    assert m["data"]["chat"] == d["id"] and m["data"]["url"] == f"/chat/{d['id']}"
     # Nothing new: nothing sent again
     jobs.enqueue("push", {"user_id": kayra["user_id"]})
     _pushes()

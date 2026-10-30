@@ -1,10 +1,11 @@
 ---
-updated: 2026-10-24T13:10:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 **Chat**: one-to-one chats between friends and groups of friends, text messages and events, read up to where,
 pinning, and moderation (report, block, take back; the moderators' side for `admin.py`). Routes: `r_chat.py`.
-Tables: `chats`, `chat_members`, `chat_messages`, `chat_reports` (`migrations/0009_chat.sql`). The app side
+Tables: `chats`, `chat_members`, `chat_messages`, `chat_reports` (`migrations/0009_chat.sql`,
+`0016_request_cards.sql`). The app side
 is `mobile/src/app/(tabs)/chat.tsx` (list) and `mobile/src/app/chat/[id].tsx` (a conversation).
 
 Who sees what, the rules everything here keeps:
@@ -15,6 +16,11 @@ Who sees what, the rules everything here keeps:
   one out deletes it.
 - messages from someone **you blocked** are gone for you only (`_not_blocked`), in groups too, also from the
   unread count and the preview. They don't notice.
+- **request cards** (`kind='request'`, written by the asker, payload `{type: 'break'|'access', request}`): a
+  break or access request as a full-width card. Only a pointer: `with_requests` adds the live request to every
+  answer (from your side; null when it's not for you any more), so the ETag of `messages` changes when it's
+  answered. Unread for the people asked (so the Chat tab's badge shows a new request), no `push_chat` (the request's own notification is the push), can't be taken
+  back or reported like a message. The card's chat: `post_request`.
 - **events** (`kind='event'`, no writer) carry a payload and the names it mentions as they were then; the app
   writes the sentence (`mobile/src/lib/chat.ts` `eventText`). Types: created, added, left, renamed,
   break_planned.
@@ -34,8 +40,10 @@ line in a row, None when empty: `chat_empty`), a group name (spaces collapsed; e
 
 ## `list_for`
 
-The chat list: your chats you can see, each with the newest message you can see, your unread count (text from
-others, not deleted, not from people you blocked) and the others in it; pinned first, then newest message first.
+The chat list: your chats you can see, each with the newest message you can see, your unread count (text and request cards from
+others, not deleted, not from people you blocked), `requests` (`_open_requests`) and the others in it; pinned first,
+then newest message first. Takes the user (not the id): breaks need the school's clock. A request card as `last`
+carries its `request` too.
 `unread` in total for the tab badge. A handful of queries for any number of chats.
 
 ## `chat_out`
@@ -46,6 +54,8 @@ them read (`last_read_id`: the app shows "gelezen" / "gelezen door 2").
 ## `messages`
 
 Oldest first: the newest page, the page above `before`, or what's newer than `after`. `more`: older ones exist.
+Request cards carry `request` (`with_requests`). Note: an `after` poll only returns newer messages, so a card's
+new state shows when the app asks for the page again (its ETag changes then).
 
 ## `_load`
 
@@ -85,8 +95,27 @@ reporter (`INSERT IGNORE`). `block` also blocks the writer (`friends.block`). Th
 
 ## `post_event`
 
-An event in every chat all these people are in (their one-to-one chat and the groups they share). Called by
-`breaks.respond` when someone says yes: "Lotte en Amir pakken samen pauze om 12:30".
+An event in every chat all these people are in (their one-to-one chat and the groups they share), except the ones
+in `skip`. Called by `breaks.respond` when someone says yes: "Lotte en Amir pakken samen pauze om 12:30", skipping
+the chats with that request's card.
+
+## `post_request`, `_group_of`
+
+A request card from the asker for some people: once in the group whose members are exactly them (2+ people;
+`_group_of`, the most recently active if several), else in the direct chat with each (`open_direct`, made if
+needed). Counts as read for the asker. → `{person: chat id}`, which `breaks.create` and `access.ask` put in the
+notification payload (`chat`) and the answer.
+
+## `card_chats`
+
+The chats holding the card of a request (newest first); with `uid` only the ones that person is in: the chat a
+`break_answer` / `break_cancelled` / `access_answer` push opens. Looks among the asker's messages (`k_user`).
+
+## `with_requests`, `_ref`, `_open_requests`
+
+`with_requests` fills `request` on the cards in a list of messages, in one query per type (`breaks.cards`,
+`access.cards`). `_open_requests` counts per chat the cards whose request is still open and involves you: a break
+request still pending and not over that you asked or haven't answered yet, an access request still pending.
 
 ## `delete_user`
 

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-30T13:30:00Z
 ---
 
 **Who may see whom.** A friendship is mutual (two rows in `friendships`). Each side chooses what the other
@@ -22,7 +22,9 @@ How many friends someone has (limit `config.MAX_FRIENDS`).
 
 ## `disconnect`
 
-Ends a friendship both ways.
+Ends a friendship both ways (unfriending, and blocking via `block`), and cancels open access requests between the
+two (`access.py`), so becoming friends again starts clean. Break requests and request cards are hidden while
+they're not friends (`breaks._out`, `access.cards`).
 
 ## `friend_out`
 

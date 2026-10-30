@@ -7,9 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useCSSVariable } from 'uniwind';
 
 import { useBlock, useChat, useMe, useMessages, useOlderMessages, useReadChat, useSendMessage, useToday } from '@/api/hooks';
-import type { ChatDetail, ChatMessage } from '@/api/types';
+import type { BreakRequest, ChatDetail, ChatMessage } from '@/api/types';
+import { BreakSheet, type BreakTarget } from '@/components/BreakSheet';
 import { ChatInfoSheet } from '@/components/chat/ChatInfoSheet';
 import { liftBy, MessageSheet, type Rect } from '@/components/chat/MessageSheet';
+import { RequestCard } from '@/components/chat/RequestCard';
 import { Avatar, AvatarStack, Tag } from '@/components/ui/Bits';
 import { IconButton } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -33,8 +35,9 @@ type Item =
 /**
  * One conversation. Newest at the bottom, scroll up for older ones. Your messages blue on the right, theirs on the
  * left (with a name in groups), events in the middle ("Lotte en Amir pakken samen pauze om 12:30", yellow for
- * breaks). On bad wifi a message shows "Versturen…" and, if it didn't go, "Tik om opnieuw te proberen" (sent once,
- * however often you tap: same Idempotency-Key). On top: their photo and name (tap: their page; a group: its info).
+ * breaks), break and access requests as full-width cards with their buttons (components/chat/RequestCard). On bad wifi a message shows "Versturen…" and, if it didn't go, "Tik om opnieuw te proberen" (sent once,
+ * however often you tap: same Idempotency-Key). On top: their photo and name with their status line under it ("Vrij
+ * tot 12:30"; tap: their page; a group: its info).
  * Long press a message: copy, report, block, take back; the chat slides up with the sheet and the message stays
  * bright above it. The + left of the box: camera and files (soon), compare timetables, report, block.
  */
@@ -62,6 +65,8 @@ export default function ChatScreen() {
   const [picked, setPicked] = useState<{ m: ChatMessage; rect: Rect | null } | null>(null);
   const [reporting, setReporting] = useState<ChatMessage | null>(null);
   const [info, setInfo] = useState(false);
+  // "Ander uur" on a request card
+  const [counter, setCounter] = useState<BreakTarget>(null);
   const [menu, setMenu] = useState(false);
   const [barH, setBarH] = useState(60);
   const block = useBlock();
@@ -112,13 +117,22 @@ export default function ChatScreen() {
     const s = today.data?.board.find((b) => b.id === p.id)?.status;
     return s ? statusLine(s, t).free : false;
   }).length;
-  const sub = c?.kind === 'group' ? [t('chat.members', { n: c.count }), free ? t('chat.freeNow', { n: free }) : null].filter(Boolean).join(' · ') : free ? t('chat.isFree') : undefined;
-
   const other = c?.kind === 'direct' ? people[0] : undefined;
+  // One-to-one: their status line from Today's board ("Vrij tot 12:30", "Les tot 11:45")
+  const theirStatus = other ? today.data?.board.find((b) => b.id === other.id)?.status : undefined;
+  const line = theirStatus ? statusLine(theirStatus, t) : null;
+  const sub =
+    c?.kind === 'group'
+      ? [t('chat.members', { n: c.count }), free ? t('chat.freeNow', { n: free }) : null].filter(Boolean).join(' · ')
+      : line
+        ? [line.strong, line.text].filter(Boolean).join(' ')
+        : undefined;
   // Their newest message: what "Melden" from the + reports (a group: long press the message itself)
   const theirLast = other ? [...messages].reverse().find((m) => m.user_id === other.id && m.kind === 'text' && !m.deleted && !m.removed) : undefined;
 
   const openPerson = () => (other ? router.push(`/friends/${other.id}`) : setInfo(true));
+
+  const otherTime = (request: BreakRequest) => setCounter({ kind: 'counter', request });
 
   function longPress(m: ChatMessage, r: Rect | null) {
     rect.set(r);
@@ -235,10 +249,10 @@ export default function ChatScreen() {
               fresh(item) ? (
                 // The list is upside down: "down" here comes up from the box
                 <AView entering={FadeInDown.duration(200)}>
-                  <Bubble item={item} c={c} myId={myId} onLong={longPress} onRetry={deliver} t={t} />
+                  <Bubble item={item} c={c} myId={myId} onLong={longPress} onRetry={deliver} onOtherTime={otherTime} t={t} />
                 </AView>
               ) : (
-                <Bubble item={item} c={c} myId={myId} onLong={longPress} onRetry={deliver} t={t} />
+                <Bubble item={item} c={c} myId={myId} onLong={longPress} onRetry={deliver} onOtherTime={otherTime} t={t} />
               )
             }
           />
@@ -337,6 +351,7 @@ export default function ChatScreen() {
       ) : null}
       {c ? <MessageSheet message={reporting} chat={c} myId={myId} startAt="report" onClose={() => setReporting(null)} /> : null}
       {c ? <ChatInfoSheet visible={info} chat={c} onClose={() => setInfo(false)} /> : null}
+      <BreakSheet target={counter} onClose={() => setCounter(null)} />
     </Screen>
   );
 }
@@ -379,7 +394,25 @@ function build(messages: ChatMessage[], outbox: (Outgoing & { after: number })[]
 const msgItem = (m: ChatMessage): Item => ({ type: 'msg', key: `m${m.id}`, m, who: false, meta: null });
 
 /** One row of the chat. `lifted`: just the bubble, for the copy over the message sheet's scrim. */
-function Bubble({ item, c, myId, onLong, onRetry, t, lifted }: { item: Item; c: ChatDetail | undefined; myId: number | undefined; onLong: (m: ChatMessage, r: Rect | null) => void; onRetry: (o: Outgoing) => void; t: T; lifted?: boolean }) {
+function Bubble({
+  item,
+  c,
+  myId,
+  onLong,
+  onRetry,
+  onOtherTime,
+  t,
+  lifted,
+}: {
+  item: Item;
+  c: ChatDetail | undefined;
+  myId: number | undefined;
+  onLong: (m: ChatMessage, r: Rect | null) => void;
+  onRetry: (o: Outgoing) => void;
+  onOtherTime?: (b: BreakRequest) => void;
+  t: T;
+  lifted?: boolean;
+}) {
   const box = useRef<ComponentRef<typeof View>>(null);
   if (item.type === 'day') {
     return (
@@ -415,7 +448,9 @@ function Bubble({ item, c, myId, onLong, onRetry, t, lifted }: { item: Item; c: 
     );
   }
   const m = item.m;
-  if (m.kind === 'event' && m.payload) {
+  // A request: full width, live state and its buttons (no long press: there's nothing to copy or report)
+  if (m.kind === 'request') return <RequestCard m={m} me={myId} onOtherTime={onOtherTime ?? (() => {})} />;
+  if (m.kind === 'event' && m.payload && 'names' in m.payload) {
     const together = m.payload.type === 'break_planned';
     return (
       <View className={cn('self-center max-w-[90%] flex-row items-center gap-1.5 px-2.5 py-1 rounded-full', together ? 'bg-together' : 'border border-dashed border-line-strong')}>

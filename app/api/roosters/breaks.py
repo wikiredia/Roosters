@@ -3,9 +3,13 @@ I come to you, you come to me, or meet at a place, from-until (by default the wh
 answers yes or no, or proposes another time ("Ander uur": a new request the other way). The routes are in
 r_breaks.py; the pure parts (no database) are at the top and tested on their own.
 
+Every request is a card in the chat (chat.post_request): in the direct chat with each person asked, or once in the
+group that is exactly them. `cards` is what such a card shows (also when it's over or cancelled).
+
 Tables: break_requests, break_request_members (migrations/0007_break_requests.sql). Every step leaves an in-app
-notification (kind break_request, break_answer, break_counter, break_cancelled; push comes later); a yes
-also shows up in the chats the two share (chat.post_event)."""
+notification with a push (kind break_request, break_answer, break_counter, break_cancelled; its payload names the
+chat with the card for whoever gets it, so the push opens that chat); a yes also shows up in the other chats the
+two share (chat.post_event), not in the ones with the card."""
 import datetime as dt
 
 from . import chat, db, friends, logic, notifications, schedule
@@ -22,7 +26,8 @@ MODES = ("i_come", "you_come", "meet")
 
 def conflict(info: logic.DayInfo, start: int, end: int) -> str | None:
     """Why can't this person between start and end? None = they can. The codes the app explains:
-    no_classes (not at school that day, or absent), home (already gone), in_class (a lesson in the way).
+    no_classes (not at school that day, or absent), home (already gone), in_class (a lesson in the way),
+    busy (said "Ik ben bezig" for their breaks today, and this is during one).
     Before the first or after the last lesson is fine: you can still meet then."""
     if not info.present:
         return "no_classes"
@@ -30,6 +35,8 @@ def conflict(info: logic.DayInfo, start: int, end: int) -> str | None:
         return "home"
     if any(s < end and e > start for s, e in info.busy):
         return "in_class"
+    if info.breaks_busy and any(s < end and e > start for s, e in logic.gaps(info.busy)):
+        return "busy"
     return None
 
 
@@ -110,10 +117,11 @@ def _existing(user_id: int, day: dt.date, ignore: int | None = None, c=None) -> 
 
 
 def create(c, user: dict, to_ids: list[int], day: dt.date, start: int, end: int, mode: str, place: str | None,
-           note: str | None, counter_of: int | None = None) -> int:
-    """Checks everyone and stores the request (inside the caller's transaction); tells the people asked.
-    Only friends who can see you and aren't hidden; everyone has to be free then (break_busy names who isn't,
-    with a code per person); the same people at the same time twice is a 409 break_dup."""
+           note: str | None, counter_of: int | None = None) -> tuple[int, list[int]]:
+    """Checks everyone and stores the request (inside the caller's transaction); puts its card in the chat and tells
+    the people asked. Only friends who can see you and aren't hidden; everyone has to be free then (break_busy
+    names who isn't, with a code per person); the same people at the same time twice is a 409 break_dup.
+    -> (request id, the chats the card went to)"""
     check_day(user, day)
     check_time(user, day, start, end)
     to_ids = sorted({i for i in to_ids if i != user["id"]})
@@ -139,10 +147,12 @@ def create(c, user: dict, to_ids: list[int], day: dt.date, start: int, end: int,
                  "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
                  (user["id"], day, start, end, mode, place, (note or "").strip() or None, counter_of), c)
     db.many("INSERT INTO break_request_members (request_id, user_id) VALUES (%s,%s)", [(rid, i) for i in to_ids], c)
+    chats = chat.post_request(c, user["id"], to_ids, {"type": "break", "request": rid})
     for i in to_ids:
         notifications.enqueue(i, "break_counter" if counter_of else "break_request", f"break:{rid}",
-                              {"request": rid, "from": user["id"], "start": start, "end": end, "mode": mode}, day, c=c)
-    return rid
+                              {"request": rid, "from": user["id"], "start": start, "end": end, "mode": mode,
+                               "chat": chats[i]}, day, c=c)
+    return rid, list(dict.fromkeys(chats.values()))
 
 
 def _load(c, rid: int) -> dict:
@@ -170,18 +180,22 @@ def respond(c, user: dict, rid: int, response: str) -> dict:
         db.run("UPDATE break_request_members SET response=%s, responded_at=UTC_TIMESTAMP() "
                "WHERE request_id=%s AND user_id=%s", (response, rid, user["id"]), c)
         stamp = db.utcnow().strftime("%Y%m%d%H%M%S")
+        cards = chat.card_chats(c, "break", rid, r["from_id"])
+        here = chat.card_chats(c, "break", rid, r["from_id"], user["id"])
         notifications.enqueue(r["from_id"], "break_answer", f"break:{rid}:{user['id']}:{response}:{stamp}",
                               {"request": rid, "from": user["id"], "response": response, "was": mine["response"],
-                               "start": r["start_min"], "end": r["end_min"]}, r["day"], c=c)
+                               "start": r["start_min"], "end": r["end_min"], "chat": here[0] if here else None},
+                              r["day"], c=c)
         if response == "accepted":
-            # In the chats they share: "Lotte en Amir pakken samen pauze om 12:30"
+            # In the other chats they share: "Lotte en Amir pakken samen pauze om 12:30" (the card says it already)
             chat.post_event(c, [r["from_id"], user["id"]], {"type": "break_planned", "day": r["day"].isoformat(),
                                                            "start": r["start_min"], "end": r["end_min"],
-                                                           "place": r["place"] if r["mode"] == "meet" else None})
+                                                           "place": r["place"] if r["mode"] == "meet" else None},
+                            skip=set(cards))
     return r
 
 
-def counter(c, user: dict, rid: int, start: int, end: int, place: str | None, note: str | None) -> int:
+def counter(c, user: dict, rid: int, start: int, end: int, place: str | None, note: str | None) -> tuple[int, list[int]]:
     """"Ander uur": a no to this one and a new request back to whoever asked, at the time you propose
     (who walks to whom flipped, same place)."""
     r = _load(c, rid)
@@ -201,8 +215,10 @@ def cancel(c, user: dict, rid: int):
     db.run("UPDATE break_requests SET cancelled_at=UTC_TIMESTAMP() WHERE id=%s", (rid,), c)
     for m in _members([rid], c)[rid]:
         if m["response"] != "declined":
+            here = chat.card_chats(c, "break", rid, user["id"], m["user_id"])
             notifications.enqueue(m["user_id"], "break_cancelled", f"break:{rid}:cancelled",
-                                  {"request": rid, "from": user["id"], "start": r["start_min"], "end": r["end_min"]},
+                                  {"request": rid, "from": user["id"], "start": r["start_min"], "end": r["end_min"],
+                                   "chat": here[0] if here else None},
                                   r["day"], push=m["response"] == "accepted", c=c)
 
 
@@ -210,25 +226,25 @@ def _person(uid: int, name: str, color: int, photo: int | None = None) -> dict:
     return {"id": uid, "display_name": name, "avatar_color": color, "photo": photo}
 
 
-def list_for(user: dict, day: dt.date | None = None) -> list[dict]:
-    """Requests from and to you that aren't over yet (today and the coming days, or one day), in time order.
-    Only with people who are still your friends: after unfriending or blocking they're gone."""
+_SELECT = ("SELECT DISTINCT b.*, u.display_name AS from_name, u.avatar_color AS from_color, u.photo_v AS from_photo "
+           "FROM break_requests b JOIN users u ON u.id=b.from_id LEFT JOIN break_request_members m ON m.request_id=b.id ")
+
+
+def _out(user: dict, rows: list[dict]) -> list[dict]:
+    """The requests as `user` sees them. Only with people who are still your friends: after unfriending or blocking
+    they're gone (left out)."""
     today, now = _now(user)
-    first, last = (day, day) if day else (today, today + dt.timedelta(days=MAX_DAYS_AHEAD))
-    rows = db.rows("SELECT DISTINCT b.*, u.display_name AS from_name, u.avatar_color AS from_color, u.photo_v AS from_photo "
-                   "FROM break_requests b JOIN users u ON u.id=b.from_id "
-                   "LEFT JOIN break_request_members m ON m.request_id=b.id "
-                   "WHERE b.cancelled_at IS NULL AND b.day BETWEEN %s AND %s AND (b.from_id=%s OR m.user_id=%s) "
-                   "ORDER BY b.day, b.start_min, b.id", (max(first, today), last, user["id"], user["id"]))
-    rows = [r for r in rows if not (r["day"] == today and r["end_min"] <= now)]
     known = {m["user"]["id"] for m in friends.visible_friends(user["id"])}
     ms = _members([r["id"] for r in rows])
     out = []
     for r in rows:
         mine = r["from_id"] == user["id"]
+        if not mine and user["id"] not in {m["user_id"] for m in ms[r["id"]]}:
+            continue
         members = [m for m in ms[r["id"]] if m["user_id"] in known or m["user_id"] == user["id"]]
         if (mine and not members) or (not mine and r["from_id"] not in known):
             continue
+        over = r["day"] < today or (r["day"] == today and r["end_min"] <= now)
         out.append({
             "id": r["id"], "day": r["day"].isoformat(), "start": r["start_min"], "end": r["end_min"],
             "mode": r["mode"], "place": r["place"], "note": r["note"], "counter_of": r["counter_of"],
@@ -236,10 +252,32 @@ def list_for(user: dict, day: dt.date | None = None) -> list[dict]:
             "members": [{**_person(m["user_id"], m["display_name"], m["avatar_color"], m["photo_v"]), "response": m["response"]}
                         for m in members],
             "my_response": None if mine else next((m["response"] for m in members if m["user_id"] == user["id"]), None),
-            "state": summarize([m["response"] for m in members]),
+            "state": "cancelled" if r["cancelled_at"] else summarize([m["response"] for m in members]),
             "now": r["day"] == today and r["start_min"] <= now < r["end_min"],
+            "over": over,
         })
     return out
+
+
+def list_for(user: dict, day: dt.date | None = None) -> list[dict]:
+    """Requests from and to you that aren't over yet (today and the coming days, or one day), in time order.
+    Not the cancelled ones; only with people who are still your friends."""
+    today, now = _now(user)
+    first, last = (day, day) if day else (today, today + dt.timedelta(days=MAX_DAYS_AHEAD))
+    rows = db.rows(_SELECT + "WHERE b.cancelled_at IS NULL AND b.day BETWEEN %s AND %s AND (b.from_id=%s OR m.user_id=%s) "
+                   "ORDER BY b.day, b.start_min, b.id", (max(first, today), last, user["id"], user["id"]))
+    return [b for b in _out(user, rows) if not b["over"]]
+
+
+def cards(user: dict, ids: list[int]) -> dict[int, dict | None]:
+    """What the request cards in the chat show `user` (chat.with_requests): each request as it is now, also when
+    it's over (`over`) or taken back (state 'cancelled'). None: not for them (any more), e.g. not friends now."""
+    ids = list(dict.fromkeys(ids))
+    if not ids:
+        return {}
+    ph, args = db.in_list(ids)
+    found = {b["id"]: {"type": "break", **b} for b in _out(user, db.rows(_SELECT + f"WHERE b.id IN ({ph})", args))}
+    return {i: found.get(i) for i in ids}
 
 
 def delete_user(c, uid: int):

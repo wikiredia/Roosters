@@ -5,6 +5,8 @@ Tijden zijn minuten sinds middernacht (Brussel).
 Een pauze = tijd zonder les TUSSEN je eerste en laatste les. Vóór je eerste les en na je
 laatste les ben je niet op school; een dag zonder les telt ook niet als vrije tijd.
 Uitzondering: wie zegt dat hij/zij in Antwerpen blijft chillen, is ook na de laatste les vrij.
+En wie voor de pauzes "Ik ben bezig" kiest (checkin break_status 'busy'), is in de pauzes tussen de lessen
+niet vrij: geen samen-pauzes, niemand kan dan vragen.
 """
 from dataclasses import dataclass, field
 
@@ -56,6 +58,8 @@ class DayInfo:
     busy: list
     free: list
     left_at: int | None = None
+    # "Ik ben bezig" in de pauzes: de pauzes tussen de lessen zitten niet in `free`
+    breaks_busy: bool = False
 
 
 def day_info(p: PersonDay) -> DayInfo:
@@ -66,7 +70,8 @@ def day_info(p: PersonDay) -> DayInfo:
     busy = merge(p.lessons)
     first = busy[0][0] if busy else None
     last = busy[-1][1] if busy else None
-    free = gaps(busy)
+    breaks_busy = ci.get("break_status") == "busy"
+    free = [] if breaks_busy else gaps(busy)
     present = bool(busy)
     if status in CHILL:
         until = ci.get("until_min") or LATE
@@ -84,7 +89,7 @@ def day_info(p: PersonDay) -> DayInfo:
         free = [(s, min(e, t)) for s, e in free if s < t]
         if last is not None and t < last:
             last = max(t, first or t)
-    return DayInfo(present, first, last, busy, free, left_at)
+    return DayInfo(present, first, last, busy, free, left_at, breaks_busy)
 
 
 def overlaps(a, b):
@@ -213,6 +218,14 @@ def compare_matches(people: list, infos: dict):
     return out
 
 
+def _busy_gap(info: DayInfo, now: int):
+    """De pauze tussen twee lessen waarin je nu zit, als je voor de pauzes "Ik ben bezig" koos (anders None).
+    Ingekort als je naar huis ging."""
+    if not info.breaks_busy:
+        return None
+    return next(((s, e) for s, e in school_breaks(info) if s <= now < e), None)
+
+
 def now_status(p: PersonDay, info: DayInfo, now: int) -> dict:
     """Eén regel voor het nu-bord."""
     ci = p.checkin or {}
@@ -227,6 +240,9 @@ def now_status(p: PersonDay, info: DayInfo, now: int) -> dict:
             return {"code": "les", "text": f"In les tot {fmt(e)}", "until": e, "rank": 2}
     if busy and now < busy[0][0]:
         return {"code": "straks", "text": f"Les om {fmt(busy[0][0])}", "until": busy[0][0], "rank": 3}
+    gap = _busy_gap(info, now)
+    if gap:
+        return {"code": "pauze_bezig", "text": f"Bezig tot {fmt(gap[1])}", "until": gap[1], "rank": 2}
     for s, e in info.free:
         if s <= now < e:
             if busy and now < busy[-1][1]:
@@ -269,6 +285,10 @@ def board_status(p: PersonDay, info: DayInfo, now: int) -> dict:
     if busy and now < busy[0][0]:
         return {"code": "straks", "text": f"Les om {fmt(busy[0][0])}", "sub": home_at, "can_ping": False, "rank": 3,
                 "until": busy[0][0]}
+    gap = _busy_gap(info, now)
+    if gap:
+        return {"code": "pauze_bezig", "text": f"Is bezig tot {fmt(gap[1])}", "sub": home_at, "can_ping": False,
+                "rank": 2, "until": gap[1]}
     for s, e in info.free:
         if s <= now < e:
             if last is not None and now < last:
