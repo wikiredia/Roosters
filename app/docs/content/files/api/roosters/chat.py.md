@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T13:30:00Z
+updated: 2026-10-30T15:07:00Z
 ---
 
 **Chat**: one-to-one chats between friends and groups of friends, text messages and events, read up to where,
@@ -19,7 +19,7 @@ Who sees what, the rules everything here keeps:
 - **request cards** (`kind='request'`, written by the asker, payload `{type: 'break'|'access', request}`): a
   break or access request as a full-width card. Only a pointer: `with_requests` adds the live request to every
   answer (from your side; null when it's not for you any more), so the ETag of `messages` changes when it's
-  answered. Unread for the people asked (so the Chat tab's badge shows a new request), no `push_chat` (the request's own notification is the push), can't be taken
+  answered (also when it stops being possible: `possible`/`blocked`, `breaks.feasibility`). Unread for the people asked (so the Chat tab's badge shows a new request), no `push_chat` (the request's own notification is the push), can't be taken
   back or reported like a message. The card's chat: `post_request`.
 - **events** (`kind='event'`, no writer) carry a payload and the names it mentions as they were then; the app
   writes the sentence (`mobile/src/lib/chat.ts` `eventText`). Types: created, added, left, renamed,
@@ -49,7 +49,9 @@ carries its `request` too.
 ## `chat_out`
 
 One chat for the conversation screen: everyone in it (`me`, `friend`: still your friend) and how far each of
-them read (`last_read_id`: the app shows "gelezen" / "gelezen door 2").
+them read (`last_read_id`: the app shows "gelezen" / "gelezen door 2"). With `user` (only `GET /chats/{id}` and
+`POST /chats/direct` pass it), a one-to-one chat also gets `breaks` (`breaks.shared_with`: shared breaks this school
+week, with `asked`); groups never. The other routes answer without it.
 
 ## `messages`
 

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:05:34Z
+updated: 2026-10-30T15:07:49Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -36,7 +36,8 @@ its data, or gets it out of sight, shows them as they are. There are **no layout
 hours change (zoom, a swipe to days with earlier lessons) they jump to the new place. A layout animation per block restarted
 a 200 ms animation for every block on every frame of a pinch or of dragging the strip's handle. Today has the 'now' line. Free moments between
 lessons (`Timetable.freeGaps`) are light grey with a small coffee cup, drawn behind everything: a shared break or a
-cancelled lesson goes over them. A tap on one where no shared break is drawn (`DayData.taps`, `TAP_ALONE`), today from now
+cancelled lesson goes over them. Today they follow your plan (`DayCache.DayPlan`: none when you're busy in your breaks,
+after school too when you stay). A tap on one where no shared break is drawn (`DayData.taps`, `TAP_ALONE`), today from now
 on or later, calls `onPressAlone` with that stretch ("Meestal ga je met:"); screen readers read 'Vrij, 10:00 tot 11:00' and
 can activate the whole gap when it isn't over.
 

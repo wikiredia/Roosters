@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:05:34Z
+updated: 2026-10-30T15:07:49Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -28,6 +28,9 @@ everything moves together in the same frame, on the UI thread.
   `api breaks.MAX_DAYS_AHEAD`), is **hatched** (`muted`) and a tap does nothing: you can't ask for it, so the app
   doesn't let you try. Tapping a yellow one opens `PeopleSheet` "Pauze mogelijk met:" (`askBreak`: the friends in it,
   each with their own free window, today from now on); a row there opens your chat with that friend, where you ask.
+- **Today's plan** (`useToday().data.me.checkin`) goes to `useDays` as a memoised `DayCache.DayPlan`: staying after
+  school makes after school a grey break of yours today, "Ik ben bezig" in your breaks makes today's breaks between
+  classes not yours (not drawn, not tappable). Only today's day is rebuilt when it changes.
 - **Your own break with nobody** (a free gap with the coffee cup where no shared break is drawn, today from now on or
   later): tapping it opens `PeopleSheet` "Meestal ga je met:" (`onPressAlone`, `useUsualPartners`). The calendar no
   longer opens `BreakSheet` itself (Today and the chat still do).
@@ -82,8 +85,8 @@ What `onView` reports, and what `control` can do.
 
 A small dark tip with 'Oké', over the content but never the whole screen.
 
-## `HOURS`, `AXIS_W`, `MIN_SPAN`, `DEFAULT_LEGEND`, `hoursFor`
+## `AXIS_W`, `MIN_SPAN`, `DEFAULT_LEGEND`, `hoursFor`
 
-Hours always on screen (8–18, lessons stretch them), the width of the hours on the left, the fewest hours the axis can be
+The hours always on screen are `DayCache.HOURS` (8–18, lessons stretch them), the width of the hours on the left, the fewest hours the axis can be
 dragged down to (`MIN_SPAN`), and what the legend shows before anything is loaded. `hoursFor`: the hours of the visible days, from their `bounds` (zoomed: only those of the lessons).
 How far ahead a shared break can be asked for (`ASK_DAYS`) moved to `DayCache`.
