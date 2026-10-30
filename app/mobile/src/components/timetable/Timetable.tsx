@@ -289,16 +289,17 @@ export function axisWidth(compact?: boolean) {
   return compact ? 24 : 44;
 }
 
-/** The hours on the left of a grid, with the 'now' time when it's on screen. */
+/** The hours on the left of a grid. The first and the last are always there and a little brighter: they are what you
+ * drag on the Rooster tab to change the hours you see (a narrow axis shows every other hour in between). */
 export const TimeAxis = memo(function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOUR] }: { pxPerHour?: number; compact?: boolean; hours?: [number, number] }) {
   const [h0, h1] = hours;
   const height = (h1 - h0) * pxPerHour;
   return (
     <View style={{ width: axisWidth(compact), height }}>
       {Array.from({ length: h1 - h0 + 1 }, (_, i) => h0 + i)
-        .filter((h) => !compact || (h - h0) % 2 === 0)
+        .filter((h) => !compact || h === h0 || h === h1 || ((h - h0) % 2 === 0 && h1 - h >= 2))
         .map((h) => (
-          <Text key={h} variant="xs" bold tone="ink3" className="absolute" style={{ top: (h - h0) * pxPerHour - 9, fontSize: compact ? 11 : 12 }}>
+          <Text key={h} variant="xs" bold tone={h === h0 || h === h1 ? 'ink2' : 'ink3'} className="absolute" style={{ top: (h - h0) * pxPerHour - 9, fontSize: compact ? 11 : 12 }}>
             {compact ? String(h) : `${String(h).padStart(2, '0')}:00`}
           </Text>
         ))}

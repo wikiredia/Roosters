@@ -306,6 +306,7 @@ export const nl = {
   'rooster.today': 'Vandaag',
   'rooster.zoomHint': 'Dubbeltik op je rooster om in te zoomen op je lessen. Knijp om meer of minder dagen te zien.',
   'rooster.zoomOut': 'Alles tonen',
+  'rooster.axisHint': 'Sleep omhoog of omlaag om de eerste of laatste uur te verschuiven',
   'rooster.resetHint': 'Reset naar deze week, maandag tot vrijdag, niet ingezoomd',
   'rooster.todayHint': 'Gaat terug naar vandaag. Sleep om te verplaatsen.',
   'rooster.nDays': '{n} dagen',

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T00:15:00Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -9,7 +9,8 @@ move all columns in the same frame; only a window of days around the view exists
 Gestures (Gesture Handler, all on the grid):
 - **pan**: follows the finger; on release `days.snap` decides where it lands and `onTarget` tells the screen right
   away (dates and data update before the spring ends), then it springs there (`SWIPE`: calm, no bouncing through days);
-- **pinch**: more or fewer days, the day under your fingers stays put; settles on whole days;
+- **pinch**: more or fewer days; the day on the left stays on the left (zooming out adds days on the right, never back in
+  time; zooming in narrows towards that day), whatever the fingers are over; settles on whole days;
 - **double tap**: `onDoubleTap` (the screen zooms the hours);
 - **tap**: finds the lesson (or shared break: `onPressTogether(day, span)`) under the finger. Taps go through the gesture system instead of a
   Pressable per lesson, so a swipe or a pinch never ends as a tap on the lesson it lets go of. Blocks are still

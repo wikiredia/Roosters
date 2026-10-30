@@ -23,14 +23,16 @@ import { useT } from '@/i18n';
 
 import { BlockView, Hatch } from './Timetable';
 
-/** Width of the bin that slides in on the right while you drag a class. */
+/** Width of the bin that slides in at the side while you drag a class. */
 export const BIN_W = 84;
+/** Rounding of the bin's inner corners (the card radius, tokens in global.css) */
+const BIN_RADIUS = 12;
 /** Resting this long (ms) on a class before moving picks it up whichever way you go; quicker and sideways is a swipe
  * through the days. */
 const HOLD = 140;
 /** A class you hold still lifts (a little bigger, a shadow) after this long (ms): it shows it can be dragged. */
 const LIFT_AFTER = 220;
-/** Moving at least this fast (px/s) to the right when you let go throws the card into the bin. */
+/** Moving at least this fast (px/s) towards the bin when you let go throws the card into it. */
 const THROW_V = 900;
 /** The card hangs from your finger: it swings with how fast you move, then settles. */
 const SWING = { damping: 13, stiffness: 150, mass: 0.6 };
@@ -54,6 +56,8 @@ export type SkipDrag = {
   lift: SharedValue<number>;
   over: SharedValue<number>;
   gone: SharedValue<number>;
+  /** Which side the bin is on: 1 right, -1 left. The half of the grid opposite where the finger came down. */
+  side: SharedValue<number>;
 };
 
 /** One object for the life of the component (so memoised children and gestures that take it stay as they are) */
@@ -67,7 +71,8 @@ export function useSkipDrag(): SkipDrag {
   const lift = useSharedValue(0);
   const over = useSharedValue(0);
   const gone = useSharedValue(0);
-  return useMemo(() => ({ phase, rect, grab, tx, ty, rot, lift, over, gone }), [phase, rect, grab, tx, ty, rot, lift, over, gone]);
+  const side = useSharedValue(1);
+  return useMemo(() => ({ phase, rect, grab, tx, ty, rot, lift, over, gone, side }), [phase, rect, grab, tx, ty, rot, lift, over, gone, side]);
 }
 
 type GestureProps = {
@@ -94,7 +99,7 @@ type GestureProps = {
  * The drag on a class, for the grid's gesture tree (before the swipe through the days, which waits for it to fail).
  * It decides itself when it starts (manual activation): a finger on a class that rests a moment, or moves more up or
  * down than sideways, picks the card up at once (no long press needed); a quick sideways swipe stays a swipe through
- * the days, and a tap stays a tap. Let go over the bin, or throw it to the right, and it's skipped.
+ * the days, and a tap stays a tap. Let go over the bin (on the half opposite where you picked the class up), or throw it that way, and it's skipped.
  * The gesture is made again only when one of its inputs changes (the grid's size, hours, or the callbacks: keep those
  * stable), as Reanimated advises; a new gesture on every render would be re-attached every time.
  */
@@ -134,6 +139,8 @@ export function useSkipGesture(p: GestureProps) {
           drag.rot.set(0);
           drag.over.set(0);
           drag.gone.set(0);
+          // A class on the right half: the bin comes in on the left, so the card never has to go past its own column
+          drag.side.set(touch.x > width / 2 ? -1 : 1);
           drag.phase.set(1);
           drag.lift.set(withDelay(LIFT_AFTER, withSpring(1, SWING)));
           down.set({ x: touch.x, y: touch.y, at: Date.now(), day, start: hit.start });
@@ -178,22 +185,26 @@ export function useSkipGesture(p: GestureProps) {
           const r = drag.rect.get();
           const below = drag.grab.get().y < r.h / 2 ? 1 : -1;
           const fingerX = down.get().x + e.translationX;
-          const isOver = fingerX > width - BIN_W ? 1 : 0;
+          const side = drag.side.get();
+          const isOver = (side > 0 ? fingerX > width - BIN_W : fingerX < BIN_W) ? 1 : 0;
           if (isOver !== Math.round(drag.over.get())) drag.over.set(withTiming(isOver, { duration: 140 }));
-          drag.rot.set(withSpring(Math.max(-18, Math.min(18, vx / 55)) * below + isOver * 6, SWING));
+          drag.rot.set(withSpring(Math.max(-18, Math.min(18, vx / 55)) * below + isOver * 6 * side, SWING));
         })
         .onEnd((e) => {
           const fingerX = down.get().x + e.translationX;
-          const over = fingerX > width - BIN_W;
-          const thrown = e.velocityX > THROW_V && fingerX + e.velocityX * 0.2 > width - BIN_W * 0.5;
+          const side = drag.side.get();
+          // The bin's edge as a distance from its own side of the grid (positive = into the bin)
+          const depth = side > 0 ? fingerX - (width - BIN_W) : BIN_W - fingerX;
+          const over = depth > 0;
+          const thrown = e.velocityX * side > THROW_V && depth + e.velocityX * side * 0.2 > BIN_W * 0.5;
           const r = drag.rect.get();
           if (over || thrown) {
             drag.phase.set(3);
             drag.over.set(withTiming(1, { duration: 100 }));
             const fly = { duration: thrown && !over ? 200 : 240, easing: Easing.in(Easing.quad) };
-            drag.tx.set(withTiming(width - BIN_W / 2 - (r.x + r.w / 2), fly));
+            drag.tx.set(withTiming((side > 0 ? width - BIN_W / 2 : BIN_W / 2) - (r.x + r.w / 2), fly));
             drag.ty.set(withTiming(height / 2 - (r.y + r.h / 2), fly));
-            drag.rot.set(withTiming(drag.rot.get() + 30, fly));
+            drag.rot.set(withTiming(drag.rot.get() + 30 * side, fly));
             drag.gone.set(
               withTiming(1, fly, (done) => {
                 if (!done) return;
@@ -224,7 +235,8 @@ export function useSkipGesture(p: GestureProps) {
 
 /**
  * What you see while dragging, over the grid (it never takes a touch): a dashed hole where the class was, the card
- * hanging from your finger (it swings as you move, and shrinks over the bin), and the bin on the right: a see-through
+ * hanging from your finger (it swings as you move, and shrinks over the bin), and the bin at the side opposite where
+ * the class was (`drag.side`): a see-through
  * zone of faint grey diagonal lines (the grid stays visible through it) that darkens, and whose bin opens up, when the
  * card is over it. The bin and its word sit on a patch, so the lines stop around them. `lesson`: the class under your
  * finger (Calendar keeps it).
@@ -255,11 +267,24 @@ export const DragLayer = memo(function DragLayer({ drag, lesson, width, height, 
       elevation: 12 * drag.lift.get(),
     };
   });
-  const bin = useAnimatedStyle(() => ({
-    transform: [{ translateX: interpolate(show.get(), [0, 1], [BIN_W + 24, 0]) }],
-    // Barely tinted, so the days behind it stay visible; a little more when the card is over it
-    backgroundColor: interpolateColor(drag.over.get(), [0, 1], ['rgba(110,106,98,0.04)', 'rgba(110,106,98,0.12)']),
-  }));
+  // The bin sits against the edge opposite the class (right or left): border, rounding and slide-in follow `side`
+  const bin = useAnimatedStyle(() => {
+    const side = drag.side.get();
+    return {
+      left: side > 0 ? width - BIN_W : 0,
+      borderLeftWidth: side > 0 ? 1.5 : 0,
+      borderRightWidth: side > 0 ? 0 : 1.5,
+      borderTopLeftRadius: side > 0 ? BIN_RADIUS : 0,
+      borderBottomLeftRadius: side > 0 ? BIN_RADIUS : 0,
+      borderTopRightRadius: side > 0 ? 0 : BIN_RADIUS,
+      borderBottomRightRadius: side > 0 ? 0 : BIN_RADIUS,
+      transform: [{ translateX: interpolate(show.get(), [0, 1], [(BIN_W + 24) * side, 0]) }],
+      // Out of sight while away (on the left it would hang over the hours); barely tinted, so the days behind it stay
+      // visible, a little more when the card is over it
+      opacity: show.get() > 0.01 ? 1 : 0,
+      backgroundColor: interpolateColor(drag.over.get(), [0, 1], ['rgba(110,106,98,0.04)', 'rgba(110,106,98,0.12)']),
+    };
+  });
   const hatch = useAnimatedStyle(() => ({ opacity: 0.55 + 0.45 * drag.over.get() }));
   const lid = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + 0.3 * drag.over.get() }, { rotate: `${-14 * drag.over.get()}deg` }],
@@ -271,8 +296,8 @@ export const DragLayer = memo(function DragLayer({ drag, lesson, width, height, 
     <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, width, height }}>
       <Animated.View style={[{ position: 'absolute' }, hole]} className="rounded-block border-[1.5px] border-dashed border-line-strong bg-surface-sunken" />
       <Animated.View
-        style={[{ position: 'absolute', top: 0, bottom: 0, right: 0, width: BIN_W }, bin]}
-        className="rounded-l-card overflow-hidden border-l-[1.5px] border-y-[1.5px] border-dashed border-line-strong items-center justify-center"
+        style={[{ position: 'absolute', top: 0, bottom: 0, width: BIN_W, borderTopWidth: 1.5, borderBottomWidth: 1.5 }, bin]}
+        className="overflow-hidden border-dashed border-line-strong items-center justify-center"
       >
         <Animated.View style={[{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0 }, hatch]}>
           <Hatch color={lines} gap={9} opacity={0.35} />
