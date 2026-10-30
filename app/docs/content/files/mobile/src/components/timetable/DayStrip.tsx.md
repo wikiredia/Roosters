@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T08:10:38Z
 ---
 
 The **week strip** above the timetable: seven equal cells. What you see in the grid is a white cell (the first day)
@@ -16,7 +16,8 @@ under it, live. **Push it against the strip's edge** and the dates scroll furthe
 which days to load. Let go and it settles on a whole day (`onTarget`; the screen then springs `k` so the strip sits on
 the week again). Swiping the dates themselves does nothing: the grid's swipe moves the dates under the band (the strip
 shows `offset - k` …). When the band grows past Sunday the dates slide left under it. The dash's drag blocks moving
-the group and a tap.
+the group and a tap. While the dash is dragged a **faint dash** (`target`, 45 % opaque) shows where it will settle:
+whole days, so it jumps from day to day ahead of your finger (the same rounding as `onFinalize`).
 
 Taps go through the gesture system (not a Pressable per day), so a swipe never ends as a tap: tap a day to start
 there. Under each date a small **dot per kind** of lesson that day (`Timetable.kindsOf`, `KIND_DOT`: theory blue, lab
@@ -32,6 +33,10 @@ the new first day when you pulled it back, else `undefined`); `kinds.get(day)` g
 group was let go, `onMove` the first day while it scrolls at the edge;
 `nudge` makes the dash wiggle (first-time tip). `n` is the number of days as React knows it, for the
 screen reader label and the adjustable action: render never reads the shared `count` (Reanimated warns about that).
+
+**Date cells** (inside `DayStrip`) are placed from a day kept from the first render (`left = (day - base) * cell`, `base` in the
+component); only the shared `offset` moves them (`translateX`). They used to be placed from `from`, which changes with every swipe; React moved the
+cells in one frame and the UI thread slid them a frame later, so for a moment the strip showed other weekdays and dates.
 
 ## `H`, `EDGE`, `SCROLL_MIN`, `SCROLL_MAX`, `NO_DOTS`
 

@@ -1,6 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useState } from 'react';
 
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { pinnedFirst } from '@/lib/friends';
 import { clearSession } from '@/lib/session';
 import { type SkipTarget, withSkip } from '@/lib/skips';
@@ -508,6 +509,56 @@ export function useDeleteSource() {
 
 export function useRefresh() {
   return useMutation({ mutationFn: () => api.post('/api/v1/me/refresh') });
+}
+
+/** How long the Rooster tab's refresh button waits for the sources to answer before it gives up spinning */
+const REFRESH_WAIT = 40_000;
+
+/**
+ * The refresh button on the Rooster tab: asks the API to fetch my classes and calendar links again from where they
+ * come from (Untis, the .ics links), not just to send what it has. That runs as a job, so after the request goes
+ * through the sources are polled until each has a newer `last_ok` (or a new error); then the timetable queries are
+ * fetched again. `busy` is true meanwhile. Within the API's cooldown (90 s) it answers 429: the timetable was just
+ * refreshed, so only the fetch from the API is done.
+ */
+export function useSourceRefresh() {
+  const qc = useQueryClient();
+  const sources = useSources();
+  const post = useRefresh();
+  const [waiting, setWaiting] = useState<Record<number, { ok: string | null; error: string | null }> | null>(null);
+  const refetchTimetable = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['schedule'] });
+    qc.invalidateQueries({ queryKey: ['today'] });
+  }, [qc]);
+  // Every source has been fetched again since the button was pressed (or failed doing it)
+  const finished = !!waiting && !!sources.data && sources.data.every((s) => !waiting[s.id] || s.last_ok !== waiting[s.id].ok || (!!s.error && !waiting[s.id].error));
+  const pending = !!waiting && !finished;
+  useEffect(() => {
+    if (finished) refetchTimetable();
+  }, [finished, refetchTimetable]);
+  useEffect(() => {
+    if (!pending) return;
+    const poll = setInterval(() => qc.invalidateQueries({ queryKey: keys.sources }), 2000);
+    const stop = setTimeout(() => {
+      setWaiting(null);
+      refetchTimetable();
+    }, REFRESH_WAIT);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(stop);
+    };
+  }, [pending, qc, refetchTimetable]);
+  const run = useCallback(() => {
+    if (pending || post.isPending) return;
+    const before = Object.fromEntries((sources.data ?? []).map((s) => [s.id, { ok: s.last_ok, error: s.error }]));
+    post.mutate(undefined, {
+      onSuccess: () => setWaiting(before),
+      onError: (e) => {
+        if (e instanceof ApiError && e.status === 429) refetchTimetable();
+      },
+    });
+  }, [pending, post, sources.data, refetchTimetable]);
+  return { run, busy: post.isPending || pending };
 }
 
 export function useAcceptInvite() {

@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { type SharedValue, useAnimatedStyle, useFrameCallback, useSharedValue, withRepeat, withSequence, withSpring, withTiming } from 'react-native-reanimated';
@@ -66,6 +66,10 @@ type Props = {
 export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, from, to, today, lang, kinds, onPick, onTarget, onMove, onResize, onResizeEnd, nudge }: Props) {
   const { t } = useT();
   const cell = width / 7;
+  // The day the cells are placed from. Never changes: the cells keep their place and only the shared offset moves them.
+  // (Placing them from `from`, which changes with every swipe, moved the cells in this render and their sliding on the
+  // UI thread a frame later: for a moment the strip showed other dates.)
+  const [base] = useState(from);
   const startCount = useSharedValue(1);
   const startK = useSharedValue(0);
   const startOffset = useSharedValue(0);
@@ -79,11 +83,18 @@ export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, fro
   const push = useSharedValue(0);
   const told = useSharedValue(0);
 
-  const dates = useAnimatedStyle(() => ({ transform: [{ translateX: (from - (offset.get() - k.get())) * cell }] }));
+  const dates = useAnimatedStyle(() => ({ transform: [{ translateX: (base - (offset.get() - k.get())) * cell }] }));
   const white = useAnimatedStyle(() => ({ left: k.get() * cell, width: cell, transform: [{ scale: 1 + lifted.get() * 0.06 }] }));
   const band = useAnimatedStyle(() => ({ left: k.get() * cell, width: count.get() * cell, transform: [{ scaleY: 1 + lifted.get() * 0.06 }] }));
   const body = useAnimatedStyle(() => ({ left: k.get() * cell, width: Math.max(0, count.get() * cell - 22) }));
   const handle = useAnimatedStyle(() => ({ left: (k.get() + count.get()) * cell - 22 }));
+  // While the dash is dragged: a faint dash where it will settle (whole days), jumping from day to day ahead of the finger
+  const resizing = useSharedValue(false);
+  const target = useAnimatedStyle(() => {
+    const days = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
+    const first = Math.max(0, Math.min(Math.round(k.get()), 7 - days));
+    return { left: (first + days) * cell - 22, opacity: withTiming(resizing.get() ? 0.45 : 0, { duration: 120 }) };
+  });
   const wiggle = useSharedValue(0);
   const dash = useAnimatedStyle(() => ({ transform: [{ translateX: wiggle.get() }] }));
   useEffect(() => {
@@ -143,6 +154,9 @@ export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, fro
       Gesture.Pan()
         .hitSlop({ left: 16, right: 16, top: 10, bottom: 10 })
         .activeOffsetX([-4, 4])
+        .onStart(() => {
+          resizing.set(true);
+        })
         .onBegin(() => {
           startCount.set(count.get());
           startK.set(k.get());
@@ -179,6 +193,7 @@ export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, fro
           }
         })
         .onFinalize(() => {
+          resizing.set(false);
           const days = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
           count.set(withSpring(days, RESIZE));
           k.set(withSpring(Math.max(0, Math.min(Math.round(k.get()), 7 - days)), RESIZE));
@@ -189,7 +204,7 @@ export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, fro
           } else scheduleOnRN(onResizeEnd, days, undefined);
         })
         .blocksExternalGesture(move, tap),
-    [startCount, startK, startOffset, pulled, last, count, k, offset, cell, onResize, onResizeEnd, move, tap],
+    [startCount, startK, startOffset, pulled, last, resizing, count, k, offset, cell, onResize, onResizeEnd, move, tap],
   );
 
   // Pushed against an edge: the dates scroll under the group, every frame (the group stays at the edge)
@@ -231,7 +246,7 @@ export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, fro
                     accessibilityLabel={shortDate(d, lang)}
                     onAccessibilityTap={() => onPick(day)}
                     className="absolute top-0 bottom-0 items-center justify-center"
-                    style={{ left: (day - from) * cell, width: cell }}
+                    style={{ left: (day - base) * cell, width: cell }}
                   >
                     <Text variant="xs" bold tone={weekend ? 'ink3' : 'ink2'}>
                       {weekdayShort(d, lang)}
@@ -254,6 +269,9 @@ export const DayStrip = memo(function DayStrip({ offset, count, n, k, width, fro
             <GestureDetector gesture={move}>
               <AView className="absolute top-0 bottom-0" style={body} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />
             </GestureDetector>
+            <AView className="absolute top-0 bottom-0 w-[22px] items-center justify-center" style={target} pointerEvents="none">
+              <View className="w-1 h-6 rounded-full bg-ink-3" />
+            </AView>
             <GestureDetector gesture={pan}>
               <AView
                 className="absolute top-0 bottom-0 w-[22px] items-center justify-center"

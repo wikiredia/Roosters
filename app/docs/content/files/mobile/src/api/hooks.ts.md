@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-30T08:10:38Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -66,7 +66,14 @@ shared breaks on it too).
 
 ## `useAddClass`, `useAddIcs`, `useUpdateSource`, `useDeleteSource`, `useRefresh`
 
-Timetable sources and the manual refresh.
+Timetable sources and the manual refresh (`POST /me/refresh`: the API queues a sync of every class and link).
+
+## `useSourceRefresh`
+
+The Rooster tab's refresh button. Posts `useRefresh`, then asks `GET /me/sources` every 2 s until every source has a newer
+`last_ok` (or a new error) than when the button was pressed, for 40 s at most (`REFRESH_WAIT`), and then fetches
+`['schedule']` and `['today']` again. `busy` is true meanwhile (the arrow turns). A 429 (`refresh_cooldown`: refreshed
+less than 90 s ago) only fetches our API again.
 
 ## `useFriends`, `useRequests`, `useInvite`, `useFriendSchedule`, `useCompare`, `useClassmates`
 

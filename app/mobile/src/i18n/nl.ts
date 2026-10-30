@@ -297,6 +297,7 @@ export const nl = {
 
   'rooster.compare': 'Vergelijk met…',
   'rooster.reset': 'Reset',
+  'rooster.refresh': 'Rooster opnieuw ophalen bij de bron',
   'rooster.compareShort': 'Vergelijk',
   'rooster.daysLabel': '{n} dagen naast elkaar',
   'rooster.fewer': 'Minder dagen',
