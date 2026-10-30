@@ -30,7 +30,7 @@ case "$(envval app/.env COMPOSE_FILE)" in *docker-compose.prod.yml*) prod=1 ;; e
 if [ -n "$prod" ]; then
   API_URL="${API_URL:-$(envval app/.env PUBLIC_URL)}"
 fi
-API_URL="${API_URL:-http://94.226.242.154:8010}"
+API_URL="${API_URL:-https://api.roostersplus.be}"
 
 step "git pull"
 lock_before="$(git rev-parse HEAD:app/mobile/package-lock.json 2>/dev/null || true)"
@@ -87,4 +87,4 @@ if [ ! -d node_modules ] || [ "$lock_before" != "$lock_after" ]; then
 fi
 
 step "expo start -c (API: $API_URL)"
-EXPO_PUBLIC_API_URL="$API_URL" exec npx expo start -c
+EXPO_PUBLIC_API_URL="$API_URL" exec npx expo start -c --tunnel

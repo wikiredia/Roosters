@@ -25,8 +25,8 @@ x-app: &app
   environment:
     DB_HOST: db
     REDIS_URL: redis://redis:6379/0
-    SMTP_HOST: mailpit
-    SMTP_PORT: "1025"
+    SMTP_HOST: email-smtp.eu-north-1.amazonaws.com
+    SMTP_PORT: "587"
   read_only: true
   tmpfs: [/tmp]
   cap_drop: [ALL]
