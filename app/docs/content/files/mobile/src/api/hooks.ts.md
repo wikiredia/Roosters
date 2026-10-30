@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T08:10:38Z
+updated: 2026-10-30T09:31:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -66,7 +66,15 @@ shared breaks on it too).
 
 ## `useAddClass`, `useAddIcs`, `useUpdateSource`, `useDeleteSource`, `useRefresh`
 
-Timetable sources and the manual refresh (`POST /me/refresh`: the API queues a sync of every class and link).
+Timetable sources and the manual refresh (`POST /me/refresh`: the API queues a sync of every class and link). Adding a
+class or link also refetches the lesson details (it can be a new origin).
+
+## `useDetails`, `useSaveDetails`
+
+How your lessons' details break up and how you show them, per origin (`GET /me/details`, `api/roosters/r_details.py`):
+used by the onboarding step `app/onboarding/details.tsx` and the lesson sheet. Fresh for 5 minutes, saved on the phone
+(`lib/query.shouldPersist`), polled every 3 s while an origin has nothing fetched yet. Saving (`PUT
+/me/details/<origin>`) puts the answer in the cached list.
 
 ## `useSourceRefresh`
 

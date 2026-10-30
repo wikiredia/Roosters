@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:45:00Z
+updated: 2026-10-30T09:29:00Z
 ---
 
 **Sign in with Google** on the phone, with `react-native-nitro-google-signin` (Android Credential Manager, Google's
@@ -14,7 +14,7 @@ on both platforms this is the token's audience `aud`, so it must be in the serve
 `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` (the iOS client; `app.config.ts` makes the URL scheme from it). Android needs no
 id in the app: Google recognises it by package name + SHA-1. Setup in Google Cloud: guide **Running and operating**.
 
-The UI is `components/GoogleButton.tsx` (welcome, and the e-mail screen for guests).
+The UI is `components/GoogleButton.tsx` (the sign-in screen `app/login/index.tsx`, and the e-mail screen for guests).
 
 ## `WEB_CLIENT_ID`, `IOS_CLIENT_ID`
 
@@ -48,6 +48,7 @@ What went wrong on the phone's side: `playServices` (Android without up-to-date 
 
 The whole flow: Google → `freshenGuestToken` → `POST /auth/google` with the device → `afterSignIn`. The request goes
 through the normal client **with** the access token when there is one, like the e-mail code: a **guest** is then
-upgraded (`r_auth._guest_id`), keeping their school and timetable. Returns false when cancelled; throws
+upgraded (`r_auth._guest_id`), keeping their school and timetable. Returns the tokens (with `account`: what happened
+to the account), or null when cancelled; throws
 `GoogleError`, or `ApiError`/`NetworkError` from our server (`provider_unavailable` when the server has no
 `GOOGLE_CLIENT_IDS`, `provider_invalid` when the audience doesn't match).

@@ -1,14 +1,14 @@
 ---
-updated: 2026-10-24T13:30:00Z
+updated: 2026-10-30T09:31:00Z
 ---
 
-Step 5 of 8: **per semester, every course of your classes this school year** (not only the coming weeks: the choice
+Step 5 of 9: **per semester, every course of your classes this school year** (not only the coming weeks: the choice
 lasts all year). **Nothing is chosen until you choose it**: tap a course, 'Alles kiezen' / 'Niets kiezen' per
 class, or tap lessons in the class's own timetable ('Bekijk het rooster van …', `ClassWeekSheet`). **Bekijk
 gevonden rooster** (`PreviewSheet`) shows the timetable your choices give before you save, with 'Ik volg dit vak
 niet' and 'Ik mis een les'. Klaar saves per source (`lib/choices.ts` → `include` + `picked`); a class with
 nothing chosen asks to be removed. **Skip** keeps every course (a skipped step never leaves you with an empty
-timetable). From settings (`source=<id>`) for one class, starting from what's saved, with 'remove this class'.
+timetable). Next: step 6, checking how your lessons' details are read (`onboarding/details.tsx`). From settings (`source=<id>`) for one class, starting from what's saved, with 'remove this class'.
 
 ## `CoursesStep`
 

@@ -36,7 +36,7 @@ export default function CampusStep() {
   return (
     <Screen
       back
-      progress={settings ? undefined : [3, 8]}
+      progress={settings ? undefined : [3, 9]}
       navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={() => router.push('/onboarding/classes')} />}
       footer={<Button label={settings ? t('common.save') : t('common.next')} disabled={picked == null} loading={update.isPending} onPress={next} />}>
       <Text variant="title" accessibilityRole="header">

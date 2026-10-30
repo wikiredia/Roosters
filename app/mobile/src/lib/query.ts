@@ -36,8 +36,8 @@ export const persister = createAsyncStoragePersister({
 });
 
 /** The queries a cold start shows at once: you, Today, friends and their requests, your breaks, the chat list, your
- * sources. Not the chats' messages, friends' schedules, comparisons or the onboarding lists: they load when opened. */
-const PERSISTED = new Set(['me', 'today', 'friends', 'requests', 'breaks', 'chats', 'sources']);
+ * sources and how you show a lesson's details (the lesson sheet, offline too). Not the chats' messages, friends' schedules, comparisons or the onboarding lists: they load when opened. */
+const PERSISTED = new Set(['me', 'today', 'friends', 'requests', 'breaks', 'chats', 'sources', 'details']);
 /** Of the schedule, the weeks from this many before this week to this many after it (the Rooster tab's first screens). */
 const WEEKS_BACK = 1;
 const WEEKS_AHEAD = 3;

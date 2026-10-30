@@ -55,7 +55,7 @@ export default function SchoolStep() {
   return (
     <Screen
       back
-      progress={settings ? undefined : [3, 8]}
+      progress={settings ? undefined : [3, 9]}
       navRight={settings ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={finish} />}
       footer={<Button label={t('common.next')} disabled={picked == null} loading={update.isPending} onPress={next} />}>
       <Text variant="title" accessibilityRole="header">

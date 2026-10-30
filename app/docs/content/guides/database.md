@@ -1,7 +1,7 @@
 ---
 title: Database and migrations
 position: 50
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-30T09:31:00Z
 ---
 
 MySQL 8.4 (`db` service, internal network only, data in the `db` volume). All tables with comments:
@@ -13,7 +13,7 @@ MySQL 8.4 (`db` service, internal network only, data in the `db` volume). All ta
 | Accounts | `users`, `auth_identities`, `login_codes`, `sessions` (with the phone's push token), `push_settings` |
 | Social | `friendships` (with your pins, `0014`), `friend_requests`, `blocks`, `invites`, `break_requests`, `break_request_members` |
 | Chat | `chats`, `chat_members`, `chat_messages`, `chat_reports` (`chat.py`) |
-| Timetables | `sources`, `source_lessons`, `hidden_courses`, `checkins`, `skipped_lessons` |
+| Timetables | `sources`, `source_lessons`, `hidden_courses`, `checkins`, `skipped_lessons`, `detail_layouts` (how you show a lesson's details, `0015`) |
 | Other | `notifications`, `jobs`, `idempotency_keys`, `settings`, `admin_log`, `schema_migrations` |
 
 ## Conventions

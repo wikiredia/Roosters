@@ -50,6 +50,25 @@ export async function afterSignIn(tokens: Tokens) {
   }
 }
 
+/** Which button brought you to sign in: 'Create an account' or 'I already have an account' (welcome.tsx). */
+export type AuthMode = 'new' | 'login';
+
+/**
+ * Where to go after signing in. Straight in, unless the account isn't what you asked for: 'Create an account' with an
+ * address that already has one (you're signed in to that account, and we say so), or 'I already have an account'
+ * where there was none yet (a new one was made: keep it, or try another address). Both on login/found.tsx.
+ * A guest adding their e-mail (no mode) who turns out to have an account hears it too.
+ */
+export function routeAfterSignIn(tokens: Tokens, how: { mode?: AuthMode; email?: string; wasGuest?: boolean } = {}) {
+  if (tokens.account === 'existing' && how.mode !== 'login') {
+    resetTo({ pathname: '/login/found', params: { kind: 'existing', ...(how.wasGuest ? { guest: '1' } : {}) } });
+  } else if (tokens.account === 'new' && how.mode === 'login') {
+    resetTo({ pathname: '/login/found', params: { kind: 'new', ...(how.email ? { email: how.email } : {}) } });
+  } else {
+    resetTo('/');
+  }
+}
+
 /** Skip the rest (or finish): marks onboarding done and goes to Rooster. */
 export function useFinishOnboarding() {
   const me = useMe();

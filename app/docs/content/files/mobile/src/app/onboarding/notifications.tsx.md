@@ -1,8 +1,8 @@
 ---
-updated: 2026-10-24T13:30:00Z
+updated: 2026-10-30T09:31:00Z
 ---
 
-Step 8 of 8, the last one: **notifications, asked in context** (design prompt, onboarding step 8). It comes after the
+Step 9 of 9, the last one: **notifications, asked in context** (design prompt, onboarding step 9). It comes after the
 friends step (guests: after the week), so the reason is fresh: your friends can now ask you for a break. The phone's
 own question comes **only after 'Zet meldingen aan'**, never when the screen opens.
 

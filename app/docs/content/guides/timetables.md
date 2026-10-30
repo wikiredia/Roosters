@@ -1,7 +1,7 @@
 ---
 title: Timetables: Untis, calendar links and sync
 position: 30
-updated: 2026-10-24T08:00:00Z
+updated: 2026-10-30T09:31:00Z
 ---
 
 ## Where lessons come from
@@ -35,6 +35,19 @@ A school year has two semesters, with dates per school (`schools.year_start`, `s
 Theory, lab, exercises, project, support, internship, info, exam or other: `kinds.classify` works it out when a
 lesson is fetched, from Untis' free text, the subject and the period's flags, and only the kind is stored. The app
 gives every kind its own colour.
+
+## Lesson details: fields per student
+
+What a source says about a lesson is shown as named fields: "Labo · NOO.-01.019" becomes **Type: Labo | Building:
+NOO | Floor: -01 | Classroom: 019** (and Group when Untis has student groups). Nothing is fixed to one school or to
+Untis: `details.detect` looks at the locations a source actually has and guesses how they break up (which separator,
+which piece is the building, floor or room); each student checks that in onboarding step 6
+(`mobile/src/app/onboarding/details.tsx`) and can rename a field, merge fields or hide one. That **layout** is saved
+per student and **origin** (`untis:<school>`: all classes of a school write rooms the same way; `ics:<link>`: one
+calendar link) in `detail_layouts`, and schoolmates' layouts are offered as a starting point (titles and structure
+only). Lessons carry their `origin`; the app breaks the raw location up itself when a lesson is opened
+(`mobile/src/lib/details.ts`, the twin of `details.apply`). Routes: `r_details.py`. A new kind of information is a key
+in `details.FIELDS` plus a value on the lesson (see `details.py`).
 
 ## When things are fetched
 

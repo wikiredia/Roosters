@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T08:30:00Z
+updated: 2026-10-30T09:29:00Z
 ---
 
 **Racing through onboarding.** Every step can be skipped, and you can start **without signing in** (a guest
@@ -7,6 +7,19 @@ account on this phone). What was skipped shows on Today as 'Complete the followi
 (`components/SetupSteps.tsx`).
 
 Server side: `POST /api/v1/auth/guest`, and the upgrade logic in `api/roosters/r_auth.py`.
+
+## `AuthMode`
+
+Which welcome button brought you to sign in: `new` ('Create an account') or `login` ('I already have an account').
+
+## `routeAfterSignIn`
+
+Where to go after any sign-in (Apple, Google, e-mail code). Straight to `/` (the gate), unless the account isn't what
+you asked for, from the server's `account` (`api/roosters/r_auth._answer`):
+- `existing` and not `mode=login` ('Create an account', or a guest adding their e-mail, with an address that already
+  has an account) → `login/found?kind=existing` ('you're signed in to it'; `guest=1` adds that the guest's setup came
+  along where the account had none);
+- `new` with `mode=login` (no account yet) → `login/found?kind=new` (keep it, or try another address).
 
 ## `afterSignIn`
 

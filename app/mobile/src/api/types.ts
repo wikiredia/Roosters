@@ -1,6 +1,8 @@
 /** Shapes of the Roosters+ API (app/api). Times of day are minutes since midnight. */
 
-export type Tokens = { access_token: string; refresh_token: string; expires_in: number; is_new: boolean };
+/** account: what the sign-in did. existing = an account that was already there (also found through the same
+ * verified address), guest = this phone's guest account became the account, new = a new account (api r_auth._answer) */
+export type Tokens = { access_token: string; refresh_token: string; expires_in: number; is_new: boolean; account?: 'new' | 'existing' | 'guest' };
 
 export type User = {
   id: number;
@@ -34,6 +36,10 @@ export type Lesson = {
   recently_changed?: boolean;
   /** Your own lessons only: you skip this one (PUT /me/skips). It stays on your timetable, but you're free then */
   skipped?: boolean;
+  /** Whose layout breaks up its details: 'untis:<school>' or 'ics:<source>' (DetailOrigin.origin) */
+  origin?: string;
+  /** Untis' student group ("1CH_A") */
+  group?: string | null;
 };
 
 export type StatusCode =
@@ -186,6 +192,27 @@ export type Source = {
   class_id?: number;
   /** A class followed in one semester only (1 or 2); null = the whole school year */
   semester?: Semester | null;
+};
+
+/** One field of a lesson's details: one key, or more merged into one ('floor' + 'room' → "-01.019").
+ * No label: the app's own name for the first key (lib/details.ts). */
+export type DetailField = { keys: string[]; label?: string; hidden?: boolean };
+/** How a source's details break up and how you show them (api/roosters/details.py). split: how a location
+ * breaks into parts ("NOO.-01.019" on "." → building, floor, room), or null (shown whole). */
+export type DetailLayout = { v: number; split: { sep: string; parts: string[] } | null; fields: DetailField[] };
+export type DetailExample = { course: string | null; kind: string; location: string | null; group: string | null };
+/** GET /me/details: per origin (your school's classes, each calendar link) the layout to use (yours once saved,
+ * else what we found), what we found, what schoolmates use (Untis only) and a few of your lessons to show it on. */
+export type DetailOrigin = {
+  origin: string;
+  kind: 'untis' | 'ics';
+  name: string;
+  saved: boolean;
+  layout: DetailLayout;
+  detected: DetailLayout;
+  suggested: { layout: DetailLayout; users: number } | null;
+  examples: DetailExample[];
+  syncing: boolean;
 };
 
 export type School = { id: number; slug: string; name: string; short_name: string | null; country: string };

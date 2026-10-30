@@ -63,6 +63,8 @@ export default function RootLayout() {
           {/* The app itself: nothing to swipe back to (welcome and onboarding are gone, see lib/nav.resetTo) */}
           <Stack.Screen name="(tabs)" options={{ gestureEnabled: false, animation: 'fade' }} />
           <Stack.Screen name="index" options={{ gestureEnabled: false, animation: 'none' }} />
+          {/* After signing in (lib/nav.resetTo): nothing to swipe back to either */}
+          <Stack.Screen name="login/found" options={{ gestureEnabled: false, animation: 'fade' }} />
         </Stack>
         {/* Development and EXPO_PUBLIC_DEBUG builds only, and only when switched on (Server & debug) */}
         <PerfOverlay />

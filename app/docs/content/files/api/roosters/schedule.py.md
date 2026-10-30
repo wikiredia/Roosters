@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T12:55:00Z
+updated: 2026-10-30T09:30:00Z
 ---
 
 **Reading timetables**: someone's lessons from the classes they follow and their own calendar links,
@@ -21,7 +21,9 @@ Free/busy view: merged busy blocks per day, nothing about what or where.
 
 ## `lesson_out`
 
-One lesson for the app, with its kind (the colour). Without detail (a friend who shares only free/busy) it says only when.
+One lesson for the app, with its kind (the colour), its `origin` (`untis:<school>` or `ics:<source>`: whose layout
+breaks up its details, `r_details.py`) and Untis' student `group` when there is one. Without detail (a friend who
+shares only free/busy) it says only when.
 `skipped: true` on a lesson you skip; only your own timetable ever has it (`r_friends.friend_schedule` leaves skipped
 lessons out, so friends see free time).
 
@@ -40,7 +42,7 @@ Mondays of a range the routine sync doesn't cover.
 
 ## `lessons`
 
-All lessons of several people between two days: classes (filtered per source with include/exclude and hidden courses, and for a source of one semester only on that semester's days, `terms.covers` with the school's dates) and personal calendars, sorted, with duplicates removed (two sources with the same lesson). Lessons inside a person's `skipped_lessons` (same day and course, inside the skipped stretch) come with `skipped: True`.
+All lessons of several people between two days: classes (filtered per source with include/exclude and hidden courses, and for a source of one semester only on that semester's days, `terms.covers` with the school's dates) and personal calendars, sorted, with duplicates removed (two sources with the same lesson). Each row gets its `origin` (and class lessons their `student_group`) for `lesson_out`. Lessons inside a person's `skipped_lessons` (same day and course, inside the skipped stretch) come with `skipped: True`.
 
 ## `local_now`
 

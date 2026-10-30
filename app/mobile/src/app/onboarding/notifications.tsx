@@ -15,7 +15,7 @@ import { useFinishOnboarding } from '@/lib/onboarding';
 import { pushState, registerPush } from '@/lib/push';
 
 /**
- * Step 8, the last one: notifications, asked in context. First what you'll get (two example pushes, the three
+ * Step 9, the last one: notifications, asked in context. First what you'll get (two example pushes, the three
  * Meldingen toggles), and the phone's own question only after "Zet meldingen aan". A no from the phone is not asked
  * again: then how to turn it on in the phone's settings. From Today (`from=settings`): no progress, back when done.
  */
@@ -55,7 +55,7 @@ export default function NotificationsStep() {
   return (
     <Screen
       back
-      progress={fromToday ? undefined : [8, 8]}
+      progress={fromToday ? undefined : [9, 9]}
       navRight={fromToday || asked ? undefined : <Button variant="ghost" size="sm" label={t('common.skip')} onPress={done} />}
       footer={
         asked || unavailable ? (

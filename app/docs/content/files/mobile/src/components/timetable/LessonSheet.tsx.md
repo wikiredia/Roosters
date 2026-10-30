@@ -1,8 +1,11 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T09:31:00Z
 ---
 
-Tap on a lesson: when, what, where, and who else is free if it's cancelled. `LessonSheet`, `OverlapSheet` (and `BreakSheet`) are
+Tap on a lesson: when, its **details** (Type, Building, Floor, Classroom, Group, ... after the layout of the lesson's
+origin: `lib/details.detailRows` with `api/hooks.useDetails`; titles, merges and hidden fields as the student set them
+in `app/onboarding/details.tsx`; a lesson without a known origin gets Type, Location, Group), and who else is free if
+it's cancelled. `LessonSheet`, `OverlapSheet` (and `BreakSheet`) are
 `memo`, and `Calendar` gives them callbacks that keep their identity, so opening one renders only that sheet.
 
 ## `OverlapSheet`

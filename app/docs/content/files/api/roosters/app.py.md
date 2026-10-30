@@ -1,11 +1,12 @@
 ---
-updated: 2026-10-24T09:10:02Z
+updated: 2026-10-30T09:30:00Z
 ---
 
 The **public API process** (`uvicorn roosters.app:app`, compose service `api`). It builds the FastAPI app,
-adds the middleware and error handlers, and mounts the seven routers. Every route lives under `/api/v1`.
+adds the middleware and error handlers, and mounts the eight routers. Every route lives under `/api/v1`.
 
-- Routers: `r_auth.py` (sign-in), `r_me.py` (your account, timetable, Today), `r_schools.py`
+- Routers: `r_auth.py` (sign-in), `r_me.py` (your account, timetable, Today), `r_details.py` (how your lessons'
+  details are shown, `/me/details`), `r_schools.py`
   (onboarding lists), `r_friends.py` (social), `r_breaks.py` (break requests), `r_chat.py` (chat), `r_debug.py` (laptop-only troubleshooting).
 - The **admin API is a separate app** (`admin.py`) and is never mounted here, so `/admin/...` gives
   404 on the public port (`tests/test_admin.py` checks this).

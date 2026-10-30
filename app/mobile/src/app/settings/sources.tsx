@@ -82,6 +82,20 @@ export default function SourcesScreen() {
         </Card>
       </View>
 
+      {list.length ? (
+        <Card>
+          {/* How a lesson's details are shown (Type, Building, Floor, Classroom, ...): the onboarding step, from here */}
+          <Row
+            first
+            left={<IconTile name="edit" />}
+            title={t('sources.details')}
+            sub={t('sources.detailsSub')}
+            chevron
+            onPress={() => router.push({ pathname: '/onboarding/details', params: { from: 'settings' } })}
+          />
+        </Card>
+      ) : null}
+
       <View>
         <ListHead>{t('sources.links')}</ListHead>
         <Card>

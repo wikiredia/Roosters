@@ -276,9 +276,12 @@ def friend_schedule(friend_id: int, request: Request, start: str | None = None, 
         lessons = schedule.busy_only(ls)
     else:
         lessons = [schedule.lesson_out(l) for l in ls]
-        if m["visibility"] == "norooms":
-            # What and when, never where
-            for item in lessons:
+        for item in lessons:
+            # Their calendar links are theirs: only a school's origin helps (you may share its layout)
+            if item.get("origin", "").startswith("ics:"):
+                del item["origin"]
+            if m["visibility"] == "norooms":
+                # What and when, never where
                 item["location"] = None
     return etag_json(request, {"start": first.isoformat(), "days": days, "hidden": False, "loading": loading,
                                "visibility": m["visibility"], "lessons": lessons})

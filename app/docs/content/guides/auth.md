@@ -1,7 +1,7 @@
 ---
 title: Auth, sessions and guests
 position: 20
-updated: 2026-10-24T16:01:00Z
+updated: 2026-10-30T09:31:00Z
 ---
 
 ## Ways in
@@ -13,8 +13,9 @@ updated: 2026-10-24T16:01:00Z
 | Google | `POST /api/v1/auth/google` | ID token checked against Google's keys and audience (the **web** client id) |
 | **Guest** | `POST /api/v1/auth/guest` | no sign-in method yet; straight into the app |
 
-In the app: e-mail in `mobile/src/app/login/`, Apple on the welcome screen (iOS), Google in
-`mobile/src/lib/google.ts` + `mobile/src/components/GoogleButton.tsx` (welcome, and for guests the e-mail screen).
+In the app: the methods on `mobile/src/app/login/index.tsx` (after the welcome screen's two buttons), e-mail in
+`mobile/src/app/login/email.tsx` + `code.tsx`, Apple on the sign-in screen (iOS), Google in
+`mobile/src/lib/google.ts` + `mobile/src/components/GoogleButton.tsx` (the sign-in screen, and for guests the e-mail screen).
 Apple and Google need a **development build** (native code): in Expo Go, on the web or without client ids the
 buttons simply don't show.
 
@@ -25,11 +26,22 @@ Android clients only identify the app to Google (bundle id; package + SHA-1). Se
 All of them end in `tokens.start_session`: a **15-minute access token** (a JWT) and a **refresh token** that
 rotates on every use (180 days). The app keeps both in the phone's secure storage.
 
+In the app the welcome screen has two clear ways in, **Create an account** and **I already have an account**
+(`mobile/src/app/welcome.tsx`); both lead to the same three methods (`mobile/src/app/login/index.tsx`). Which one you
+tapped only changes the words and what we tell you afterwards.
+
 ## Accounts and identities
 
 One `users` row can have several `auth_identities` (e-mail, Apple, Google). A **verified** e-mail address
 links them: signing in with Google using the same verified address as your e-mail login reaches the same
 account. An unverified address never links (that would let anyone take over an account).
+
+**Same address = signed in, never a second account.** 'Create an account' with an address that already has one
+signs you in to that account. The answer's `account` (`r_auth._answer`: `new`, `existing`, `guest`) lets the app say
+so (`lib/onboarding.routeAfterSignIn` → `login/found.tsx`: 'Welcome back, you already had an account'). The other
+way round, 'I already have an account' with an address that has none makes a new account and asks: keep it, or try
+another address (the new, empty account is deleted again). Whether an address has an account is only told after the
+code (or Apple/Google) proved the address is yours: `email/start` answers 204 for every address.
 
 ## Guests: skippable onboarding
 

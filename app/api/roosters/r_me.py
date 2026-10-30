@@ -279,6 +279,8 @@ def delete_source(source_id: int, ctx: Ctx = Depends(auth)):
         n = db.run("UPDATE sources SET deleted_at=UTC_TIMESTAMP(), secret_enc=NULL WHERE id=%s AND user_id=%s "
                    "AND deleted_at IS NULL", (source_id, ctx.uid), c)
         db.run("DELETE FROM source_lessons WHERE source_id=%s AND user_id=%s", (source_id, ctx.uid), c)
+        # A calendar link's own layout of its details goes with it (a school's stays: your other classes use it)
+        db.run("DELETE FROM detail_layouts WHERE user_id=%s AND origin=%s", (ctx.uid, f"ics:{source_id}"), c)
     if not n:
         raise ApiError(404, "not_found")
     return Response(status_code=204)
@@ -544,6 +546,8 @@ def export(ctx: Ctx = Depends(auth)):
                             "WHERE user_id=%s", (uid,)),
         "sources": secret_free,
         "hidden_courses": db.rows("SELECT course FROM hidden_courses WHERE user_id=%s", (uid,)),
+        "lesson_details_layouts": db.rows("SELECT origin, layout, created_at, updated_at FROM detail_layouts "
+                                          "WHERE user_id=%s", (uid,)),
         "friends": db.rows("SELECT f.friend_id, u.display_name, f.visibility, f.pinned, f.created_at FROM friendships f "
                            "JOIN users u ON u.id=f.friend_id WHERE f.user_id=%s", (uid,)),
         "blocked": db.rows("SELECT blocked_id, created_at FROM blocks WHERE user_id=%s", (uid,)),

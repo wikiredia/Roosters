@@ -20,9 +20,10 @@ def _code_from(mails, email):
 
 def test_email_code_creates_the_account_once(client, mails):
     first = login(client, "Reda@Example.com", mails)
-    assert first["is_new"] is True
+    assert first["is_new"] is True and first["account"] == "new"
     again = login(client, "reda@example.com", mails)
-    assert again["is_new"] is False
+    # 'Create account' with an address that has one: the app says you were signed in to it
+    assert again["is_new"] is False and again["account"] == "existing"
     assert again["user_id"] == first["user_id"]
     me = client.get("/api/v1/me", headers=again["headers"]).json()["user"]
     assert me["email"] == "reda@example.com" and me["display_name"] == "reda"
@@ -187,7 +188,7 @@ def test_google_links_to_the_account_with_the_same_verified_email(client, idp, m
     tok = idp("https://accounts.google.com", "google-client-id.apps.googleusercontent.com", "g-42",
               email="Lotte@example.com", email_verified=True)
     r = client.post("/api/v1/auth/google", json={"id_token": tok})
-    assert r.status_code == 200 and r.json()["is_new"] is False
+    assert r.status_code == 200 and r.json()["is_new"] is False and r.json()["account"] == "existing"
     me = client.get("/api/v1/me", headers={"Authorization": f"Bearer {r.json()['access_token']}"}).json()["user"]
     assert me["id"] == s["user_id"]
 
