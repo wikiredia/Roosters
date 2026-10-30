@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T10:27:00Z
+updated: 2026-10-30T16:30:00Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
@@ -45,15 +45,20 @@ ben bezig'); `status` chilling ('Ik blijf nog') / want_chill ('Ik wil chillen').
 Your own status for friends, in two parts (it replaced 'Wat is je plan deze middag?' + 'Geldt tot …', which the
 owner found silly):
 
-- **In je pauze** (`PUT /me/checkin {break_status}`): only while a break between classes is still ahead today
-  (`Timetable.freeGaps` of your lessons, a gap that isn't over), with the next one's time ('12:30–13:20', or 'Nu, tot
-  13:20'). Busy: your breaks don't count as free for friends (the board shows 'Bezig in de pauze').
-- **Na school** (`{status}`): until your last class ends ('Vanaf 15:40'), or longer once you said you stay.
+Both parts are **always there on a school day**, also once school is over or after 'Thuis', so you can always see
+and change what you said (an earlier version hid them, and the owner wants them to stay).
+
+- **In je pauze** (`PUT /me/checkin {break_status}`), with the next break's time ('12:30–13:20', 'Nu, tot 13:20',
+  or 'Geen pauze meer vandaag'; `Timetable.freeGaps` of your lessons). Busy: nobody is matched with you in your
+  breaks (they don't count as free; the board shows 'Bezig in de pauze').
+- **Na school** (`{status}`), 'Vanaf 15:40' (the end of your last class you still go to: a skipped one doesn't
+  count). Staying ('Ik blijf nog', 'Ik wil chillen') makes after school count as a break, so friends who stay too are
+  matched with you (`logic.day_info` on the server; the Rooster tab draws it as your break, to the end of the day).
   Nothing picked = you go home after your last class.
 
-Nothing for before school, no 'until'. Tapping the selected choice again clears it (the screen sends null). Hidden
-while you're at home or absent. 'Ik ben er vandaag niet' (`status: 'absent'`) is a small toggle row under it,
-while the school day is on. A day without classes: one part, 'Toch op de campus?' (on campus / want to chill).
+Nothing for before school, no 'until'. Tapping the selected choice again clears it (the screen sends null).
+'Ik ben er vandaag niet' (`status: 'absent'`) is a small toggle row under it. A day without classes: one part,
+'Toch op de campus?' (on campus / want to chill).
 
 ## `SyncNote`, `Updated`
 
