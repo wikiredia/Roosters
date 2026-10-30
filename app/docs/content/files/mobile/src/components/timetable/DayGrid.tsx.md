@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T00:15:00Z
+updated: 2026-10-30T12:30:00Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -7,15 +7,24 @@ the shared `offset` and `count` (`left = (day - offset) × width/count`), so swi
 move all columns in the same frame; only a window of days around the view exists (`from`…`to`).
 
 Gestures (Gesture Handler, all on the grid):
-- **pan**: follows the finger; on release `days.snap` decides where it lands and `onTarget` tells the screen right
-  away (dates and data update before the spring ends), then it springs there (`SWIPE`: calm, no bouncing through days);
-- **pinch**: more or fewer days; the day on the left stays on the left (zooming out adds days on the right, never back in
-  time; zooming in narrows towards that day), whatever the fingers are over; settles on whole days;
+- **pan**: follows the finger, pulled softly towards whole days (`magnet` from `lib/haptics`); on release `days.snap`
+  decides where it lands and `onTarget` tells the screen right away (dates and data update before the spring ends),
+  then it springs there (`SWIPE`: calm, no bouncing through days);
+- **pinch**: more or fewer days, also pulled softly towards whole numbers while pinching; the day on the left stays on
+  the left (zooming out adds days on the right, never back in time; zooming in narrows towards that day), whatever the
+  fingers are over; settles on whole days;
 - **double tap**: `onDoubleTap` (the screen zooms the hours);
 - **tap**: finds the lesson (or shared break: `onPressTogether(day, span)`) under the finger. Taps go through the gesture system instead of a
   Pressable per lesson, so a swipe or a pinch never ends as a tap on the lesson it lets go of. Blocks are still
   buttons for screen readers. The gesture first asks the UI thread whether anything under the finger opens a sheet
   (`TapTargets`, filled from the days' `taps`): a tap on nothing never wakes JS. `tapAt` (JS) then decides which sheet.
+
+**Haptics** (`lib/haptics`, only taps): while swiping, a light `tick` each time a day lines up with the left edge;
+while pinching, one each time the number of days reaches a whole number; a firmer `snap` as either lets go. A live
+value counts as on a day within `NEAR` (0.15 day) of it, and a tap comes once per day (`onNewDay` remembers the last
+one until the value is half a day away), never per frame. The pull (`pulled`) is relative to where the gesture
+started, so catching a swipe or a pinch that's still springing doesn't jump. The double tap has no tap of its own: it's
+not a snap, and the screen decides what it does.
 
 The gestures are `useMemo`'d (Reanimated's advice), so they are made again only when the width, the hours or a callback
 change; the callbacks from `Calendar` and `tapAt` (`useStable`) therefore have to keep their identity.

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T00:15:00Z
+updated: 2026-10-30T12:30:00Z
 ---
 
 **Dragging a class into the bin to skip it.** The gesture lives in `DayGrid` (first in its gesture tree, so the swipe
@@ -21,7 +21,9 @@ stays still. Then the first 6 px of movement decide: rested `HOLD` ms, or more u
 quick and sideways → fail (it's a swipe through the days). The bin is on the **half opposite where the finger came down**
 (`drag.side`: a class on the right half → the bin on the left, otherwise on the right), so the card never has to cross
 the screen. Let go over the bin, or throw it towards it faster than `THROW_V` → it flies into the bin and `onDrop` skips it; anywhere else it springs back. While dragging, the card
-swings with the finger's speed (smoothed) around the point you hold it, and tilts a little over the bin.
+swings with the finger's speed (smoothed) around the point you hold it, and tilts a little over the bin. Haptics
+(`lib/haptics`): a light `tick` each time the card goes over the bin (tracked in `wasOver`, not the animated
+`drag.over`, so once per entry), a firmer `snap` as it's dropped or thrown in; none when it springs back.
 
 ## `DragLayer`
 

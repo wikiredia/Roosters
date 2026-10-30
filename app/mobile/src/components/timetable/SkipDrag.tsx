@@ -20,6 +20,7 @@ import type { Lesson } from '@/api/types';
 import { Icon } from '@/components/ui/Icon';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
+import { snap, tick } from '@/lib/haptics';
 
 import { BlockView, Hatch } from './Timetable';
 
@@ -100,6 +101,7 @@ type GestureProps = {
  * It decides itself when it starts (manual activation): a finger on a class that rests a moment, or moves more up or
  * down than sideways, picks the card up at once (no long press needed); a quick sideways swipe stays a swipe through
  * the days, and a tap stays a tap. Let go over the bin (on the half opposite where you picked the class up), or throw it that way, and it's skipped.
+ * A light tap as the card goes over the bin, a firmer one as it's dropped in (lib/haptics).
  * The gesture is made again only when one of its inputs changes (the grid's size, hours, or the callbacks: keep those
  * stable), as Reanimated advises; a new gesture on every render would be re-attached every time.
  */
@@ -107,6 +109,8 @@ export function useSkipGesture(p: GestureProps) {
   const { drag, targets, offset, count, width, height, min0, min1, pxPerHour, labelH, onPick, onDrop, enabled = true } = p;
   const down = useSharedValue({ x: 0, y: 0, at: 0, day: 0, start: 0 });
   const vxLast = useSharedValue(0);
+  // Over the bin at the last move (not `drag.over`, which is animated): a tap as the card goes over it, once
+  const wasOver = useSharedValue(0);
 
   return useMemo(
     () =>
@@ -174,6 +178,7 @@ export function useSkipGesture(p: GestureProps) {
         })
         .onStart(() => {
           drag.phase.set(2);
+          wasOver.set(0);
           drag.lift.set(withSpring(1, SWING));
         })
         .onUpdate((e) => {
@@ -188,6 +193,10 @@ export function useSkipGesture(p: GestureProps) {
           const side = drag.side.get();
           const isOver = (side > 0 ? fingerX > width - BIN_W : fingerX < BIN_W) ? 1 : 0;
           if (isOver !== Math.round(drag.over.get())) drag.over.set(withTiming(isOver, { duration: 140 }));
+          if (isOver !== wasOver.get()) {
+            wasOver.set(isOver);
+            if (isOver) scheduleOnRN(tick);
+          }
           drag.rot.set(withSpring(Math.max(-18, Math.min(18, vx / 55)) * below + isOver * 6 * side, SWING));
         })
         .onEnd((e) => {
@@ -213,6 +222,7 @@ export function useSkipGesture(p: GestureProps) {
               }),
             );
             const d = down.get();
+            scheduleOnRN(snap);
             scheduleOnRN(onDrop, d.day, d.start);
           } else {
             drag.phase.set(4);
@@ -229,7 +239,7 @@ export function useSkipGesture(p: GestureProps) {
           vxLast.set(0);
         })
         .enabled(enabled),
-    [drag, targets, offset, count, width, height, min0, min1, pxPerHour, labelH, onPick, onDrop, enabled, down, vxLast],
+    [drag, targets, offset, count, width, height, min0, min1, pxPerHour, labelH, onPick, onDrop, enabled, down, vxLast, wasOver],
   );
 }
 
