@@ -6,12 +6,14 @@ import { exportData, signOut, useCampuses, useFriends, useGhost, useMe, usePush,
 import type { PushSettings, User } from '@/api/types';
 import { Avatar, IconTile, Option, Tag } from '@/components/ui/Bits';
 import { Button } from '@/components/ui/Button';
+import { Toggle } from '@/components/ui/Inputs';
 import { Card, ListHead, Row } from '@/components/ui/Layout';
 import { Screen } from '@/components/ui/Screen';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { langPref, useT } from '@/i18n';
 import { confirm } from '@/lib/confirm';
+import { setWeekDrag, useWeekDrag } from '@/lib/labs';
 import { type PushState, pushState } from '@/lib/push';
 import { debugEnabled } from '@/lib/server';
 import { hhmm, minutesAgo, nowMin } from '@/lib/time';
@@ -38,6 +40,7 @@ export default function IkScreen() {
   const push = usePush();
   const pushHere = pushState.use();
   const pref = langPref.use();
+  const weekDrag = useWeekDrag();
   const [ghostOpen, setGhostOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -140,6 +143,20 @@ export default function IkScreen() {
             right={<Text tone="ink2">{pref === 'system' ? t('lang.system') : lang === 'nl' ? 'Nederlands' : 'English'}</Text>}
             chevron
             onPress={() => router.push('/settings/language')}
+          />
+        </Card>
+      </View>
+
+      {/* A/B tests, saved on this phone; off until you turn them on */}
+      <View>
+        <ListHead>{t('me.labsHead')}</ListHead>
+        <Card>
+          <Row
+            first
+            left={<IconTile name="calendar" />}
+            title={t('me.weekDrag')}
+            sub={t('me.weekDragSub')}
+            right={<Toggle value={weekDrag} onChange={setWeekDrag} label={t('me.weekDrag')} />}
           />
         </Card>
       </View>

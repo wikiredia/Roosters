@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
 import { dateAt, MAX_DAYS, snap } from '@/lib/days';
+import { magnet, snap as snapTap, tick } from '@/lib/haptics';
 import { useStable } from '@/lib/latest';
 import { noteColumnRender } from '@/lib/perf';
 import { hhmm, weekdayShort } from '@/lib/time';
@@ -27,6 +28,8 @@ export const LABEL_H = 22;
 export const SWIPE = { damping: 28, stiffness: 230, mass: 1 };
 /** The number of days settles with a little bounce. */
 export const RESIZE = { damping: 16, stiffness: 240, mass: 0.8 };
+/** A live value counts as on a whole day (a tap) this close to it, in days. */
+const NEAR = 0.15;
 
 /** What a day column needs to know about the view without being rendered by it: the direction you went last (new
  * lessons come in from that side), and the first day and number of days you're on (a column only fades its lessons in
@@ -78,7 +81,8 @@ type Props = {
  * on the UI thread, so the strip above, the columns and their widths move together in the same frame:
  * dragging the strip's handle or pinching makes the columns thinner while the next days slide in from the side.
  * Double tap zooms the hours in on your lessons (the screen decides); pinch shows more or fewer days, always from
- * the day on the left (it stays there; zooming out adds days on the right). A class of yours
+ * the day on the left (it stays there; zooming out adds days on the right). While swiping or pinching the value is
+ * pulled a little towards whole days (`magnet`) with a light tap on each one, and a firmer one as you let go. A class of yours
  * can be picked up and dragged into the bin on the right to skip it (`drag`; see SkipDrag.useSkipGesture for how
  * that's told apart from a swipe or a tap).
  * Memo: give it stable callbacks (Calendar does), so opening a sheet doesn't re-render every column. The gestures are
@@ -91,6 +95,9 @@ export const DayGrid = memo(function DayGrid(p: Props) {
   const pxPerHour = (height - LABEL_H) / Math.max(1, h1 - h0);
   const startOffset = useSharedValue(0);
   const startCount = useSharedValue(1);
+  // The whole day (first day, number of days) the last tap was for: one tap per day, not one per frame
+  const panDay = useSharedValue(NaN);
+  const pinchDays = useSharedValue(NaN);
 
   const pan = useMemo(
     () =>
@@ -99,9 +106,13 @@ export const DayGrid = memo(function DayGrid(p: Props) {
         .failOffsetY([-12, 12])
         .onBegin(() => {
           startOffset.set(offset.get());
+          panDay.set(nearDay(offset.get()));
         })
         .onUpdate((e) => {
-          offset.set(startOffset.get() - e.translationX / (width / count.get()));
+          // A soft pull towards each whole day, so a swipe reads as day by day without jumping
+          const off = pulled(startOffset.get(), startOffset.get() - e.translationX / (width / count.get()));
+          offset.set(off);
+          if (onNewDay(off, panDay)) scheduleOnRN(tick);
         })
         .onEnd((e) => {
           const colW = width / count.get();
@@ -109,9 +120,10 @@ export const DayGrid = memo(function DayGrid(p: Props) {
           const busy = busyWeekends.get();
           const target = snap(start, Math.round(count.get()), -e.translationX / colW, -e.velocityX / colW, (sat) => !busy.includes(sat));
           scheduleOnRN(onTarget, target);
+          scheduleOnRN(snapTap);
           offset.set(withSpring(target, { ...SWIPE, velocity: -e.velocityX / colW }));
         }),
-    [offset, count, busyWeekends, startOffset, width, onTarget],
+    [offset, count, busyWeekends, startOffset, panDay, width, onTarget],
   );
 
   const pinch = useMemo(
@@ -120,13 +132,16 @@ export const DayGrid = memo(function DayGrid(p: Props) {
         .onBegin(() => {
           startCount.set(count.get());
           startOffset.set(offset.get());
+          pinchDays.set(nearDay(count.get()));
         })
         .onUpdate((e) => {
-          const n = Math.max(1, Math.min(MAX_DAYS, startCount.get() / e.scale));
+          // Softly per day while pinching (it still settles on a whole number when you let go)
+          const n = Math.max(1, Math.min(MAX_DAYS, pulled(startCount.get(), startCount.get() / e.scale)));
           // The day on the left stays on the left: zooming out shows more days to the right (never further back),
           // zooming in narrows towards that first day
           count.set(n);
           offset.set(startOffset.get());
+          if (onNewDay(n, pinchDays)) scheduleOnRN(tick);
         })
         .onEnd(() => {
           const n = Math.max(1, Math.min(MAX_DAYS, Math.round(count.get())));
@@ -134,8 +149,9 @@ export const DayGrid = memo(function DayGrid(p: Props) {
           count.set(withSpring(n, RESIZE));
           offset.set(withSpring(start, SWIPE));
           scheduleOnRN(onCount, n, start);
+          scheduleOnRN(snapTap);
         }),
-    [offset, count, startCount, startOffset, onCount],
+    [offset, count, startCount, startOffset, pinchDays, onCount],
   );
 
   // What the grid shows is in `data`, `nowMin` and the size at this render; the tap gesture below is made once and
@@ -264,6 +280,33 @@ export const DayGrid = memo(function DayGrid(p: Props) {
 });
 
 const noop = () => {};
+
+/** `magnet` on a dragged value, starting from where it was: no jump at the first frame when that's between days. */
+function pulled(start: number, x: number) {
+  'worklet';
+  return start + magnet(x) - magnet(start);
+}
+
+/** The whole day `v` is on (within `NEAR`), else NaN. */
+function nearDay(v: number) {
+  'worklet';
+  const n = Math.round(v);
+  return Math.abs(v - n) < NEAR ? n : NaN;
+}
+
+/** True once when `v` reaches a whole day other than the last one (`last`). Half a day away it forgets it, so going
+ * back to the same day taps again, but a finger trembling around a day doesn't. */
+function onNewDay(v: number, last: SharedValue<number>) {
+  'worklet';
+  const n = nearDay(v);
+  if (Number.isNaN(n)) {
+    if (Math.abs(v - last.get()) > 0.5) last.set(NaN);
+    return false;
+  }
+  if (n === last.get()) return false;
+  last.set(n);
+  return true;
+}
 
 type ColumnProps = {
   day: number;
