@@ -1,12 +1,24 @@
 """Troubleshooting the path of a login code: API -> job in MySQL -> worker -> SMTP (Mailpit on the laptop).
 
-Used by GET /api/v1/debug (only with ENV=dev) and by `python -m roosters.cli debug`."""
+Used by GET /api/v1/debug (ENV=dev, or the owner's account: `allowed`) and by `python -m roosters.cli debug`."""
 import socket
 import time
 
 from . import config, db, mailer, mails, redisx
 
 HEARTBEAT_KEY = "worker:heartbeat"
+
+
+def allowed(user: dict | None) -> bool:
+    """May this user use the debug tools on a server that isn't ENV=dev? Only the owner's account (config.DEBUG_EMAIL),
+    also while switched to one of the test people it made (they belong to it: `test_owner_id`)."""
+    if not user or not config.DEBUG_EMAIL:
+        return False
+    if user.get("test_owner_id"):
+        user = db.one("SELECT email, is_guest, disabled_at FROM users WHERE id=%s", (user["test_owner_id"],))
+        if not user or user["disabled_at"]:
+            return False
+    return not user["is_guest"] and (user["email"] or "").strip().lower() == config.DEBUG_EMAIL
 
 
 def worker_heartbeat(worker_id: str):

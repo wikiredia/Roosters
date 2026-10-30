@@ -1,9 +1,11 @@
 ---
-updated: 2026-10-24T13:10:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
-Troubleshooting and test endpoints for the laptop and the test server. They answer **404 unless ENV=dev**
-(`dev_only`), so they can't leak mail setup on a real server. The app's debug screen
+Troubleshooting and test endpoints. They answer **404 unless ENV=dev, or the owner's account is signed in**
+(`dev_only`, `debug.allowed`: the account with `config.DEBUG_EMAIL`, or a test person it made): for that account they
+work on every server, production too; for anyone else on a real server they don't exist, so they can't leak the mail
+setup. The app's debug screen
 (`mobile/src/app/debug.tsx`) calls the mail and push checks; **Test data & users** (`mobile/src/app/dev.tsx`) the rest.
 
 Test data and switching need a normal sign-in (`deps.auth`), from any network, and only ever touch **your own
@@ -21,7 +23,8 @@ test people, is a 404 as if it didn't exist. Test people and their timetables: `
 
 ## `dev_only`
 
-Dependency: 404 outside ENV=dev.
+Dependency: ENV=dev lets everyone through (also before signing in: the app's Server & debug screen on the laptop);
+otherwise only the owner's account (`config.DEBUG_EMAIL`, `debug.allowed`), signed in (`deps.optional_auth`). Anyone else gets a 404.
 
 ## `_yours`, `_one_of_yours`
 

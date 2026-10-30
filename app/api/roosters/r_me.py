@@ -14,6 +14,7 @@ from . import (
     config,
     crypto,
     db,
+    debug,
     friends,
     jobs,
     logic,
@@ -37,7 +38,9 @@ def user_out(u: dict) -> dict:
     return {"id": u["id"], "display_name": u["display_name"], "email": u["email"], "locale": u["locale"],
             "school_id": u["school_id"], "campus_id": u["campus_id"], "avatar_color": u["avatar_color"],
             "photo": u.get("photo_v"), "ghost_until": u["ghost_until"].isoformat() + "Z" if u["ghost_until"] else None,
-            "onboarded": u["onboarded_at"] is not None, "guest": bool(u["is_guest"])}
+            "onboarded": u["onboarded_at"] is not None, "guest": bool(u["is_guest"]),
+            # The owner's account (debug.allowed): the app shows its debug tools in every build, production too
+            "debug": debug.allowed(u)}
 
 
 def _ts(v):

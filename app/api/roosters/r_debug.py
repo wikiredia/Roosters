@@ -1,4 +1,5 @@
-"""Troubleshooting and test endpoints for the laptop/test server. They answer 404 unless ENV=dev.
+"""Troubleshooting and test endpoints. They answer 404 unless ENV=dev, or the owner's account is signed in
+(`debug.allowed`, config.DEBUG_EMAIL): then they work on every server, production too.
 
 Besides the mail checks: test people with a made-up timetable (testdata.py) and switching to them (`login_as`), so
 you can see what a friend sees. Signed in like everything else (`deps.auth`), and only ever about your own account
@@ -7,15 +8,17 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field
 
 from . import accounts, config, db, debug, friends, push, redisx, schedule, testdata, tokens
-from .deps import Ctx, auth, lang
+from .deps import Ctx, auth, lang, optional_auth
 from .errors import ApiError
 from .r_auth import Device, _answer, _client_ip, _sign_in
 
 router = APIRouter(prefix="/api/v1/debug", tags=["debug"])
 
 
-def dev_only():
-    if not config.DEV:
+def dev_only(ctx: Ctx | None = Depends(optional_auth)):
+    """ENV=dev (anyone, also before signing in: the app's Server & debug screen), or the owner's account anywhere.
+    Anyone else gets a 404, as if there were no debug endpoints."""
+    if not (config.DEV or debug.allowed(ctx.user if ctx else None)):
         raise ApiError(404, "not_found")
 
 

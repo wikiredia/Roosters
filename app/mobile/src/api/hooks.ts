@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { api, ApiError } from '@/lib/api';
 import { pinnedFirst } from '@/lib/friends';
+import { setDebugAccount } from '@/lib/server';
 import { clearSession } from '@/lib/session';
 import { type SkipTarget, withSkip } from '@/lib/skips';
 import { addDays, isoDay, parseDay } from '@/lib/time';
@@ -67,7 +68,16 @@ export const keys = {
 // ---- Reading ------------------------------------------------------------------------
 
 export function useMe(enabled = true) {
-  return useQuery({ queryKey: keys.me, queryFn: () => api.get<{ user: User }>('/api/v1/me').then((r) => r.user), enabled });
+  return useQuery({
+    queryKey: keys.me,
+    queryFn: async () => {
+      const { user } = await api.get<{ user: User }>('/api/v1/me');
+      // The owner's account: the debug tools in every build (lib/server)
+      setDebugAccount(!!user.debug);
+      return user;
+    },
+    enabled,
+  });
 }
 
 export function useToday(day?: string) {

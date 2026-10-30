@@ -13,10 +13,11 @@ import { describe } from '@/lib/debuglog';
 import { googleSupport } from '@/lib/google';
 import { resetTo } from '@/lib/nav';
 import { type AuthMode, startAsGuest } from '@/lib/onboarding';
-import { debugEnabled } from '@/lib/server';
+import { useDebug } from '@/lib/server';
 import { session } from '@/lib/session';
 
 export default function EmailLogin() {
+  const debug = useDebug();
   const { t } = useT();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
@@ -58,7 +59,7 @@ export default function EmailLogin() {
       router.push({ pathname: '/login/code', params: { email: value, ...(inApp ? { from: 'steps' } : { mode }) } });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : e instanceof NetworkError ? t('common.offline') : t('common.tryAgain'));
-      if (debugEnabled) setDetail(e instanceof NetworkError && e.log ? describe(e.log) : e instanceof Error ? e.message : String(e));
+      if (debug) setDetail(e instanceof NetworkError && e.log ? describe(e.log) : e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -102,7 +103,7 @@ export default function EmailLogin() {
           <GoogleButton
             onError={(message, why) => {
               setGoogleError(message);
-              setDetail(debugEnabled && why ? why : null);
+              setDetail(debug && why ? why : null);
             }}
           />
           {googleError ? (

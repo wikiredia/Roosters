@@ -18,6 +18,8 @@ export type User = {
   onboarded: boolean;
   /** Started without signing in: own timetable yes, friends after adding an e-mail address */
   guest: boolean;
+  /** The owner's account (api/roosters/debug.allowed): the debug tools work for it on every server and build */
+  debug?: boolean;
 };
 
 export type LessonState = 'normal' | 'cancelled' | 'changed' | 'extra' | 'exam' | 'removed';

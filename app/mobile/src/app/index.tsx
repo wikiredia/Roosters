@@ -6,11 +6,12 @@ import { Mascot } from '@/components/ui/Brand';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { debugEnabled } from '@/lib/server';
+import { useDebug } from '@/lib/server';
 import { clearSession, session } from '@/lib/session';
 
 /** Where to start: welcome, the first unfinished onboarding step (until it's finished or skipped), or Rooster. */
 export default function Gate() {
+  const debug = useDebug();
   const s = session.use();
   const signedIn = s.status === 'signedIn';
   const me = useMe(signedIn);
@@ -37,7 +38,7 @@ export default function Gate() {
       {me.isError ? (
         // Stuck without a connection: a way out (wrong server address, or start over)
         <View className="flex-row gap-2">
-          {debugEnabled ? <Button variant="secondary" size="sm" icon="wifi" label="Server & debug" onPress={() => router.push('/debug')} /> : null}
+          {debug ? <Button variant="secondary" size="sm" icon="wifi" label="Server & debug" onPress={() => router.push('/debug')} /> : null}
           <Button variant="ghost" size="sm" label={t('gate.signOut')} onPress={() => clearSession()} />
         </View>
       ) : null}

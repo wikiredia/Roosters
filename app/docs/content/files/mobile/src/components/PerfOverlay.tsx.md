@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 **The fps overlay**, mounted in the root layout over every screen and never taking a touch. Only exists where
-`debugEnabled` is true and the switch on the Server & debug screen is on (`lib/perf.perfOverlay`).
+`useDebug()` (`lib/server`: a debug build, or the owner's account) is true and the switch on the Server & debug screen is on (`lib/perf.perfOverlay`).
 
 - **UI fps**: frames drawn by the UI thread (`useFrameCallback`), with the slowest frame, written straight into an animated
   text on the UI thread. It keeps counting while JS is busy, which is the point.

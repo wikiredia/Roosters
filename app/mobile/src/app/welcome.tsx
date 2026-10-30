@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { ApiError } from '@/lib/api';
-import { debugEnabled } from '@/lib/server';
+import { useDebug } from '@/lib/server';
 import { resetTo } from '@/lib/nav';
 import { session } from '@/lib/session';
 import { startAsGuest } from '@/lib/onboarding';
@@ -21,6 +21,7 @@ const LEGAL_URL = process.env.EXPO_PUBLIC_LEGAL_URL ?? 'https://github.com/wikir
  * server finds an account by its verified address either way, and login/found.tsx says what happened.
  */
 export default function Welcome() {
+  const debug = useDebug();
   const { t } = useT();
   const insets = useSafeAreaInsets();
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +48,7 @@ export default function Welcome() {
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top, paddingBottom: Math.max(insets.bottom, 16) + 8 }}>
       <View className="px-5 pt-1 pb-3 min-h-14 flex-row items-center justify-between">
         <Wordmark size={24} />
-        {debugEnabled ? <Button variant="ghost" size="sm" icon="wifi" label="Server & debug" onPress={() => router.push('/debug')} /> : null}
+        {debug ? <Button variant="ghost" size="sm" icon="wifi" label="Server & debug" onPress={() => router.push('/debug')} /> : null}
       </View>
       <View className="flex-1 justify-end px-5 pb-7 gap-7">
         <View className="items-center">

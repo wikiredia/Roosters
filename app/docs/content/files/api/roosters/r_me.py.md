@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T13:30:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 **Your own account and timetable**: the routes behind the Today, Rooster and Me tabs. All need a
@@ -136,7 +136,8 @@ Change include/exclude (classes) or keywords and label (links). A link is fetche
 
 ## `user_out`
 
-The user as the app sees it: name, e-mail, locale, school, campus, colour, ghost-until, `onboarded`, and `guest` (the app shows 'Confirm your e-mail' and hides friends for guests).
+The user as the app sees it: name, e-mail, locale, school, campus, colour, ghost-until, `onboarded`, `guest` (the app shows 'Confirm your e-mail' and hides friends for guests), and `debug`: the owner's account
+(`debug.allowed`), for which the app shows its debug tools in every build.
 
 ## `PhotoIn`, `put_photo`, `delete_photo`, `MAX_PHOTO_BYTES`
 

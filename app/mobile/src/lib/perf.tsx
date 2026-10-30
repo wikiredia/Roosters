@@ -1,12 +1,12 @@
 import { Profiler, type ProfilerOnRenderCallback, type ReactNode } from 'react';
 
-import { debugEnabled } from './server';
+import { isDebug } from './server';
 import { createStore } from './store';
 
 /**
  * Measuring the Rooster tab (guide 'Plan: a fast Rooster tab'). Everything here is for developers: the overlay
- * only exists where `debugEnabled` is true (development builds, or a build with EXPO_PUBLIC_DEBUG=1 to measure in
- * release), it starts off, and a production build never shows it.
+ * only exists where `isDebug()` (lib/server: development builds, a build with EXPO_PUBLIC_DEBUG=1 to measure in
+ * release, or the owner's account in any build), and it starts off.
  */
 
 /** The fps overlay (components/PerfOverlay.tsx), toggled on the Server & debug screen. Off at every start. */
@@ -22,7 +22,7 @@ const columns = { renders: 0, since: Date.now(), perDay: new Map<number, number>
 
 /** One render of a day column (DayGrid.DayColumn), counted while the overlay is on. */
 export function noteColumnRender(day: number) {
-  if (!debugEnabled || !perfOverlay.get()) return;
+  if (!isDebug() || !perfOverlay.get()) return;
   columns.renders++;
   columns.perDay.set(day, (columns.perDay.get(day) ?? 0) + 1);
 }
@@ -54,9 +54,9 @@ export function PerfProfile({ id, children }: { id: string; children: ReactNode 
 
 let cacheLogged = false;
 
-/** `JSON.stringify` for the query cache persister, timing it where `debugEnabled`; logs the first write in dev. */
+/** `JSON.stringify` for the query cache persister, timing it where `isDebug()`; logs the first write in dev. */
 export function measuredSerialize(client: unknown): string {
-  if (!debugEnabled) return JSON.stringify(client);
+  if (!isDebug()) return JSON.stringify(client);
   const t0 = performance.now();
   const out = JSON.stringify(client);
   const ms = performance.now() - t0;

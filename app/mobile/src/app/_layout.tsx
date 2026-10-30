@@ -66,7 +66,7 @@ export default function RootLayout() {
           {/* After signing in (lib/nav.resetTo): nothing to swipe back to either */}
           <Stack.Screen name="login/found" options={{ gestureEnabled: false, animation: 'fade' }} />
         </Stack>
-        {/* Development and EXPO_PUBLIC_DEBUG builds only, and only when switched on (Server & debug) */}
+        {/* Debug builds and the owner's account only (lib/server useDebug), and only when switched on (Server & debug) */}
         <PerfOverlay />
       </PersistQueryClientProvider>
     </SafeAreaProvider>

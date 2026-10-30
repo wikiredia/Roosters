@@ -1,7 +1,7 @@
 ---
 title: Releasing to TestFlight and Play
 position: 75
-updated: 2026-10-28T13:45:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 From "it runs in Expo Go on my laptop" to testers installing Roosters+ from **TestFlight** (iOS) and **Google Play
@@ -26,7 +26,7 @@ A development build finds the API by itself (the computer running `expo start`, 
 **store build has no Metro**: it uses `EXPO_PUBLIC_API_URL`, baked in at build time, and without it it tries
 `http://localhost:8000` and nothing works. iOS also refuses plain `http://` to the internet in release builds
 (App Transport Security), and the debug screen to change the address only exists in development builds (or with
-`EXPO_PUBLIC_DEBUG=1`). So: a domain name, HTTPS, then build.
+`EXPO_PUBLIC_DEBUG=1`), and for the owner's account once it's signed in (`DEBUG_EMAIL`). So: a domain name, HTTPS, then build.
 
 ## 1. Caddy: HTTPS for the API, the website and the old server
 
@@ -197,7 +197,8 @@ EAS builds and signs the app in Expo's cloud: **no Mac needed** for iOS builds. 
    ```
 
    `EXPO_PUBLIC_*` values end up inside the app, so they're never secret. `EXPO_PUBLIC_DEBUG=1` keeps the
-   **Server & debug** screen in tester builds; leave it out of production once the app is public. Optionally
+   **Server & debug** screen in tester builds; leave it out of production once the app is public. The owner's account
+(`DEBUG_EMAIL` on the API) has the debug screens and endpoints in every build anyway, production too. Optionally
    `EXPO_PUBLIC_LEGAL_URL` (privacy page shown in the app). `npx eas-cli@latest env:list` shows what's set; a change
    needs a new build.
 

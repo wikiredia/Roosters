@@ -12,10 +12,11 @@ import { describe, requestLog } from '@/lib/debuglog';
 import { type GoogleSupport, googleSupport } from '@/lib/google';
 import { perfOverlay, resetColumnRenders } from '@/lib/perf';
 import { pushState, registerPush, sendTestPush } from '@/lib/push';
-import { apiOverride, automaticApiBase, debugEnabled, setApiOverride } from '@/lib/server';
+import { apiOverride, automaticApiBase, setApiOverride, useDebug } from '@/lib/server';
 
 /**
- * Server & debug: only in development builds (or with EXPO_PUBLIC_DEBUG=1).
+ * Server & debug: in development builds (or with EXPO_PUBLIC_DEBUG=1), and in every build for the owner's account
+ * (lib/server useDebug).
  * Developer-facing, so English only and not translated on purpose.
  */
 
@@ -47,6 +48,7 @@ function errorText(e: unknown) {
 }
 
 export default function DebugScreen() {
+  const debug = useDebug();
   const override = apiOverride.use();
   const auto = automaticApiBase();
   const current = override ?? auto.url;
@@ -62,7 +64,7 @@ export default function DebugScreen() {
   const overlay = perfOverlay.use();
   const [pushResult, setPushResult] = useState<Check>(null);
 
-  if (!debugEnabled) return null;
+  if (!debug) return null;
 
   /** Registers this phone again (asking if needed), then has the server push to every phone you're signed in on. */
   async function testPush() {
@@ -124,7 +126,7 @@ export default function DebugScreen() {
       setDiag(await api.get<Diagnose>('/api/v1/debug', { etag: false }));
     } catch (e) {
       setDiag(null);
-      setDiagError(e instanceof ApiError && e.status === 404 ? 'The server has no debug endpoint: it runs with ENV other than dev, or an older version.' : errorText(e));
+      setDiagError(e instanceof ApiError && e.status === 404 ? 'The server has no debug endpoint for you: it runs with ENV other than dev and you are not signed in as the owner\'s account, or it is an older version.' : errorText(e));
     } finally {
       setBusy(null);
     }
