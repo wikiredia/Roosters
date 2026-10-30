@@ -13,7 +13,7 @@ import { useT } from '@/i18n';
 import { api, ApiError } from '@/lib/api';
 import { googleSupport } from '@/lib/google';
 import { afterSignIn, type AuthMode, routeAfterSignIn } from '@/lib/onboarding';
-import { debugEnabled } from '@/lib/server';
+import { useDebug } from '@/lib/server';
 
 /**
  * How to sign in, after 'Create an account' (mode=new, onboarding step 1) or 'I already have an account'
@@ -21,6 +21,7 @@ import { debugEnabled } from '@/lib/server';
  * words, and what we say afterwards when the account isn't what you asked for (lib/onboarding.routeAfterSignIn).
  */
 export default function LoginChoice() {
+  const debug = useDebug();
   const { t } = useT();
   const params = useLocalSearchParams<{ mode?: string }>();
   const mode: AuthMode = params.mode === 'login' ? 'login' : 'new';
@@ -92,7 +93,7 @@ export default function LoginChoice() {
           <Text variant="sm" tone="danger" className="text-center" accessibilityLiveRegion="polite">
             {error}
           </Text>
-          {debugEnabled && detail ? (
+          {debug && detail ? (
             <Text variant="xs" tone="ink2" className="text-center" selectable>
               {detail}
             </Text>

@@ -147,3 +147,23 @@ def test_test_chats_with_test_friends(client, mails, school):
     # Removing the test people takes their chats and messages
     local.delete("/api/v1/debug/test-users", headers=me["headers"])
     assert local.get("/api/v1/chats", headers=me["headers"]).json()["chats"][0]["count"] == 1
+
+
+def test_the_owner_account_has_the_debug_tools_on_every_server(client, mails, school, monkeypatch):
+    """ENV=prod: only the account with config.DEBUG_EMAIL (and the test people it made) reaches the debug endpoints
+    and gets `debug` on /me; anyone else, and nobody signed in, gets a 404 as if they didn't exist."""
+    monkeypatch.setattr(config, "DEV", False)
+    monkeypatch.setattr(config, "DEBUG_EMAIL", "owner@example.com")
+    me = _me(client, mails, school, email="Owner@Example.com")
+    other = _me(client, mails, school, email="someone@example.com")
+    assert client.get("/api/v1/me", headers=me["headers"]).json()["user"]["debug"] is True
+    assert client.get("/api/v1/me", headers=other["headers"]).json()["user"]["debug"] is False
+    assert client.get("/api/v1/debug", headers=me["headers"]).status_code == 200
+    assert client.get("/api/v1/debug").status_code == 404
+    assert client.get("/api/v1/debug", headers=other["headers"]).status_code == 404
+    assert client.post("/api/v1/debug/test-users", headers=other["headers"], json={"count": 1}).status_code == 404
+    ids = client.post("/api/v1/debug/test-users", headers=me["headers"], json={"count": 1}).json()["created"]
+    # Switched to my test person: still mine, so still allowed (and back)
+    t = client.post("/api/v1/debug/login", headers=me["headers"], json={"user_id": ids[0], "platform": "ios"}).json()
+    assert client.get("/api/v1/me", headers=_h(t)).json()["user"]["debug"] is True
+    assert client.get("/api/v1/debug/users", headers=_h(t)).status_code == 200

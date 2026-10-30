@@ -15,7 +15,7 @@ import { langPref, useT } from '@/i18n';
 import { confirm } from '@/lib/confirm';
 import { setWeekDrag, useWeekDrag } from '@/lib/labs';
 import { type PushState, pushState } from '@/lib/push';
-import { debugEnabled } from '@/lib/server';
+import { useDebug } from '@/lib/server';
 import { hhmm, minutesAgo, nowMin } from '@/lib/time';
 
 const LEGAL_URL = process.env.EXPO_PUBLIC_LEGAL_URL ?? 'https://github.com/wikiredia/Roosters';
@@ -30,6 +30,7 @@ function ghostUntil(u: User | undefined): Date | null {
 }
 
 export default function IkScreen() {
+  const debug = useDebug();
   const { t, lang } = useT();
   const me = useMe();
   const user = me.data;
@@ -175,9 +176,9 @@ export default function IkScreen() {
         </Card>
       </View>
 
-      {debugEnabled ? (
+      {debug ? (
         <Card>
-          <Row first left={<IconTile name="wifi" />} title="Server & debug" sub="Development builds only" chevron onPress={() => router.push('/debug')} />
+          <Row first left={<IconTile name="wifi" />} title="Server & debug" sub="Debug builds and your own account" chevron onPress={() => router.push('/debug')} />
           <Row left={<IconTile name="users" />} title="Test data & users" sub="Test friends, switch account" chevron onPress={() => router.push('/dev')} />
         </Card>
       ) : null}

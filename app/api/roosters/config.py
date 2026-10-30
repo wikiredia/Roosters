@@ -10,6 +10,9 @@ def _list(name: str) -> list[str]:
 # dev = laptop (mail to Mailpit, readable errors), prod = server
 ENV = os.environ.get("ENV", "dev")
 DEV = ENV == "dev"
+# The owner's account: the debug endpoints and screens (r_debug.py, the app's Server & debug and Test data) work for
+# it on every server, also with ENV=prod. Signed in with this e-mail (or as one of the test people it made).
+DEBUG_EMAIL = os.environ.get("DEBUG_EMAIL", "reda.kadi07@gmail.com").strip().lower()
 
 # Fallback for schools without their own timezone
 TZ = zoneinfo.ZoneInfo(os.environ.get("TZ_DEFAULT", "Europe/Brussels"))

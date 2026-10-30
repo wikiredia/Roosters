@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-24T09:55:20Z
+updated: 2026-10-30T15:00:00Z
 ---
 
-**Test data & users** (Me → Test data & users): only in development builds (or with `EXPO_PUBLIC_DEBUG=1`), against an
-API with ENV=dev, signed in like any screen (`api/roosters/r_debug.py`). Only your own account and the test people
+**Test data & users** (Me → Test data & users): in development builds (or with `EXPO_PUBLIC_DEBUG=1`), or in any build for the
+owner's account (`lib/server.useDebug`), against an API with ENV=dev or signed in as the owner (any server), signed in like any screen (`api/roosters/r_debug.py`). Only your own account and the test people
 it made are listed: never another real account. Developer-facing, so English and
 not translated, like `debug.tsx`.
 
@@ -24,4 +24,4 @@ The screen and one account as `GET /api/v1/debug/users` returns it.
 
 ## `errorText`, `VIS`
 
-What went wrong in words (a 404 means: no ENV=dev, an older API, or not your account); the visibility labels.
+What went wrong in words (a 404 means: no ENV=dev and not the owner's account, an older API, or not your account); the visibility labels.

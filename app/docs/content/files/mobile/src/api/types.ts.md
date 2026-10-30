@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T12:00:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 **TypeScript shapes of the API's answers.** Keep them in sync with the server (`api/roosters/r_me.py`, `r_friends.py`, `r_schools.py`); the OpenAPI schema is at `/api/openapi.json`.
@@ -76,7 +76,7 @@ Whole answers of the main screens.
 
 ## `Tokens`, `User`
 
-The token answer (`account`: what the sign-in did, `new`, `existing` or `guest`; `lib/onboarding.routeAfterSignIn`), and your account (`guest`: started without signing in).
+The token answer (`account`: what the sign-in did, `new`, `existing` or `guest`; `lib/onboarding.routeAfterSignIn`), and your account (`guest`: started without signing in). `User.debug`: the owner's account, which gets the debug tools in every build.
 
 ## `Skip`, `SkipAnswer`
 

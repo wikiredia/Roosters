@@ -1,9 +1,9 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 **Measuring the Rooster tab** (guide 'Plan: a fast Rooster tab (and fast sheets)', Phase 0). For developers only:
-everything is behind `debugEnabled` (development builds, or any build with `EXPO_PUBLIC_DEBUG=1`, which is how you measure
+everything is behind `isDebug()` (`lib/server`: development builds, the owner's account in any build, or any build with `EXPO_PUBLIC_DEBUG=1`, which is how you measure
 in release); the fps overlay starts off at every launch and a production build never shows it.
 
 ## `perfOverlay`

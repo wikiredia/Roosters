@@ -4,7 +4,7 @@ import Animated, { useAnimatedProps, useFrameCallback, useSharedValue } from 're
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cacheStats, columnRenders, perfOverlay } from '@/lib/perf';
-import { debugEnabled } from '@/lib/server';
+import { useDebug } from '@/lib/server';
 
 const AnimatedInput = Animated.createAnimatedComponent(TextInput);
 
@@ -16,11 +16,12 @@ const WINDOW = 500;
  * counts the frames the UI thread draws (`useFrameCallback`) and writes them straight into a text on the UI thread,
  * so it keeps counting while JS is busy; JS fps counts `requestAnimationFrame`s. Under them: how often the Rooster
  * grid's day columns rendered since the last reset, and the size and `JSON.stringify` time of the persisted cache.
- * Only where `debugEnabled` is true and the switch on the Server & debug screen is on; off at every start.
+ * Only where `useDebug()` (lib/server: a debug build, or the owner's account) and the switch on the Server & debug screen is on; off at every start.
  */
 export function PerfOverlay() {
+  const debug = useDebug();
   const on = perfOverlay.use();
-  if (!debugEnabled || !on) return null;
+  if (!debug || !on) return null;
   return <Meter />;
 }
 

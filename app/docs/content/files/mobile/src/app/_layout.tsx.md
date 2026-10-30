@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T12:31:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 The **root layout**: loads fonts, the server address, the session, the language and the experiments (`lib/labs.loadLabs`) before showing anything (the splash screen stays up until then); starts the network and focus watchers; wraps the app in the gesture root (`react-native-gesture-handler`) and the persisted query cache; every push uses the iOS-style slide (with swipe back) on both platforms, except the app itself (`(tabs)`, `index`): nothing to swipe back to there; clears that cache when you sign out. Every screen is a Stack screen without the native header (`components/ui/Screen.tsx` draws ours).
@@ -13,4 +13,4 @@ you are (onboarding, settings, a sheet) with `nav.resetTo`, instead of every scr
 
 As above. Bump `buster` when the shape of cached data changes, so old caches are dropped (`v2-2`: classes came with their semesters).
 Only what `lib/query.shouldPersist` allows is saved. The `PerfOverlay` (fps meter) is mounted after the `Stack`; it renders
-nothing unless it's switched on in Server & debug (`debugEnabled` builds only).
+nothing unless it's switched on in Server & debug (debug builds and the owner's account only, `lib/server.useDebug`).

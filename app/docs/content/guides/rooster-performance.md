@@ -1,7 +1,7 @@
 ---
 title: Plan: a fast Rooster tab (and fast sheets)
 position: 65
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 **Status: Phase 0 and Phase 1 are in the code (see their status notes below); the measurements and Phase 2 are open.** Written after a code review of the Rooster tab (no device profiling
@@ -159,9 +159,9 @@ Each phase is one PR (Phase 2 may be two: the sheet host and peek, then the grid
 ### Phase 0: baseline and instrumentation (small, do first)
 
 **Status: code done; the numbers (item 4) are for the user.** The overlay is in the root layout (`components/PerfOverlay.tsx`,
-state and helpers in `lib/perf.tsx`), switched on at **Server & debug → Performance**. It is gated by `debugEnabled`, not
+state and helpers in `lib/perf.tsx`), switched on at **Server & debug → Performance**. It is gated by `isDebug()` (`lib/server`), not
 by `__DEV__`, so it also works in a release build that was made with `EXPO_PUBLIC_DEBUG=1` (a `preview` profile with that
-variable; a production build never has it). The `<Profiler>` logs (`[perf] Calendar update 12.3 ms …`) and the first cache
+variable), and in any build, production too, for the owner's account. The `<Profiler>` logs (`[perf] Calendar update 12.3 ms …`) and the first cache
 write log are development-only, because React's profiler is off in release. The overlay also shows the size of the saved
 cache and the time of its last `JSON.stringify` (it keeps measuring in a release build). The UI-fps line is an animated
 `TextInput`; the technique is standard but this repo could not run it on a device, so if it shows nothing, the JS line and the

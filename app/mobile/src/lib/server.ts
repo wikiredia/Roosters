@@ -12,8 +12,30 @@ import { createStore } from './store';
  */
 export const apiOverride = createStore<string | null>(null);
 
-/** The debug screen and error details: always in development, in other builds with EXPO_PUBLIC_DEBUG=1. */
-export const debugEnabled = __DEV__ || process.env.EXPO_PUBLIC_DEBUG === '1';
+/** A development build, or one built with EXPO_PUBLIC_DEBUG=1: the debug tools for everyone using it. */
+export const debugBuild = __DEV__ || process.env.EXPO_PUBLIC_DEBUG === '1';
+
+/**
+ * The owner's account (the API's `User.debug`, api/roosters/debug.allowed) uses this phone: the debug tools in every
+ * build, production too. Set from every /me answer and remembered on the device, so they're there at the next start
+ * before /me answers and on the sign-in screens (the gate, welcome, login) after signing out.
+ */
+export const debugAccount = createStore(false);
+
+/** The debug screens, the fps overlay and error details: a debug build, or the owner's account on this phone. */
+export const isDebug = () => debugBuild || debugAccount.get();
+
+/** `isDebug` for screens: shows or hides when /me changes it. */
+export function useDebug() {
+  return debugAccount.use() || debugBuild;
+}
+
+/** What /me says about the account on this phone (lib/session, api/hooks.useMe). */
+export async function setDebugAccount(on: boolean) {
+  if (on === debugAccount.get()) return;
+  debugAccount.set(on);
+  await prefs.set('debugAccount', on);
+}
 
 const PORT = process.env.EXPO_PUBLIC_API_PORT || '8000';
 
@@ -32,7 +54,8 @@ export function apiBase(): string {
 }
 
 export async function loadServer() {
-  if (!debugEnabled) return;
+  debugAccount.set(await prefs.get<boolean>('debugAccount', false));
+  if (!isDebug()) return;
   apiOverride.set(await prefs.get<string | null>('apiUrl', null));
 }
 

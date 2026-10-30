@@ -1,10 +1,10 @@
 ---
-updated: 2026-10-24T09:54:20Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 **Test people** for trying the app on a laptop or test server: made-up friends with a made-up timetable, so you can
-switch to them (`r_debug.login_as`) and see what a friend sees. Only reachable through `r_debug.py` (ENV=dev, private
-network). The app side is `mobile/src/app/dev.tsx` (Me → Test data & users).
+switch to them (`r_debug.login_as`) and see what a friend sees. Only reachable through `r_debug.py` (ENV=dev, or the owner's
+account on any server). The app side is `mobile/src/app/dev.tsx` (Me → Test data & users).
 
 - Test people are recognised by their e-mail domain (`TEST_DOMAIN`, `roosters.test`) and **belong to the account
   that made them** (`users.test_owner_id`): only it sees them, switches to them and removes them; deleting that

@@ -1,12 +1,18 @@
 ---
-updated: 2026-10-30T09:25:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 **Troubleshooting** the login-mail path: API → job in MySQL → worker → SMTP (Mailpit on the laptop).
 It is the most common 'it doesn't work' on a fresh setup, so this explains in plain words what's wrong.
 
-Used by `GET /api/v1/debug` (only with ENV=dev, `r_debug.py`), by `python -m roosters.cli debug`, and
+Used by `GET /api/v1/debug` (ENV=dev, or the owner's account: `r_debug.py`), by `python -m roosters.cli debug`, and
 by the console's overview (`admin.overview`).
+
+## `allowed`
+
+May this user use the debug tools on a server that isn't ENV=dev? Only the account whose e-mail is
+`config.DEBUG_EMAIL` (not a guest), also while switched to one of the test people it made (`test_owner_id`: then the
+owner's row is checked, and a disabled owner counts as no). Used by `r_debug.dev_only` and `r_me.user_out` (`debug`).
 
 ## `HEARTBEAT_KEY`, `worker_heartbeat`
 

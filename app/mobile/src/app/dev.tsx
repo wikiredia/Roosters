@@ -12,11 +12,12 @@ import { Text } from '@/components/ui/Text';
 import { api, ApiError, NetworkError } from '@/lib/api';
 import { confirm } from '@/lib/confirm';
 import { queryClient } from '@/lib/query';
-import { debugEnabled } from '@/lib/server';
+import { useDebug } from '@/lib/server';
 import { saveTokens, type Tokens } from '@/lib/session';
 
 /**
- * Test data & users: development builds only (like Server & debug), against an API with ENV=dev, signed in. Make test
+ * Test data & users: like Server & debug, in development builds or for the owner's account in any build (lib/server
+ * useDebug), against an API with ENV=dev or signed in as the owner (any server). Make test
  * friends with a made-up timetable, switch to one of them in one tap to see what a friend sees (and back to your own
  * account), befriend or unfriend, remove them again. Only your own account and the test people it made: never another
  * real account. Developer-facing, so English and not translated.
@@ -40,22 +41,23 @@ type DevUser = {
 const VIS: Record<Visibility, string> = { full: 'everything', norooms: 'no rooms', freebusy: 'free/busy' };
 
 function errorText(e: unknown) {
-  if (e instanceof ApiError && e.status === 404) return 'The API answered 404: it runs without ENV=dev, is an older version, or that account is not yours.';
+  if (e instanceof ApiError && e.status === 404) return 'The API answered 404: it runs without ENV=dev and you are not the owner\'s account, it is an older version, or that account is not yours.';
   if (e instanceof ApiError) return `${e.status} ${e.code}: ${e.message}`;
   if (e instanceof NetworkError) return `No answer from the API (${e.kind}).`;
   return e instanceof Error ? e.message : String(e);
 }
 
 export default function DevScreen() {
+  const debug = useDebug();
   const users = useQuery({
     queryKey: ['debug-users'],
     queryFn: () => api.get<{ me: number; owner: number; users: DevUser[] }>('/api/v1/debug/users', { etag: false }),
-    enabled: debugEnabled,
+    enabled: debug,
   });
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
-  if (!debugEnabled) return null;
+  if (!debug) return null;
   const list = users.data?.users ?? [];
   const me = list.find((u) => u.id === users.data?.me);
   const tests = list.filter((u) => u.test);
@@ -100,7 +102,7 @@ export default function DevScreen() {
       <Text variant="sm" tone="ink2">
         Test people get a made-up timetable (last week to three weeks ahead) at your school and campus. Tap one to continue as them: change what a
         friend sees on their page (Me → Friends), switch, and look at yourself from their side. Only your own account and your test people are
-        listed; only with ENV=dev.
+        listed; with ENV=dev, or on any server for the owner&apos;s account.
       </Text>
 
       {result ? <Banner kind={result.ok ? 'neutral' : 'bad'} title={result.ok ? 'Done' : "That didn't work"} body={result.text} /> : null}

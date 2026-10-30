@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T12:00:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -101,7 +101,7 @@ polls while a far week is `loading`.
 
 ## `useMe`, `useToday`, `useTodays`, `useSchedule`, `useSources`
 
-Your account, Today (refetched every minute), several days side by side (Rooster tab), a week, your sources (polled every 2.5 s while one is still fetching for the first time). Today, several days, a week and a friend's schedule poll every 2 s while the API says `loading` (a week far back or ahead is being fetched from Untis).
+Your account (each answer also tells `lib/server.setDebugAccount` whether it's the owner's account), Today (refetched every minute), several days side by side (Rooster tab), a week, your sources (polled every 2.5 s while one is still fetching for the first time). Today, several days, a week and a friend's schedule poll every 2 s while the API says `loading` (a week far back or ahead is being fetched from Untis).
 
 ## `useClassLessons`
 

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:10:00Z
+updated: 2026-10-30T15:00:00Z
 ---
 
 All settings, read **once at import** from environment variables (compose passes `app/.env`).
@@ -34,6 +34,12 @@ MySQL connection. `DB_POOL` is how many idle connections each process keeps (`db
 ## `ENV`, `DEV`
 
 `dev` on the laptop, `prod` on a server. `DEV` gates the debug features (see above).
+
+## `DEBUG_EMAIL`
+
+The owner's e-mail (default `reda.kadi07@gmail.com`; empty turns it off): signed in with it, the debug endpoints
+(`r_debug.py`) work on every server, also with ENV=prod, and `/me` says `debug`, so the app shows its debug screens in
+every build (`debug.allowed`).
 
 ## `MAIL_MODE`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_STARTTLS`
 
