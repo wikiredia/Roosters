@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T13:40:00Z
+updated: 2026-10-30T08:11:38Z
 ---
 
 **Today**: where you are now, who you can take a break with, who is around. One request (`GET /me/today`,
@@ -26,7 +26,10 @@ Skeleton for the very first load (never a spinner).
 
 ## `NowCard`, `TomorrowLine`
 
-The big blue card: in class until / break until / first lesson at / done, with the next lesson; 'Tomorrow you start at 08:30' from the cached next school day.
+The big blue card: in class until / break until / first lesson at / done, with the next lesson. Lessons are merged first
+(`Timetable.mergeLessons`, as in the Rooster tab), so a double period is one class and 'Next' is never the same class
+an hour later; 'until' for the class you're in is the end of *that* class (`cur.end`), not `status.until`, which is the end
+of the whole run of back-to-back classes (that is what friends see); 'Tomorrow you start at 08:30' from the cached next school day.
 
 ## `PLAN`
 
