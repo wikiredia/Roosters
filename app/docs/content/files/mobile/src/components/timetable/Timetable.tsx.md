@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T00:15:00Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -9,6 +9,18 @@ The **time grid**: time axis, day columns, lesson blocks (theory or lab colours,
 Exported for the Rooster tab's `DayGrid`. 
 One block (lesson, together or free). A free moment is a light grey fill without an outline, with a small coffee
 cup in its top right corner (no text unless it has a label).
+
+## `LessonBody`, `Fit`, `fitOf`, `LINE`
+
+What a lesson card says, after the room it has: it measures itself and picks a layout in steps (`fitOf`: how many lines
+of small text fit, and narrow / medium / wide), so it re-renders only when the layout would change, not on every frame
+of a pinch. The pieces, in order: the course, its details as the source layout breaks them up (`lib/details.detailRows`:
+Type, Building, Floor, Classroom … in your order), then the time; cancelled or exam first. **Tall and narrow** (a whole
+week, a lane in Vergelijken): the name may wrap to two or three lines and each detail gets its own line, as many as
+fit; on a very narrow card the type goes last (the colour already says it) and the name is shortened (`shortCourse`).
+**Wide**: the name on one line ('Gewijzigd' next to it) and the details side by side under it, wrapping when there's
+height. **One line**: the name, on a wide card with the first detail after it. Also used for friends' classes
+(`FriendLane`, `friend`: no exam colours).
 
 ## `GridProps`, `TimeGrid`
 

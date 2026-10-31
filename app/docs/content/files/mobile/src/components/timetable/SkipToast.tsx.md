@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-29T23:10:00Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 The **summary after a skip**: a small dark card at the bottom of the calendar (`Calendar` shows it), so it never
@@ -8,6 +8,9 @@ with Undo, and below it what the skip changes (`lib/skips.skipChanges`; the frie
 answers). It goes by itself; a tap sends it away sooner. Also says when a skip was taken back or didn't go through.
 
 ## `SkipToast`, `SkipNote`
+
+Kind `info` (with `text`, up to three lines): asking a friend to skip a class in Vergelijken; `text` also overrides
+the title of a `failed` note (the error).
 
 Memo: it renders when the note changes or the countdown ticks, not with the calendar (keep `onUndo` and `onDone` stable).
 `note.id` changes per toast, so a new skip restarts the countdown. Undo goes to `Calendar`, which takes the last

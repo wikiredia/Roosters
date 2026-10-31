@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo } from 'react';
+import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -24,7 +25,7 @@ function cornerXY(c: Corner, w: number, h: number, top: number) {
 }
 
 /**
- * 'Vandaag' floating over the timetable when you're looking at another week: tap to go back (the timetable slides
+ * 'Vandaag' floating over the timetable when you're looking at another week, a little see-through: tap to go back (the timetable slides
  * there from where you were). Drag it anywhere; it settles in the nearest corner with a little bounce, and stays
  * in that corner next time (`prefs` `today.corner`).
  */
@@ -79,13 +80,16 @@ export const TodayPill = memo(function TodayPill({ width, height, top, onPress }
         accessibilityRole="button"
         accessibilityLabel={t('rooster.today')}
         accessibilityHint={t('rooster.todayHint')}
-        className="absolute top-0 left-0 flex-row items-center justify-center gap-1.5 rounded-full bg-ink"
-        style={[{ width: W, height: H, elevation: 6, shadowColor: '#161F2A', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } }, style]}
+        className="absolute top-0 left-0"
+        style={[{ width: W, height: H }, style]}
       >
-        <Icon name="calendar" size={16} color="ink-inverse" />
-        <Text variant="sm" bold tone="inverse">
-          {t('rooster.today')}
-        </Text>
+        {/* See-through, so the classes under it still show (the position animates on the outer view) */}
+        <View className="flex-1 flex-row items-center justify-center gap-1.5 rounded-full bg-ink" style={{ opacity: 0.72 }}>
+          <Icon name="calendar" size={16} color="ink-inverse" />
+          <Text variant="sm" bold tone="inverse">
+            {t('rooster.today')}
+          </Text>
+        </View>
       </AView>
     </GestureDetector>
   );

@@ -1,15 +1,17 @@
-import { memo, type ReactNode, useId } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { memo, type ReactNode, useId, useState } from 'react';
+import { type LayoutChangeEvent, Pressable, ScrollView, View } from 'react-native';
 import Svg, { Defs, Line, Pattern, Rect } from 'react-native-svg';
 import { useCSSVariable } from 'uniwind';
 
+import { useDetails } from '@/api/hooks';
 import type { Lesson } from '@/api/types';
 import { Icon } from '@/components/ui/Icon';
 import { AView, layout } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { hhmm } from '@/lib/time';
+import { detailRows, layoutFor } from '@/lib/details';
+import { hhmm, range } from '@/lib/time';
 
 /** The kinds of lessons the API tells apart (api/roosters/kinds.py), each with its own colour. */
 export type LessonKind = 'theory' | 'lab' | 'exercises' | 'project' | 'support' | 'internship' | 'info' | 'exam' | 'other';
@@ -412,35 +414,7 @@ export function BlockView({ block, style, compact, onPressLesson, onPressInLesso
       className={cls}
       style={style}
     >
-      {l.course === undefined ? (
-        <Text variant="xs" bold>
-          {t('tt.lesson')}
-        </Text>
-      ) : (
-        <>
-          <View className="flex-row items-center justify-between gap-1">
-            <Text variant={compact ? 'xs' : 'sm'} bold strike={off} tone={exam ? 'inverse' : off ? 'ink2' : 'ink'} numberOfLines={compact ? 2 : 1} className="flex-1">
-              {compact ? shortCourse(l.course) : l.course}
-            </Text>
-            {!compact && l.state === 'changed' ? (
-              <View className="bg-ink rounded-md px-1.5">
-                <Text variant="xs" bold tone="inverse">
-                  {t('tt.changed')}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-          {off ? (
-            <Text variant="xs" bold tone="danger">
-              {t('tt.cancelled')}
-            </Text>
-          ) : (
-            <Text variant="xs" tone={exam ? 'inverse' : 'ink'} numberOfLines={1}>
-              {exam ? t('tt.exam') : compact ? (l.location ?? '') : [t(KIND_LABEL[kind]), l.location].filter(Boolean).join(' · ')}
-            </Text>
-          )}
-        </>
-      )}
+      <LessonBody lesson={l} compact={compact} t={t} />
     </Pressable>
   );
 }
@@ -560,3 +534,96 @@ export const Legend = memo(function Legend({ items }: { items: LegendItem[] }) {
     </ScrollView>
   );
 });
+
+/** The space a lesson card's text has, in steps: how many lines of small text fit, and how wide it is (0 very narrow,
+ * 1 narrow, 2 medium, 3 wide). Steps, so a card re-renders only when its layout would change (not every frame of a pinch). */
+type Fit = { lines: number; width: 0 | 1 | 2 | 3 };
+const LINE = 16;
+function fitOf(w: number, h: number): Fit {
+  return { lines: Math.max(1, Math.floor((h + 2) / LINE)), width: w < 64 ? 0 : w < 110 ? 1 : w < 170 ? 2 : 3 };
+}
+
+/**
+ * What a lesson card says, after the room it has (it measures itself): first the course, then its details as the
+ * source layout breaks them up (Type, Building, Floor, Classroom, ... in your order: lib/details), then the time.
+ * Tall and narrow (a whole week, a lane in Vergelijken): the name may take two or three lines and each detail gets a
+ * line of its own, as many as fit; on a very narrow card the type goes last and the name is shortened. Wide: the name
+ * on one line and the details side by side under it (wrapping when there's height for it). One line only: the name,
+ * and on a wide card the first detail after it. Cancelled or exam says so first. `tone`: text colour on a friend's
+ * class (Vergelijken), which has its own colours.
+ */
+export function LessonBody({ lesson: l, compact, t, friend = false }: { lesson: Lesson; compact?: boolean; t: (k: Key, p?: Record<string, string | number>) => string; friend?: boolean }) {
+  const details = useDetails();
+  const [fit, setFit] = useState<Fit | null>(null);
+  const onLayout = (e: LayoutChangeEvent) => {
+    const f = fitOf(e.nativeEvent.layout.width, e.nativeEvent.layout.height);
+    setFit((x) => (x && x.lines === f.lines && x.width === f.width ? x : f));
+  };
+  const off = isOff(l);
+  const kind = lessonKind(l);
+  const exam = kind === 'exam' && !friend;
+  const kindName = t(KIND_LABEL[kind]);
+  const width = fit?.width ?? (compact ? 1 : 3);
+  const lines = fit?.lines ?? 2;
+  const course = l.course ?? t('tt.lesson');
+  const name = width === 0 && l.course ? shortCourse(course) : course;
+  // The details in the layout's order; on narrow cards the type last (the colour already says it)
+  let values = l.course ? detailRows(l, kind === 'other' ? null : kindName, layoutFor(l.origin, details.data), t).map((r) => r.value) : [];
+  if (width <= 1) values = [...values.filter((v) => v !== kindName), ...values.filter((v) => v === kindName)];
+  const items = [...(off ? [t('tt.cancelled')] : exam ? [t('tt.exam')] : []), ...values, range(l.start, l.end)];
+  const tone = exam ? 'inverse' : off ? 'ink2' : 'ink';
+  const itemTone = (i: number) => (i === 0 && off ? 'danger' : exam ? 'inverse' : 'ink');
+  const big = width >= 2 && !compact;
+  const changed = width === 3 && l.state === 'changed';
+  let body: ReactNode;
+  if (lines <= 1 || (big && lines <= 2 && width < 3)) {
+    // One line (two with the bigger name): the name, on a wide card with what matters most after it
+    body = (
+      <Text variant={big ? 'sm' : 'xs'} bold strike={off} tone={tone} numberOfLines={1}>
+        {width >= 2 && items.length > 1 ? `${name} · ${items[0]}` : name}
+      </Text>
+    );
+  } else if (width === 3) {
+    // Wide: name on top, the details side by side under it
+    body = (
+      <>
+        <View className="flex-row items-center justify-between gap-1">
+          <Text variant={big ? 'sm' : 'xs'} bold strike={off} tone={tone} numberOfLines={1} className="flex-1">
+            {name}
+          </Text>
+          {changed ? (
+            <View className="bg-ink rounded-md px-1.5">
+              <Text variant="xs" bold tone="inverse">
+                {t('tt.changed')}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <Text variant="xs" tone={off ? 'danger' : exam ? 'inverse' : 'ink'} numberOfLines={Math.max(1, lines - (big ? 2 : 1))}>
+          {items.join(' · ')}
+        </Text>
+      </>
+    );
+  } else {
+    // Narrow: the name may wrap, then a detail per line, as many as fit
+    const nameLines = lines <= 2 ? 1 : Math.min(width === 0 ? 3 : 2, Math.max(1, lines - items.length));
+    const shown = items.slice(0, Math.max(0, lines - nameLines - (big ? 1 : 0)));
+    body = (
+      <>
+        <Text variant={big ? 'sm' : 'xs'} bold strike={off} tone={tone} numberOfLines={nameLines}>
+          {name}
+        </Text>
+        {shown.map((v, i) => (
+          <Text key={`${i}:${v}`} variant="xs" tone={itemTone(i)} bold={i === 0 && off} numberOfLines={1}>
+            {v}
+          </Text>
+        ))}
+      </>
+    );
+  }
+  return (
+    <View className="flex-1 overflow-hidden" onLayout={onLayout}>
+      {body}
+    </View>
+  );
+}

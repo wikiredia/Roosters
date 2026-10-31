@@ -758,6 +758,8 @@ export const en: Record<Key, string> = {
   'qr.scanBody': 'Scan a friend\'s QR code.',
   'qr.noCamera': 'Roosters+ can\'t use your camera. Turn it on in your phone\'s settings.',
   'qr.notOurs': 'That\'s not a Roosters+ code.',
+  'compare.empty': 'Empty',
+  'rooster.backTo': 'Back to {day}',
   'rooster.onward': 'Go to {day}',
   'tt.planned': 'Planned',
   'tt.asked': 'Asked',

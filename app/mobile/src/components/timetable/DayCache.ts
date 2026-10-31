@@ -7,6 +7,7 @@ import { dateAt } from '@/lib/days';
 import { joinNames } from '@/lib/status';
 import { isoDay } from '@/lib/time';
 
+import type { Lane } from './Lanes';
 import { TAP_ALONE, TAP_LESSON, TAP_OVERLAP, TAP_SKIPPED, TAP_TOGETHER, type TapTarget } from './TapTargets';
 import {
   type Block,
@@ -69,13 +70,21 @@ export type DayData = {
   legend: LegendItem[];
   /** The earliest start and the latest end of the lessons, or null without lessons */
   bounds: Span | null;
-  /** The merged lessons that could be skipped if they're still to come (`lib/skips.canSkip` without the time) */
-  skippable: Span[];
+  /** The merged lessons that could be skipped if they're still to come (`lib/skips.canSkip` without the time). In
+   * Vergelijken also a friend's classes (ask them to skip it): their lane's place (`x0`–`x1`, `lane`, see SkipDrag) */
+  skippable: (Span & { x0?: number; x1?: number; lane?: number })[];
   /** What a tap opens, for the UI thread (`TapTargets`) */
   taps: TapTarget[];
+  /** Vergelijken only (`Lanes.withLanes`): a lane per person, whether anyone has something that day, and whether
+   * anyone's timetable is still on its way */
+  lanes?: Lane[];
+  anything?: boolean;
+  waiting?: boolean;
 };
 
 let ids = 0;
+/** A new `DayData.id` (for days made from a cached one, like `Lanes.withLanes`) */
+export const nextDayId = () => ++ids;
 
 /** A week that hasn't come in: nothing on it yet, one object for every such day */
 const WAITING: DayData = {

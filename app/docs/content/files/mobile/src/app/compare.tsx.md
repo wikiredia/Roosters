@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 **Vergelijken**, in two steps that slide sideways:
@@ -9,10 +9,15 @@ updated: 2026-10-30T15:40:00Z
    then the ones you compare with most (counted on this phone, `compare.picks`; no history yet: the ones you share
    most breaks with), 3 in all or every pinned one, with how many breaks you share in that week. Only those show a
    count: seeing it for everyone is what comparing is for. The rest below in the API's order (pinned first, by name).
-2. **Side by side**: you and them, a column each, for a day (or two when you're at most three people), Monday to
-   Friday (`components/timetable/CompareView.tsx`: their classes, the breaks you share, tap a break for how it goes,
-   drag a class of theirs into the bin to ask whether they'd skip it). The + after the last friend's card goes back
-   to step 1; 'Klaar' (top right) closes Vergelijken.
+2. **The calendar**: the Rooster tab's own screen and calendar (`components/timetable/CalendarScreen.tsx`: the same
+   code, so the same controls, gestures and height) in compare mode: every day has a lane per person
+   (`components/timetable/Lanes.ts`): you as on the Rooster tab (shared breaks only with them), then each friend in
+   their own colour. No legend: top right their faces (`Faces`), each with a ring in their colour, and + back to step
+   1. Tap a friend's class for its details (`LessonSheet`, no skipping); drag it into the bin to ask whether they'd skip
+   it. A lane with nothing that day is narrow, 'Leeg'. It starts on today (next Monday at the weekend, `firstDay`)
+   with two days, one with three friends (`startDays`); pinch or drag the strip for more. **Back arrow** before the
+   title: back to step 1 when you came from there, else closes Vergelijken. **Swiping back is off** on the calendar
+   (`gestureEnabled: false`): it got mixed up with swiping through the days.
 
 `lessonWeek` is still what the shared-break counts in step 1 are about.
 
@@ -23,6 +28,14 @@ With `ids` (a friend's page, the chat's +) it opens on step 2 straight away.
 ## `MAX_FREE`, `CompareScreen`
 
 The free limit (same as the server) and the screen.
+
+## `startDays`, `firstDay`
+
+How many days the calendar starts with, and on which day (see above).
+
+## `Faces`
+
+The faces top right, ringed in their colour, and +.
 
 ## `lessonWeek`
 
