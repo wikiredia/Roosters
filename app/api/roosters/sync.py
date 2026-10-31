@@ -103,7 +103,11 @@ def _side(l: dict) -> dict:
 
 def wanted(course: str, cfg: dict, hidden: set) -> bool:
     """Does this user follow this course? (include = only these, exclude = not these, hidden = hidden in the app)
-    `picked`: the courses were chosen one by one in the app, so include is the whole list, even when empty."""
+    `picked`: the courses were chosen one by one in the app, so include is the whole list, even when empty.
+    A lesson the source gave no name ('') can't be picked or switched off (it isn't in the course list), so
+    it's always followed: the source says it's there."""
+    if not course:
+        return True
     include, exclude = cfg.get("include") or [], cfg.get("exclude") or []
     if (include or cfg.get("picked")) and course not in include:
         return False
@@ -274,7 +278,7 @@ def scan_courses(class_id: int) -> int:
         new = []
         for l in lessons:
             sem = year.semester(l["day"])
-            if sem is None or l["state"] == "cancelled":
+            if sem is None or l["state"] == "cancelled" or not l["course"]:  # nameless: nothing to pick
                 continue
             key = (sem, l["course"])
             if key not in found:

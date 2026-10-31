@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T17:15:00Z
+updated: 2026-10-31T20:17:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -24,7 +24,10 @@ of small text fit, and narrow / medium / wide), so it re-renders only when the l
 of a pinch. The pieces, in order: the course, its details as the source layout breaks them up (`lib/details.detailRows`:
 Type, Building, Floor, Classroom … in your order), then the time; cancelled or exam first. **Tall and narrow** (a whole
 week, a lane in Vergelijken): the name may wrap to two or three lines and each detail gets its own line, as many as
-fit; on a very narrow card the type goes last (the colour already says it) and the name is shortened (`shortCourse`).
+fit; on a very narrow card the type goes last (the colour already says it). **The name is always the source's own text**,
+whole: it wraps or is cut off by the card, never abbreviated. **A floor and its classroom share a line**
+('Verd. -01 · Lok. 019', with their short names when they fit, else '-01 · 019'; `lib/details.groupLines`). **The student
+group stays off the card** (`lib/details.cardRows`): it is in the sheet.
 **Wide**: the name on one line ('Gewijzigd' next to it) and the details side by side under it, wrapping when there's
 height. **One line**: the name, on a wide card with the first detail after it. Also used for friends' classes
 (`FriendLane`, `friend`: no exam colours).
@@ -38,8 +41,16 @@ days slide past it). Columns glide to their new width when their number changes 
 
 The hours on the left of a grid, on its own; its width (narrower when compact). The first and last hour are always shown
 (also when compact, where the hours in between are every other one) and a little brighter (`ink2` instead of `ink3`):
-on the Rooster tab they are what you drag to change the hours (`Calendar`). `TimeAxis` is `memo`: give it the same
-`hours` array while the hours are the same (`Calendar` does).
+on the Rooster tab they are what you drag to change the hours (`Calendar`), and with `handles` they sit on a light
+rounded patch (`bg-surface` with a hairline) so they look draggable. `TimeAxis` is `memo`: give it the same
+`hours` array while the hours are the same (`Calendar` does). With `live` (the `AxisLive` of a drag) every label is
+placed from the fractional live hours, so it follows the finger; hours that have left the grid fade out.
+
+## `AxisLive`, `useAxisLive`
+
+The hours while the axis is dragged, as shared values on the UI thread: `on` (0/1) and the first and last hour as
+fractions. `Calendar` writes them, `TimeAxis` and `DayGrid` read them. `useAxisLive` gives one object for the life of
+the component, so the memoised axis and columns don't re-render. (Each hour on the axis is an `AxisLabel`.)
 
 ## `Legend`, `LegendItem`
 
@@ -67,7 +78,16 @@ Lessons that run at the same time (two groups, a moved lesson, a class you follo
 stretches where (merged, not cancelled) lessons overlap, three at once as one stretch. `lessonsAt(lessons, min)` is
 what a tap means: within `OVERLAP_SLOP` (10) minutes of an overlap it's all its lessons (the screen asks which),
 otherwise the one lesson under the finger. `lessonsIn` is the same for a day that has been worked out already (its merged
-lessons and overlaps from `DayCache`), which is what the grid's tap uses.
+lessons and the *grouped* overlaps from `DayCache`), which is what the grid's tap uses; with `place` and `fx` (how far
+across the column the finger is) it picks the cell of lessons that stand side by side.
+
+## `Slot`, `MAX_SIDE_BY_SIDE`, `lessonKey`, `sideBySide`
+
+Lessons at the same time share their column: **separate cells in the same rows, the width divided evenly**. Of a run of
+lessons that overlap each gets the first free lane, and every lane is `1/n` wide (`Slot` = lane `i` of `n`; `n` = the
+most lanes at once). More than `MAX_SIDE_BY_SIDE` (3) lanes: no room to read them, so they're *grouped* (`grouped`: the
+hatched `OverlapBand`, a tap asks which one you mean), as before. Cancelled and skipped lessons don't count.
+`lessonKey` identifies a merged lesson of a day (the key of `DayData.place`).
 
 ## `OverlapBand`
 
@@ -100,17 +120,20 @@ back. `lessonsAt` finds skipped ones only when asked (`skipped`), so a shared br
 ## `lessonKind`, `isOff`, `LessonKind`, `KIND_STYLE`, `KIND_LABEL`
 
 The kind of a lesson as the API tells it (`api/roosters/kinds.py`: theory, lab, exercises, project, support,
-internship, info, exam, other; lessons cached from before kinds: a guess from the name), its colours (a soft fill
-and a stronger border, tokens in `global.css`) and its name; does a lesson not take place?
+internship, info, exam, other; lessons cached from before kinds: read from the name when it says Labo, else `other`,
+never a guess like theory), its colours (a soft fill
+and a stronger border, tokens in `global.css`) and its name (`other` is 'Andere'); does a lesson not take place?
+
+## `lessonTitle`
+
+What a lesson is called: the source's own text. Without one: 'Bezet' for a friend who only shares free/busy
+(`course` missing), the kind's name for your own nameless lesson ('Andere' when that isn't known either). Never an
+invented title like 'Les'.
 
 ## `lessonLabel`
 
 Exported: the Rooster tab's blocks use it for screen readers. 
 Accessible label of a lesson.
-
-## `shortCourse`
-
-'Network Security' → 'NetSec' for narrow week columns.
 
 ## `TogetherBlock`, `TogetherSlot`
 

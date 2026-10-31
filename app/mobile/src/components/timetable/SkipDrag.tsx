@@ -31,6 +31,12 @@ const BIN_RADIUS = 12;
 /** Resting this long (ms) on a class before moving picks it up whichever way you go; quicker and sideways is a swipe
  * through the days. */
 const HOLD = 140;
+/** When more than this share of the grid you see is classes you can pick up, there's hardly room left to put a finger
+ * down to scroll or swipe: a class is then only picked up after `HOLD_LONG` ms of holding it still (a long press); below
+ * it a class is picked up at once, as soon as you move it up or down. */
+export const COVER_MAX = 0.5;
+/** Holding a class this long (ms) picks it up when the grid is mostly classes (`COVER_MAX`): it lifts at that moment. */
+export const HOLD_LONG = 350;
 /** A class you hold still lifts (a little bigger, a shadow) after this long (ms): it shows it can be dragged. */
 const LIFT_AFTER = 220;
 /** Moving at least this fast (px/s) towards the bin when you let go throws the card into it. */
@@ -78,6 +84,25 @@ export function useSkipDrag(): SkipDrag {
   return useMemo(() => ({ phase, rect, grab, tx, ty, rot, lift, over, gone, side }), [phase, rect, grab, tx, ty, rot, lift, over, gone, side]);
 }
 
+/**
+ * The share (0–1) of the grid you see that is covered by classes you can pick up, compared with the same grid empty:
+ * their minutes inside the hours shown, over the days in view (`off`, `n`: first day and number of days; a column
+ * half in view counts half). Side by side or in a friend's lane (`x0`–`x1`) a class counts for its share of the width.
+ */
+export function coverage(list: DragTarget[], off: number, n: number, min0: number, min1: number): number {
+  'worklet';
+  const span = min1 - min0;
+  if (span <= 0 || n <= 0) return 0;
+  let area = 0;
+  for (let i = 0; i < list.length; i++) {
+    const g = list[i];
+    const days = Math.min(g.day + 1, off + n) - Math.max(g.day, off);
+    const mins = Math.min(g.end, min1) - Math.max(g.start, min0);
+    if (days > 0 && mins > 0) area += days * ((g.x1 ?? 1) - (g.x0 ?? 0)) * mins;
+  }
+  return Math.min(1, area / (n * span));
+}
+
 type GestureProps = {
   drag: SkipDrag;
   targets: SharedValue<DragTarget[]>;
@@ -109,7 +134,8 @@ type GestureProps = {
  */
 export function useSkipGesture(p: GestureProps) {
   const { drag, targets, offset, count, width, height, min0, min1, pxPerHour, labelH, onPick, onDrop, enabled = true } = p;
-  const down = useSharedValue({ x: 0, y: 0, at: 0, day: 0, start: 0, lane: 0 });
+  // `hold`: ms to hold before a move picks the class up (0: not needed, see COVER_MAX)
+  const down = useSharedValue({ x: 0, y: 0, at: 0, day: 0, start: 0, lane: 0, hold: 0 });
   const vxLast = useSharedValue(0);
   // Over the bin at the last move (not `drag.over`, which is animated): a tap as the card goes over it, once
   const wasOver = useSharedValue(0);
@@ -151,8 +177,10 @@ export function useSkipGesture(p: GestureProps) {
           // A class on the right half: the bin comes in on the left, so the card never has to go past its own column
           drag.side.set(touch.x > width / 2 ? -1 : 1);
           drag.phase.set(1);
-          drag.lift.set(withDelay(LIFT_AFTER, withSpring(1, SWING)));
-          down.set({ x: touch.x, y: touch.y, at: Date.now(), day, start: hit.start, lane: hit.lane ?? 0 });
+          // Mostly classes in view: a long press first (so a swipe or scroll starting on a class still works)
+          const hold = coverage(targets.get(), off, count.get(), min0, min1) > COVER_MAX ? HOLD_LONG : 0;
+          drag.lift.set(withDelay(hold || LIFT_AFTER, withSpring(1, SWING)));
+          down.set({ x: touch.x, y: touch.y, at: Date.now(), day, start: hit.start, lane: hit.lane ?? 0, hold });
           scheduleOnRN(onPick, day, hit.start, hit.lane ?? 0);
         })
         .onTouchesMove((e, m) => {
@@ -162,7 +190,10 @@ export function useSkipGesture(p: GestureProps) {
           const dx = touch.x - d.x;
           const dy = touch.y - d.y;
           if (dx * dx + dy * dy < 36) return;
-          if (Date.now() - d.at >= HOLD || Math.abs(dy) > Math.abs(dx) * 0.8) m.activate();
+          // Long press needed: held long enough, any way you move; moved before that, it was a swipe or a scroll.
+          // Otherwise: rested HOLD ms, or more up/down than sideways.
+          const held = Date.now() - d.at >= (d.hold || HOLD);
+          if (held || (!d.hold && Math.abs(dy) > Math.abs(dx) * 0.8)) m.activate();
           else {
             drag.lift.set(withTiming(0, { duration: 100 }));
             drag.phase.set(0);
@@ -182,6 +213,8 @@ export function useSkipGesture(p: GestureProps) {
           drag.phase.set(0);
         })
         .onStart(() => {
+          // Picked up after a long press: a light tap says so
+          if (down.get().hold) scheduleOnRN(tick);
           drag.phase.set(2);
           wasOver.set(0);
           drag.lift.set(withSpring(1, SWING));

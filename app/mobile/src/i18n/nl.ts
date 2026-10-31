@@ -219,7 +219,7 @@ export const nl = {
   'tt.changed': 'Gewijzigd',
   'tt.exam': 'Examen',
   'tt.together': 'Samen',
-  'tt.lesson': 'Les',
+  'tt.other': 'Andere',
   'tt.overlap': 'Overlappende lessen: {names}, van {from} tot {to}. Tik om te kiezen.',
   'tt.overlapShort': '{n} lessen',
   'tt.whichLesson': 'Welke les?',

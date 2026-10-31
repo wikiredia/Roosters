@@ -85,7 +85,7 @@ export function withLanes(d: DayData, day: number, friends: FriendDay[], asks: S
   });
   const me = lanes[0];
   const taps: TapTarget[] = d.taps.map((g) => ({ ...g, x0: me.x0, x1: me.x1 }));
-  const skippable: DayData['skippable'] = d.skippable.map((s) => ({ ...s, x0: me.x0, x1: me.x1, lane: 0 }));
+  const skippable: DayData['skippable'] = d.skippable.map((s) => ({ ...s, x0: me.x0 + (s.x0 ?? 0) * (me.x1 - me.x0), x1: me.x0 + (s.x1 ?? 1) * (me.x1 - me.x0), lane: 0 }));
   lanes.forEach((lane, i) => {
     if (!i) return;
     for (const l of lane.lessons) {

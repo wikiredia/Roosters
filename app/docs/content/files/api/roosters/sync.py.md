@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T08:00:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 **Fetching timetables** and updating lessons, with **change detection**.
@@ -134,4 +134,5 @@ A school's timezone, or the default.
 
 Does this user follow this course? (include = only these, exclude = not these, hidden = switched off in the app.)
 With `picked` (courses chosen one by one in onboarding), `include` is the whole list, even when it's empty:
-nothing chosen means nothing, not everything.
+nothing chosen means nothing, not everything. A lesson the source gave no name (`course == ''`) can't be picked or switched
+off, so it is always followed (and `scan_courses` and `r_schools.courses` leave it out of the course list).

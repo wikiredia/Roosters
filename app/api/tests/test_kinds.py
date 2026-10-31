@@ -43,3 +43,18 @@ def test_parse_week_keeps_the_kind_but_not_the_text():
     (lesson,) = untis.parse_week(data, 10220)
     assert lesson["kind"] == "lab"
     assert "Labo" not in str(lesson)
+
+
+def test_a_lesson_without_a_name_has_no_name_but_still_a_kind():
+    """Nothing made up: no subject and no free text = no title (not 'Les'); the kind is 'other' (the app says 'Andere')."""
+    d = dt.date(2026, 10, 20)
+    data = untis_week(10220, d, [{"id": 1, "start": 830, "end": 1030, "subject": "Databases", "room": "B204"}])
+    period = data["elementPeriods"]["10220"][0]
+    period["elements"] = [r for r in period["elements"] if r["type"] == 4]  # the room only
+    period["lessonText"] = ""
+    (lesson,) = untis.parse_week(data, 10220)
+    assert (lesson["course"], lesson["location"], lesson["kind"]) == ("", "B204", "other")
+    # The free text names a lesson that has no subject
+    period["lessonText"] = "Infosessie stage"
+    (lesson,) = untis.parse_week(data, 10220)
+    assert (lesson["course"], lesson["kind"]) == ("Infosessie stage", "internship")

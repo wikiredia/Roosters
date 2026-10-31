@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T16:25:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 **Every day of the calendar with everything derived from it, made once.** A week comes in from `useWeeks`; its seven
@@ -31,8 +31,10 @@ days (one shared object: loading, nothing on it).
 
 Fields: `lessons` (as the API gave them), `merged`, `together` (shared breaks, overlapping ones as one; `muted` is the
 static part: over or too far ahead), `raw` (per friend, for "Pauze samen?" and what a skip changes), `loading`,
-`blocks` (merged lessons and shared breaks; `past` is false), `overlaps`, `free`, `kinds`, `legend`, `bounds` (earliest
-start and latest end, or null), `skippable` (merged classes that could be skipped if still to come) and `taps`
+`blocks` (merged lessons and shared breaks; `past` is false; a lesson at the same time as others has its `slot`),
+`overlaps` (only the lessons too many to stand side by side, grouped: `Timetable.sideBySide`), `place` (the cell of each
+lesson that stands side by side, by `lessonKey`), `free`, `kinds`, `legend`, `bounds` (earliest
+start and latest end, or null), `skippable` (merged classes that could be skipped if still to come; with `x0`–`x1` for a cell side by side) and `taps`
 (`TapTargets`; your own break with nobody is `free` minus every shared break, hatched ones too, and only from today on:
 a past day has none, like its muted shared breaks). `id` is a counter: `useDays` uses it to see that nothing changed.
 

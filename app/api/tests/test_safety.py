@@ -57,6 +57,13 @@ def test_ics_recurring_and_keywords():
     assert only[0]["location"] == "A.1.02"
 
 
+def test_ics_event_without_title_gets_no_made_up_title():
+    today = dt.datetime.now(TZ).date().strftime("%Y%m%d")
+    (l,) = ics.parse(_ics([f"BEGIN:VEVENT\nUID:z\nDTSTART;TZID=Europe/Brussels:{today}T090000\n"
+                           f"DTEND;TZID=Europe/Brussels:{today}T100000\nLOCATION:A.1.02\nEND:VEVENT"]))
+    assert (l["course"], l["location"]) == ("", "A.1.02")
+
+
 def test_ics_garbage_is_refused():
     with pytest.raises(ics.IcsError):
         ics.parse(b"<html>not a calendar</html>")

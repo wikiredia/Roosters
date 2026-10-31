@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T17:05:00Z
+updated: 2026-10-31T20:17:00Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -63,8 +63,15 @@ The height of that names row.
 
 ## `DayGrid`, `Props`, `GridView`
 
-Overlapping lessons get an `OverlapBand` over the shared stretch. A tap there (or within 10 minutes of it,
-`Timetable.lessonsAt`) calls `onPressOverlap` with those lessons instead of opening one.
+While the hour axis is dragged (`axis`, `Timetable.AxisLive`) the hour lines, the lessons, the lanes and the 'now' line
+are scaled and moved on the UI thread to the live hours (`LiveBody`), a fraction of an hour at a time; the dates stay.
+The scale is exact for positions (time is linear), text is stretched a few percent at most before the layout is redone
+at the nearest whole hour.
+
+Lessons at the same time stand side by side in their column (`Block.slot`: separate cells, the width shared evenly;
+`tapAt` finds the cell from how far across the day the finger is). Too many for that (more than 3): an `OverlapBand` over
+the shared stretch; a tap there (or within 10 minutes of it, `Timetable.lessonsIn`) calls `onPressOverlap` with those
+lessons instead of opening one.
 
 As above. `data(day)` gives a day's `DayData` (`DayCache`: everything is worked out already). `GridView`: the store
 `Calendar` keeps with the direction you went and where you are, read (never rendered with) by the columns.

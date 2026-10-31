@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T08:00:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 The lists **onboarding** shows: schools, campuses, classes (per semester), and the courses of a class this
@@ -33,7 +33,7 @@ course that starts in a month has to be choosable in onboarding, because the cho
 - The year comes from `class_courses` (`sync.scan_courses`), queued here when it's missing or older than
   `COURSES_RESCAN_DAYS`. Until it's there: the courses of the weeks we have, and `scanning: true` (the app
   polls). After a failed scan `scanning` is false and `error` says why; the job retries by itself.
-- Courses that appeared in the fetched weeks since the scan are added.
+- Courses that appeared in the fetched weeks since the scan are added. A lesson without a name isn't a course to pick: it isn't listed.
 - A class never fetched at all (and never scanned): it's queued and the answer says `syncing: true`.
 
 ## `class_lessons`

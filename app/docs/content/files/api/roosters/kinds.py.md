@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T08:00:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 **What kind of lesson** something is (theory, lab, exercises, project, support, internship, info, exam, other):
@@ -9,7 +9,7 @@ the period's free text (`lessonText`: "Theorie", "Labo", "Labo - Minor Robotics"
 "…_PR", "Monitoraat 1CH", "Werkplekleren 3"), and in the period's `is` flags (exam, event). `untis.parse_week`
 and `ics.parse` call it when a lesson is fetched; **only the result is stored**, never the free text.
 
-Lessons that say nothing are `other` (a plain 'Les' in the app), not theory: guessing theory made everything
+Lessons that say nothing are `other` ('Andere' in the app, as a type; never an invented title like 'Les'), not theory: guessing theory made everything
 look the same.
 
 ## `classify`

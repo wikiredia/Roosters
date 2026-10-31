@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T16:25:00Z
+updated: 2026-10-31T20:17:00Z
 ---
 
 **Dragging a class into the bin to skip it.** The gesture lives in `DayGrid` (first in its gesture tree, so the swipe
@@ -18,7 +18,11 @@ object on every render used to defeat `DayGrid`'s memo). `enabled: false` makes 
 A pan with manual activation. Touch down: is there a draggable class under the finger (`DragTarget`s, hit-tested on
 the UI thread)? No: fail at once. Yes: get the card ready (`onPick`) and lift it after `LIFT_AFTER` if the finger
 stays still. Then the first 6 px of movement decide: rested `HOLD` ms, or more up/down than sideways → pick it up;
-quick and sideways → fail (it's a swipe through the days). The bin is on the **half opposite where the finger came down**
+quick and sideways → fail (it's a swipe through the days). **Mostly classes in view** (`coverage` over `COVER_MAX`, 0.5:
+more than half of the grid you see is classes you can pick up, so there's hardly room left to put a finger down to
+scroll or swipe): a class is only picked up after holding it still `HOLD_LONG` ms (it lifts at that moment, with a
+light tap), and moving before that fails the gesture, so a swipe or scroll starting on a class works. Fewer classes:
+instant, as described above. The mode is chosen at touch down. The bin is on the **half opposite where the finger came down**
 (`drag.side`: a class on the right half → the bin on the left, otherwise on the right), so the card never has to cross
 the screen. Let go over the bin, or throw it towards it faster than `THROW_V` → it flies into the bin and `onDrop` skips it; anywhere else it springs back. While dragging, the card
 swings with the finger's speed (smoothed) around the point you hold it, and tilts a little over the bin. Haptics
@@ -48,6 +52,12 @@ it, and `onPick` / `onDrop` get the lane (0 = you).
 
 The classes that can be dragged (`lib/skips.canSkip`, merged as the grid draws them), copied into a shared value
 for the gesture whenever the list changes.
+
+## `COVER_MAX`, `HOLD_LONG`, `coverage`
+
+When the grid is mostly classes (`coverage` of the draggable ones, over the days and hours in view, a lane or side-by-side
+cell counting for its share of the width, is more than `COVER_MAX`) a class needs a long press of `HOLD_LONG` ms before it
+can be dragged.
 
 ## `BIN_W`, `HOLD`, `LIFT_AFTER`, `THROW_V`, `SWING`, `BACK`
 

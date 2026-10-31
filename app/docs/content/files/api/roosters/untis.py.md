@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T08:00:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 **WebUntis**: find a school, list its classes, and fetch class timetables from the **public** view
@@ -60,8 +60,10 @@ All classes of a school on one day (default today) from the public timetable pag
 ## `parse_week`
 
 Untis' week format to our lesson dicts (uid, day, start_min, end_min, course, location, student_group, state,
-kind). The free text (`lessonText`) is read only to tell the kind (`kinds.classify`, with the subject's long and
-short name and the `is` flags), never kept.
+kind). **The course is what Untis says**: the subject (long name, else display name, else name); a period without a
+subject is named by its free text (`lessonText`); with neither it is `''`, never a made-up title like 'Les' (the app
+shows nothing for it, or the kind). Apart from naming such a lesson the free text is only read to tell the kind
+(`kinds.classify`, with the subject's long and short name and the `is` flags), never kept.
 
 ## `search_schools`
 

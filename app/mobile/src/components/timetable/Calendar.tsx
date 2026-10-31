@@ -19,6 +19,7 @@ import { useStable } from '@/lib/latest';
 import { PerfProfile } from '@/lib/perf';
 import { skipChanges, skipTarget, type SkipTarget } from '@/lib/skips';
 import { prefs } from '@/lib/storage';
+import { tick } from '@/lib/haptics';
 import { createStore } from '@/lib/store';
 import { isoDay, nowMin, parseDay, weekdayShort } from '@/lib/time';
 
@@ -29,7 +30,7 @@ import { DayStrip } from './DayStrip';
 import { LessonSheet, OverlapSheet } from './LessonSheet';
 import { DragLayer, useSkipDrag } from './SkipDrag';
 import { type SkipNote, SkipToast } from './SkipToast';
-import { isFree, Legend, type LegendItem, TimeAxis } from './Timetable';
+import { isFree, Legend, type LegendItem, TimeAxis, useAxisLive } from './Timetable';
 import { TodayPill } from './TodayPill';
 
 const AXIS_W = 30;
@@ -37,6 +38,8 @@ const NONE: number[] = [];
 const NONE_S: string[] = [];
 /** The fewest hours the axis can be dragged down to */
 const MIN_SPAN = 2;
+/** Letting go of the axis: the hours spring to the nearest whole hour */
+const AXIS_SETTLE = { damping: 20, stiffness: 260, mass: 0.7 };
 /** What the legend shows when there's nothing to show yet */
 const DEFAULT_LEGEND: LegendItem[] = ['theory', 'lab'];
 
@@ -452,29 +455,65 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
     setZoomed(false);
     setRange(null);
   }, []);
-  // Dragging the axis: the first hour (top half) or the last (bottom half) follows your finger, an hour per hour-height
-  // as the axis was when you touched it; the grid shows those hours at once
-  const [axisFrom] = useState(() => createStore<{ top: boolean; hours: [number, number]; px: number } | null>(null));
-  const onAxisBegin = useStable((top: boolean) => axisFrom.set({ top, hours, px: pxPerHour }));
-  const onAxisMove = useStable((dy: number) => {
-    const f = axisFrom.get();
-    if (!f) return;
-    const dh = Math.round(dy / f.px);
-    let [a, b] = f.hours;
-    if (f.top) a = Math.max(0, Math.min(b - MIN_SPAN, a + dh));
-    else b = Math.min(24, Math.max(a + MIN_SPAN, b + dh));
-    setRange((r) => (r && r[0] === a && r[1] === b ? r : [a, b]));
-  });
+  // Dragging the axis: the first hour (top half) or the last (bottom half) follows your finger, an hour per hour-height as
+  // the axis was when you touched it, a fraction of an hour at a time: the axis and the grid are drawn at those
+  // fractional hours on the UI thread (`axisLive`, Timetable.LiveBody), and only when the nearest whole hour changes is
+  // the layout redone (one render, a light tap). Let go and it springs to the whole hour.
+  const axisLive = useAxisLive();
+  const axisGrab = useSharedValue({ top: false, a: 0, b: 0 });
+  const axisHours = useSharedValue<[number, number]>([hours[0], hours[1]]);
+  const axisShown = useSharedValue<[number, number]>([hours[0], hours[1]]);
+  useEffect(() => {
+    axisHours.set([hours[0], hours[1]]);
+  }, [hours, axisHours]);
+  const onAxisCommit = useStable((a: number, b: number) => setRange((r) => (r && r[0] === a && r[1] === b ? r : [a, b])));
   const axisH = size.h;
-  const axisPan = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetY([-6, 6])
-        .failOffsetX([-24, 24])
-        .onBegin((e) => scheduleOnRN(onAxisBegin, e.y < axisH / 2))
-        .onUpdate((e) => scheduleOnRN(onAxisMove, e.translationY)),
-    [axisH, onAxisBegin, onAxisMove],
-  );
+  const hoursH = size.h - labelH;
+  const axisPan = useMemo(() => {
+    const settle = () => {
+      'worklet';
+      const to = (v: number) => withSpring(Math.round(v), AXIS_SETTLE);
+      axisLive.a.set(to(axisLive.a.get()));
+      axisLive.b.set(withSpring(Math.round(axisLive.b.get()), AXIS_SETTLE, (done) => {
+        if (done) axisLive.on.set(0);
+      }));
+    };
+    return Gesture.Pan()
+      .activeOffsetY([-6, 6])
+      .failOffsetX([-24, 24])
+      .onBegin((e) => {
+        const [a, b] = axisHours.get();
+        axisGrab.set({ top: e.y < axisH / 2, a, b });
+        axisShown.set([a, b]);
+      })
+      .onStart(() => {
+        const g = axisGrab.get();
+        axisLive.a.set(g.a);
+        axisLive.b.set(g.b);
+        axisLive.on.set(1);
+      })
+      .onUpdate((e) => {
+        const g = axisGrab.get();
+        const dh = e.translationY / (hoursH / (g.b - g.a));
+        const a = g.top ? Math.max(0, Math.min(g.b - MIN_SPAN, g.a + dh)) : g.a;
+        const b = g.top ? g.b : Math.min(24, Math.max(g.a + MIN_SPAN, g.b + dh));
+        axisLive.a.set(a);
+        axisLive.b.set(b);
+        const ra = Math.round(a);
+        const rb = Math.round(b);
+        const [sa, sb] = axisShown.get();
+        if (ra !== sa || rb !== sb) {
+          axisShown.set([ra, rb]);
+          scheduleOnRN(onAxisCommit, ra, rb);
+          scheduleOnRN(tick);
+        }
+      })
+      .onEnd(settle)
+      .onFinalize((_e, ok) => {
+        // Taken away mid-drag (not let go): settle all the same
+        if (!ok && axisLive.on.get()) settle();
+      });
+  }, [axisH, hoursH, axisLive, axisGrab, axisHours, axisShown, onAxisCommit]);
   // The 'onward' arrow steps aside while you drag a class (the bin may come in on that side)
   const onwardFade = useAnimatedStyle(() => ({ opacity: withTiming(drag.phase.get() >= 2 ? 0 : 1, { duration: 120 }) }));
   // The strip above the grid
@@ -602,7 +641,7 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
       <AView layout={layout} className="flex-1 flex-row" onLayout={(e) => setSize({ w: e.nativeEvent.layout.width - AXIS_W, h: e.nativeEvent.layout.height })}>
         <GestureDetector gesture={axisPan}>
           <View collapsable={false} style={{ width: AXIS_W, paddingTop: labelH }} accessibilityHint={t('rooster.axisHint')}>
-            <TimeAxis pxPerHour={pxPerHour} hours={hours} compact />
+            <TimeAxis pxPerHour={pxPerHour} hours={hours} compact handles live={axisLive} />
           </View>
         </GestureDetector>
         {size.w ? (
@@ -633,6 +672,7 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
             drag={drag}
             onPickClass={onPickClass}
             onDropClass={onDropClass}
+            axis={axisLive}
           />
           </PerfProfile>
         ) : null}

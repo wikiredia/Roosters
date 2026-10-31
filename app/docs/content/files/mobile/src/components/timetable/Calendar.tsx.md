@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T17:05:00Z
+updated: 2026-10-31T20:17:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -18,7 +18,10 @@ everything moves together in the same frame, on the UI thread.
 - **Zoom**: double tap on the grid stretches the hours to your lessons; double tap again or the magnifier undoes it.
   **Dragging on the hour axis** zooms the hours by hand (`range`): the top half of the axis moves the first hour, the
   bottom half the last one, an hour per hour-height as the axis was when you touched it (at least `MIN_SPAN` hours
-  stay). The first and last hour on the axis are a little brighter (`TimeAxis`): they are the handles. `range` wins over
+  stay). It is smooth: the gesture runs on the UI thread and moves the hours a fraction at a time (`axisLive`), the
+  axis labels and the grid (`DayGrid.LiveBody`) follow your finger pixel by pixel; only when the nearest whole hour
+  changes is the layout redone (one `setRange`, a light tap), and letting go springs to the whole hour (`AXIS_SETTLE`).
+  The first and last hour on the axis sit on a light rounded patch (`TimeAxis` `handles`): they look draggable. `range` wins over
   the standard and the zoomed hours, makes the view 'custom' (the Rooster tab's 'Reset') and is undone by the magnifier,
   a double tap or Reset.
 - **Reset**: double tap on the day strip above the grid = the Rooster tab's 'Reset' (standard view: this week, Monday to Friday, not zoomed).
