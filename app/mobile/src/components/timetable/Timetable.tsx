@@ -1,6 +1,7 @@
-import { memo, type ReactNode, useId, useState } from 'react';
+import { memo, type ReactNode, useId, useMemo, useState } from 'react';
 import { type LayoutChangeEvent, Pressable, ScrollView, View } from 'react-native';
 import Svg, { Defs, Line, Pattern, Rect } from 'react-native-svg';
+import { type SharedValue, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useCSSVariable } from 'uniwind';
 
 import { useDetails } from '@/api/hooks';
@@ -354,9 +355,43 @@ export function axisWidth(compact?: boolean) {
   return compact ? 24 : 44;
 }
 
+/** The hours while you drag the axis, on the UI thread: `on` (0/1), and the first and last hour as fractions (7.4–17.6)
+ * while the finger moves. The axis and the grid draw those between the whole hours they are laid out in (`LiveBody`). */
+export type AxisLive = { on: SharedValue<number>; a: SharedValue<number>; b: SharedValue<number> };
+
+/** One object for the life of the component (so the memoised axis and columns that take it stay as they are) */
+export function useAxisLive(): AxisLive {
+  const on = useSharedValue(0);
+  const a = useSharedValue(0);
+  const b = useSharedValue(0);
+  return useMemo(() => ({ on, a, b }), [on, a, b]);
+}
+
+/** One hour on the axis. While the axis is dragged (`live`) it is placed from the live hours, a fraction of an hour at
+ * a time, so it follows the finger; whole hours otherwise. `handle`: the first and last hour of the Rooster tab's axis,
+ * the ones you can drag: a light rounded patch behind them says so. */
+const AxisLabel = memo(function AxisLabel({ h, h0, h1, pxPerHour, compact, handle, live }: { h: number; h0: number; h1: number; pxPerHour: number; compact?: boolean; handle?: boolean; live?: AxisLive }) {
+  const top = (h - h0) * pxPerHour - 9;
+  const height = (h1 - h0) * pxPerHour;
+  const style = useAnimatedStyle(() => {
+    if (!live || !live.on.get()) return { top, opacity: 1 };
+    const y = ((h - live.a.get()) / (live.b.get() - live.a.get())) * height - 9;
+    // An hour that has left the grid doesn't hang over the dates
+    return { top: y, opacity: y < -12 || y > height + 4 ? 0 : 1 };
+  });
+  return (
+    <AView className="absolute left-0" style={style}>
+      <Text variant="xs" bold tone={h === h0 || h === h1 ? 'ink2' : 'ink3'} className={cn('self-start', handle && 'rounded-full border border-line bg-surface px-1.5 py-px')} style={{ fontSize: compact ? 11 : 12 }}>
+        {compact ? String(h) : `${String(h).padStart(2, '0')}:00`}
+      </Text>
+    </AView>
+  );
+});
+
 /** The hours on the left of a grid. The first and the last are always there and a little brighter: they are what you
- * drag on the Rooster tab to change the hours you see (a narrow axis shows every other hour in between). */
-export const TimeAxis = memo(function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOUR] }: { pxPerHour?: number; compact?: boolean; hours?: [number, number] }) {
+ * drag on the Rooster tab to change the hours you see (`handles`: on a light rounded patch, so they look like it; a
+ * narrow axis shows every other hour in between). */
+export const TimeAxis = memo(function TimeAxis({ pxPerHour = 48, compact, hours = [START_HOUR, END_HOUR], handles, live }: { pxPerHour?: number; compact?: boolean; hours?: [number, number]; handles?: boolean; live?: AxisLive }) {
   const [h0, h1] = hours;
   const height = (h1 - h0) * pxPerHour;
   return (
@@ -364,9 +399,7 @@ export const TimeAxis = memo(function TimeAxis({ pxPerHour = 48, compact, hours 
       {Array.from({ length: h1 - h0 + 1 }, (_, i) => h0 + i)
         .filter((h) => !compact || h === h0 || h === h1 || ((h - h0) % 2 === 0 && h1 - h >= 2))
         .map((h) => (
-          <Text key={h} variant="xs" bold tone={h === h0 || h === h1 ? 'ink2' : 'ink3'} className="absolute" style={{ top: (h - h0) * pxPerHour - 9, fontSize: compact ? 11 : 12 }}>
-            {compact ? String(h) : `${String(h).padStart(2, '0')}:00`}
-          </Text>
+          <AxisLabel key={h} h={h} h0={h0} h1={h1} pxPerHour={pxPerHour} compact={compact} handle={handles && (h === h0 || h === h1)} live={live} />
         ))}
     </View>
   );

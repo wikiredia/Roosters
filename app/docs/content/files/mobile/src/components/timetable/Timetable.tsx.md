@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T20:11:00Z
+updated: 2026-10-31T20:17:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -41,8 +41,16 @@ days slide past it). Columns glide to their new width when their number changes 
 
 The hours on the left of a grid, on its own; its width (narrower when compact). The first and last hour are always shown
 (also when compact, where the hours in between are every other one) and a little brighter (`ink2` instead of `ink3`):
-on the Rooster tab they are what you drag to change the hours (`Calendar`). `TimeAxis` is `memo`: give it the same
-`hours` array while the hours are the same (`Calendar` does).
+on the Rooster tab they are what you drag to change the hours (`Calendar`), and with `handles` they sit on a light
+rounded patch (`bg-surface` with a hairline) so they look draggable. `TimeAxis` is `memo`: give it the same
+`hours` array while the hours are the same (`Calendar` does). With `live` (the `AxisLive` of a drag) every label is
+placed from the fractional live hours, so it follows the finger; hours that have left the grid fade out.
+
+## `AxisLive`, `useAxisLive`
+
+The hours while the axis is dragged, as shared values on the UI thread: `on` (0/1) and the first and last hour as
+fractions. `Calendar` writes them, `TimeAxis` and `DayGrid` read them. `useAxisLive` gives one object for the life of
+the component, so the memoised axis and columns don't re-render. (Each hour on the axis is an `AxisLabel`.)
 
 ## `Legend`, `LegendItem`
 

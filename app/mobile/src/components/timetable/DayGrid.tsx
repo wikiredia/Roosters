@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, type ReactNode, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { FadeIn, FadeInLeft, FadeInRight, type SharedValue, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -22,7 +22,7 @@ import { FriendLane } from './FriendLane';
 import { laneAt } from './Lanes';
 import { type DragTarget, type SkipDrag, useDragTargets, useSkipDrag, useSkipGesture } from './SkipDrag';
 import { TAP_ALONE, TAP_TOGETHER, type TapTarget, tapKindAt, useTapTargets } from './TapTargets';
-import { type Block, BlockView, lessonLabel, lessonsIn, OverlapBand, type Span } from './Timetable';
+import { type AxisLive, type Block, BlockView, lessonLabel, lessonsIn, OverlapBand, type Span, useAxisLive } from './Timetable';
 
 /** Height of the date above each column. */
 export const LABEL_H = 22;
@@ -82,6 +82,8 @@ type Props = {
   drag?: SkipDrag;
   onPickClass?: (day: number, start: number, lane: number) => void;
   onDropClass?: (day: number, start: number, lane: number) => void;
+  /** The hours while the axis is dragged (`Timetable.useAxisLive`, Calendar): the hour lines and the lessons follow them */
+  axis?: AxisLive;
 };
 
 /**
@@ -98,7 +100,9 @@ type Props = {
  * made once and again only when the size or hours change, so those callbacks must stay the same too.
  */
 export const DayGrid = memo(function DayGrid(p: Props) {
-  const { offset, count, busyWeekends, width, height, from, to, data, hours, today, nowMin, compact, lang, labelH = LABEL_H, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone, onTarget, onCount, onDoubleTap, drag, onPickClass, onDropClass } = p;
+  const { offset, count, busyWeekends, width, height, from, to, data, hours, today, nowMin, compact, lang, labelH = LABEL_H, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone, onTarget, onCount, onDoubleTap, drag, onPickClass, onDropClass, axis } = p;
+  const ownAxis = useAxisLive();
+  const live = axis ?? ownAxis;
   const lineColor = String(useCSSVariable('--color-line') ?? '#E4E1DA');
   const [h0, h1] = hours;
   const pxPerHour = (height - labelH) / Math.max(1, h1 - h0);
@@ -270,11 +274,13 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     <GestureDetector gesture={gesture}>
       <View className="flex-1 overflow-hidden" style={{ height }}>
         {/* Hour lines: subtle and dotted, behind everything */}
-        <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">
-          {Array.from({ length: h1 - h0 + 1 }, (_, i) => (
-            <Line key={i} x1={0} x2={width} y1={labelH + i * pxPerHour} y2={labelH + i * pxPerHour} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
-          ))}
-        </Svg>
+        <LiveBody axis={live} hours={hours} pxPerHour={pxPerHour} labelH={labelH} height={height}>
+          <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">
+            {Array.from({ length: h1 - h0 + 1 }, (_, i) => (
+              <Line key={i} x1={0} x2={width} y1={labelH + i * pxPerHour} y2={labelH + i * pxPerHour} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
+            ))}
+          </Svg>
+        </LiveBody>
         {days.map((day) => (
           <DayColumn
             key={day}
@@ -293,6 +299,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
             lang={lang}
             labelH={labelH}
             view={view}
+            axis={live}
             onPressLesson={onPressLesson}
             onPressOverlap={onPressOverlap}
             onPressTogether={onPressTogether}
@@ -350,6 +357,7 @@ type ColumnProps = {
   lang: Lang;
   labelH: number;
   view: GridView;
+  axis: AxisLive;
   onPressLesson: Props['onPressLesson'];
   onPressOverlap: Props['onPressOverlap'];
   onPressTogether: Props['onPressTogether'];
@@ -361,7 +369,7 @@ type ColumnProps = {
  * (its data, the hours, the size, the minute on today's column), never because of a swipe: every prop is a number, a
  * string, a shared value, one of the cache's `DayData` objects or a callback that keeps its identity.
  */
-const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, compact, lang, labelH, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone }: ColumnProps) {
+const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, compact, lang, labelH, view, axis, onPressLesson, onPressOverlap, onPressTogether, onPressAlone }: ColumnProps) {
   noteColumnRender(day);
   const { t } = useT();
   const style = useAnimatedStyle(() => {
@@ -441,6 +449,7 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
           {`${weekdayShort(date, lang).toLowerCase()} ${date.getDate()}`}
         </Text>
       </View>
+      <LiveBody axis={axis} hours={hours} pxPerHour={pxPerHour} labelH={labelH} height={height}>
       <View style={mine} pointerEvents="box-none">
       {me?.empty ? <EmptyLane t={t} top={labelH} /> : null}
       {/* Free moments between lessons: behind everything (a shared break or a cancelled lesson goes over them). A screen
@@ -519,9 +528,34 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
           <View className="absolute bg-ink rounded-full w-2 h-2" style={{ left: -3, top: -3 }} />
         </View>
       ) : null}
+      </LiveBody>
     </AView>
   );
 });
+
+/**
+ * What is laid out in whole hours (the hour lines, a day's lessons and lanes, the 'now' line) while you drag the axis:
+ * scaled and moved on the UI thread to the live hours (`axis`, fractions of an hour), so the grid follows your finger
+ * a pixel at a time instead of jumping an hour. The scale is exact for positions and heights (time is linear on the
+ * grid); text is stretched a few percent at most, since the layout is redone at the nearest whole hour. Clipped to
+ * below the dates, which stay where they are. Without a drag it is the identity.
+ */
+function LiveBody({ axis, hours, pxPerHour, labelH, height, children }: { axis: AxisLive; hours: [number, number]; pxPerHour: number; labelH: number; height: number; children: ReactNode }) {
+  const [h0, h1] = hours;
+  const style = useAnimatedStyle(() => {
+    if (!axis.on.get()) return { transform: [{ translateY: 0 }, { scaleY: 1 }] };
+    const a = axis.a.get();
+    const s = (h1 - h0) / (axis.b.get() - a);
+    return { transform: [{ translateY: s * (h0 - a) * pxPerHour }, { scaleY: s }] };
+  });
+  return (
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: labelH, bottom: 0, overflow: 'hidden' }}>
+      <AView pointerEvents="box-none" style={[{ position: 'absolute', left: 0, right: 0, top: -labelH, height, transformOrigin: `0px ${labelH}px` }, style]}>
+        {children}
+      </AView>
+    </View>
+  );
+}
 
 /** A lane with nothing on it that day (Vergelijken): narrow, 'Leeg' in the middle ('Verborgen' when they hide it) */
 function EmptyLane({ t, hidden = false, top }: { t: (k: Key) => string; hidden?: boolean; top: number }) {
