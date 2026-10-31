@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:07:49Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 **Every day of the calendar with everything derived from it, made once.** A week comes in from `useWeeks`; its seven
@@ -35,6 +35,11 @@ static part: over or too far ahead), `raw` (per friend, for "Pauze samen?" and w
 start and latest end, or null), `skippable` (merged classes that could be skipped if still to come) and `taps`
 (`TapTargets`; your own break with nobody is `free` minus every shared break, hatched ones too, and only from today on:
 a past day has none, like its muted shared breaks). `id` is a counter: `useDays` uses it to see that nothing changed.
+
+## `nextDayId`
+
+A new `DayData.id`, for days made from a cached one (`Lanes.withLanes`). `DayData` also has `lanes`, `anything` and
+`waiting` in Vergelijken only, and `skippable` entries may carry a lane (`x0`, `x1`, `lane`).
 
 ## `DayPlan`, `HOURS`, `withPlan`
 

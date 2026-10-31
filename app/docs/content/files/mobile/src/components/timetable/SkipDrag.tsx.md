@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T12:30:00Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 **Dragging a class into the bin to skip it.** The gesture lives in `DayGrid` (first in its gesture tree, so the swipe
@@ -42,6 +42,9 @@ offsets, rotation, lift, over-the-bin and gone values, and `side` (1: the bin on
 finger comes down.
 
 ## `DragTarget`, `useDragTargets`
+
+In Vergelijken a target has its lane (`x0`–`x1` of the day's width, `lane`): the hit test and the card's place use
+it, and `onPick` / `onDrop` get the lane (0 = you).
 
 The classes that can be dragged (`lib/skips.canSkip`, merged as the grid draws them), copied into a shared value
 for the gesture whenever the list changes.

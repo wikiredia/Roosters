@@ -14,8 +14,8 @@ export const UNDO_SECONDS = 5;
 const LINGER = 4500;
 
 /** What the toast says: a skip (with what it changes; `changes` grows once the server says who's free), a skip
- * taken back, or a skip that didn't go through. `id` changes per toast, so a new skip starts its own countdown. */
-export type SkipNote = { id: number; kind: 'skipped' | 'undone' | 'failed'; course: string; changes: SkipChange[] };
+ * taken back, a skip that didn't go through, or (`info`, with `text`) a question to a friend in Vergelijken. `id` changes per toast, so a new skip starts its own countdown. */
+export type SkipNote = { id: number; kind: 'skipped' | 'undone' | 'failed' | 'info'; course: string; changes: SkipChange[]; text?: string };
 
 /**
  * The small dark card at the bottom of the calendar after a skip: "Skipped DevOps", a countdown (just 5, 4, 3, 2, 1)
@@ -46,13 +46,13 @@ export const SkipToast = memo(function SkipToast({ note, onUndo, onDone }: { not
   }, [id, kind]);
 
   if (!note) return null;
-  const title = note.kind === 'skipped' ? t('skip.title', { course: note.course }) : note.kind === 'undone' ? t('skip.undone', { course: note.course }) : t('skip.failed');
+  const title = note.text ? note.text : note.kind === 'skipped' ? t('skip.title', { course: note.course }) : note.kind === 'undone' ? t('skip.undone', { course: note.course }) : t('skip.failed');
   return (
     <AView key={note.id} entering={FadeInDown.springify().damping(18).stiffness(220)} exiting={FadeOutDown.duration(160)} layout={layout} className="absolute left-1 right-1 bottom-2" pointerEvents="box-none">
       <Pressable onPress={onDone} accessibilityRole="summary" accessibilityLiveRegion="polite" className="bg-ink rounded-card px-3.5 py-3 gap-2" style={{ shadowColor: '#161F2A', shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 }}>
         <View className="flex-row items-center gap-2.5 min-h-9">
-          <Icon name={note.kind === 'undone' ? 'undo' : note.kind === 'failed' ? 'wifiOff' : 'trash'} size={18} color="#FFFFFF" strokeWidth={2} />
-          <Text bold tone="inverse" numberOfLines={1} className="flex-1">
+          <Icon name={note.kind === 'undone' ? 'undo' : note.kind === 'failed' ? 'wifiOff' : note.kind === 'info' ? 'users' : 'trash'} size={18} color="#FFFFFF" strokeWidth={2} />
+          <Text bold tone="inverse" numberOfLines={note.kind === 'info' ? 3 : 1} className="flex-1">
             {title}
           </Text>
           {note.kind === 'skipped' && left > 0 ? (

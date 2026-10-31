@@ -4,7 +4,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
-import { useBreaks, useFriends, useSkip, useToday, useWeeks } from '@/api/hooks';
+import { useAskSkip, useBreaks, useFriends, useFriendWeeks, useSkip, useSkipAsks, useToday, useWeeks } from '@/api/hooks';
 import type { Lesson, Together } from '@/api/types';
 import { breakTarget, PeopleSheet, type PeopleTarget } from '@/components/PeopleSheet';
 import { Button, IconButton } from '@/components/ui/Button';
@@ -12,6 +12,7 @@ import { Icon } from '@/components/ui/Icon';
 import { AView, enter, exit, layout } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { type Lang, useT } from '@/i18n';
+import { duration } from '@/lib/breaks';
 import { dateAt, dayIndex, homeStart, MAX_DAYS, mondayOf, weekdayOf } from '@/lib/days';
 import { useWeekDrag } from '@/lib/labs';
 import { useStable } from '@/lib/latest';
@@ -22,6 +23,7 @@ import { createStore } from '@/lib/store';
 import { isoDay, nowMin, parseDay, weekdayShort } from '@/lib/time';
 
 import { type DayData, type DayPlan, HOURS, useDays } from './DayCache';
+import { type FriendDay, withLanes } from './Lanes';
 import { DayGrid, LABEL_H, RESIZE, SWIPE } from './DayGrid';
 import { DayStrip } from './DayStrip';
 import { LessonSheet, OverlapSheet } from './LessonSheet';
@@ -31,6 +33,8 @@ import { isFree, Legend, type LegendItem, TimeAxis } from './Timetable';
 import { TodayPill } from './TodayPill';
 
 const AXIS_W = 30;
+const NONE: number[] = [];
+const NONE_S: string[] = [];
 /** The fewest hours the axis can be dragged down to */
 const MIN_SPAN = 2;
 /** What the legend shows when there's nothing to show yet */
@@ -67,10 +71,15 @@ export type CalendarView = { start: number; want: number; custom: boolean };
 export type CalendarControl = { reset: () => void };
 
 type Props = {
-  /** Only shared breaks with these friends (Vergelijken); all friends when left out (Rooster) */
+  /** Only shared breaks with these friends; all friends when left out (Rooster) */
   only?: number[];
+  /** Vergelijken: these friends' timetables next to yours, a lane per person in every day (`Lanes`); shared breaks
+   * only with them */
+  compare?: number[];
   /** The first day to show (a day index, lib/days); the week of today when left out */
   initialStart?: number;
+  /** How many days to start with (and 'Reset' goes back to); 5 when left out */
+  initialDays?: number;
   /** Remember how many days you like and show the tips (the Rooster tab); Vergelijken starts fresh each time */
   remember?: boolean;
   onView?: (v: CalendarView) => void;
@@ -87,22 +96,27 @@ type Props = {
  * with nobody for who you usually go with (PeopleSheet: a row opens the chat). Drag a class into the
  * bin on the right (or 'Skip' in its sheet) to skip it: a short summary of what that changes, with Undo, comes up
  * at the bottom (SkipToast).
- * The Rooster tab and Vergelijken (with `only`: the friends you picked) both show this.
+ * The Rooster tab and Vergelijken both show this (through CalendarScreen). Vergelijken (`compare`: the friends you
+ * picked) splits every day into a lane per person (`Lanes`): you as here, each friend in their own colour
+ * (FriendLane); tapping a friend's class opens its sheet (details, no skipping), dragging it to the bin asks them to
+ * skip it; no legend. Empty days at either end of the view, or nothing at all in view: an arrow on that side to where
+ * there's something again (forward and back).
  * Memo, and built so that a state change here renders as little as possible: every child is memo with props that keep
  * their identity (callbacks read the newest state through `latest`), so a swipe, a sheet or a header change on the
  * screen above re-renders only what it concerns.
  */
-export const Calendar = memo(function Calendar({ only, initialStart, remember = false, onView, control }: Props) {
+export const Calendar = memo(function Calendar({ only: onlyProp, compare, initialStart, initialDays = 5, remember = false, onView, control }: Props) {
+  const only = compare ?? onlyProp;
   const { t, lang } = useT();
   const friends = useFriends();
   const breaks = useBreaks();
   // Experiment (Ik → Experimenten): drag the strip up/down to the week before or after
   const weekDrag = useWeekDrag();
   const today = dayIndex(new Date());
-  const [want, setWant] = useState(5);
-  const [start, setStart] = useState(() => initialStart ?? homeStart(5, today, () => true));
+  const [want, setWant] = useState(initialDays);
+  const [start, setStart] = useState(() => initialStart ?? homeStart(initialDays, today, () => true));
   // Where the columns can look up which way you went and where you are, without rendering when it changes
-  const [view] = useState(() => createStore<{ dir: 1 | -1; start: number; want: number }>({ dir: 1, start, want: 5 }));
+  const [view] = useState(() => createStore<{ dir: 1 | -1; start: number; want: number }>({ dir: 1, start, want: initialDays }));
   useInsertionEffect(() => {
     view.set((v) => (v.start === start && v.want === want ? v : { ...v, start, want }));
   }, [view, start, want]);
@@ -115,7 +129,8 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const [stripW, setStripW] = useState(0);
   const [hint, setHint] = useState<'days' | 'zoom' | null>(null);
   const [learned, setLearned] = useState(true);
-  const [open, setOpen] = useState<{ lesson: Lesson; together: Together[] } | null>(null);
+  // `friend`: one of a friend's classes (Vergelijken): its details, no skipping
+  const [open, setOpen] = useState<{ lesson: Lesson; together: Together[]; friend?: number } | null>(null);
   // Overlapping lessons tapped: which one? Then that one's sheet
   const [choose, setChoose] = useState<{ lessons: Lesson[]; day: number } | null>(null);
   const chosen = useRef(false);
@@ -153,7 +168,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const plan = useMemo<DayPlan | null>(() => (chill || busy ? { chill, busy, since } : null), [chill, busy, since]);
   // Every day with what's derived from it (merged lessons, blocks, overlaps, free gaps, ...), built once per week
   // that comes in: moving `start` reuses the weeks still in the window (DayCache)
-  const byDay = useDays(
+  const ownDays = useDays(
     weeks.map((w) => w.data),
     mondayOf(from),
     names,
@@ -163,12 +178,38 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     lang,
     plan,
   );
+  // Vergelijken: the friends' weeks (one request per friend and week) and your open skip questions, as a lane per
+  // person in each day (`Lanes.withLanes`); the Rooster tab uses the days as they are
+  const friendIds = compare ?? NONE;
+  const friendWeeks = useFriendWeeks(friendIds, compare ? mondays : NONE_S);
+  const asks = useSkipAsks(!!compare);
+  const ask = useAskSkip();
+  const friendKey = friendWeeks.map((q) => q.dataUpdatedAt).join();
+  const compareKey = compare?.join();
+  const byDay = useMemo(() => {
+    if (!compare) return ownDays;
+    const first = mondayOf(from);
+    const out = new Map<number, DayData>();
+    for (const [day, d] of ownDays) {
+      const wi = Math.floor((day - first) / 7);
+      const iso = isoDay(dateAt(day));
+      const fr: FriendDay[] = compare.map((id, i) => {
+        const w = friendWeeks[i * mondays.length + wi]?.data;
+        return { id, lessons: w ? w.lessons.filter((l) => l.day === iso) : [], loading: !w || !!w.loading, hidden: !!w?.hidden };
+      });
+      out.set(day, withLanes(d, day, fr, asks.data ?? [], iso));
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `friendKey` says when a friend's week changed
+  }, [ownDays, friendKey, asks.data, compareKey]);
 
   // Weekends with something on them: a swipe doesn't skip those
   // (also kept here on the JS side: render code never reads a shared value)
   const busySats = useMemo(() => {
     const busy: number[] = [];
-    for (const [day, d] of byDay) if (day % 7 === 5 && (d.lessons.length || byDay.get(day + 1)?.lessons.length)) busy.push(day);
+    // (Vergelijken: anyone's classes count)
+    const has = (d: DayData | undefined) => !!d && !!(d.anything ?? d.lessons.length);
+    for (const [day, d] of byDay) if (day % 7 === 5 && (has(d) || has(byDay.get(day + 1)))) busy.push(day);
     return busy;
   }, [byDay]);
   useEffect(() => {
@@ -276,6 +317,20 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
     );
   }
 
+  /** Vergelijken: ask a friend whether they'd skip one of their classes (dragged into the bin) */
+  function askFriend(id: number, l: Lesson) {
+    const name = (names.get(id) ?? '').split(/\s+/)[0];
+    const nid = Date.now();
+    setNote({ id: nid, kind: 'info', course: '', changes: [], text: t('compare.asking', { name }) });
+    ask.mutate(
+      { friend: id, day: l.day, start: l.start, end: l.end },
+      {
+        onSuccess: (r) => setNote((n) => (n?.id === nid ? { ...n, text: t('compare.asked', { name, dur: duration(r.skip.minutes, t) }) } : n)),
+        onError: (e) => setNote((n) => (n?.id === nid ? { id: nid, kind: 'failed', course: '', changes: [], text: e.message } : n)),
+      },
+    );
+  }
+
   /** Back on your timetable: Undo in the summary, or 'I'll go after all' in a skipped class's sheet. */
   function unskip(target: SkipTarget) {
     lastSkip.current = null;
@@ -284,28 +339,63 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   }
 
   const home = initialStart ?? homeStart(want, today, emptyWeekend);
-  /** Back to the standard view: this week (or the one it opened on), Monday to Friday, zoomed out. */
+  /** Back to the standard view: this week (or the day it opened on), Monday to Friday (or the days it opened with),
+   * zoomed out. */
   function reset() {
     setZoomed(false);
     setRange(null);
-    setDays(5, false);
-    moveTo(initialStart ?? homeStart(5, today, emptyWeekend), 5);
+    setDays(initialDays, false);
+    moveTo(initialStart ?? homeStart(initialDays, today, emptyWeekend), initialDays);
   }
   useImperativeHandle(control, () => ({ reset }));
 
   const visible = Array.from({ length: want }, (_, i) => start + i);
   // 'Vandaag' only when you've moved away from today (and from where the calendar opens)
   const showsToday = visible.includes(today) || start === home;
-  // An empty weekend at the right end of the view (nothing on Saturday and/or Sunday): an arrow in that space to the
-  // next day with something possible on it: Sunday when it has something, otherwise Monday, at the left
+  // Arrows to where there's something again (nothing to see but empty days otherwise). An empty weekend at the right
+  // end of the view: an arrow on the right to the next day with something possible on it (Sunday when it has
+  // something, otherwise Monday, at the left); one at the left end: an arrow on the left back to Friday (or Saturday),
+  // at the right. Nothing at all in view: both, to the nearest day with something on either side (the days we have;
+  // none there yet: a week further, and on from there once that week is in)
   const empty = (d: number) => {
     const x = byDay.get(d);
-    return !!x && !x.loading && !x.lessons.length && !x.together.length;
+    return !!x && !(x.waiting ?? x.loading) && !(x.anything ?? (x.lessons.length || x.together.length));
   };
-  let firstEmpty = visible.length;
-  while (firstEmpty > 0 && weekdayOf(visible[firstEmpty - 1]) >= 5 && empty(visible[firstEmpty - 1])) firstEmpty--;
-  const sunday = firstEmpty < visible.length ? mondayOf(visible[firstEmpty]) + 6 : 0;
-  const onward = firstEmpty < visible.length ? (!visible.includes(sunday) && byDay.get(sunday) && !empty(sunday) ? sunday : sunday + 1) : null;
+  const busyDay = (d: number) => {
+    const x = byDay.get(d);
+    return !!x && !(x.waiting ?? x.loading) && !empty(d);
+  };
+  const nothing = visible.every(empty);
+  // `onward`: the first day you land on going forward; `backward`: the first day you land on going back, `backDay`
+  // the day the left arrow names (it ends up at the right of the view)
+  let onward: number | null = null;
+  let backward: number | null = null;
+  let backDay: number | null = null;
+  if (nothing) {
+    let f = visible[visible.length - 1] + 1;
+    while (f <= to && !busyDay(f)) f++;
+    if (f <= to) onward = want >= 5 ? Math.max(mondayOf(f), Math.min(f, mondayOf(f) + 7 - want)) : f;
+    else onward = start + 7;
+    let b = start - 1;
+    while (b >= from && !busyDay(b)) b--;
+    if (b >= from) {
+      backDay = b;
+      backward = want >= 5 ? Math.max(mondayOf(b), Math.min(b - want + 1, mondayOf(b) + 7 - want)) : b - want + 1;
+    } else {
+      backward = start - 7;
+      backDay = backward + want - 1;
+    }
+  } else {
+    let firstEmpty = visible.length;
+    while (firstEmpty > 0 && weekdayOf(visible[firstEmpty - 1]) >= 5 && empty(visible[firstEmpty - 1])) firstEmpty--;
+    const sunday = firstEmpty < visible.length ? mondayOf(visible[firstEmpty]) + 6 : 0;
+    onward = firstEmpty < visible.length ? (!visible.includes(sunday) && byDay.get(sunday) && !empty(sunday) ? sunday : sunday + 1) : null;
+    if (weekdayOf(visible[0]) >= 5 && empty(visible[0])) {
+      const saturday = mondayOf(visible[0]) + 5;
+      backDay = !visible.includes(saturday) && byDay.get(saturday) && !empty(saturday) ? saturday : saturday - 1;
+      backward = backDay - want + 1;
+    }
+  }
   // The hours are an array with the same identity while the two numbers are the same (the columns and the axis are memo)
   const span =
     range ??
@@ -320,7 +410,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   const legendKey = [...legendItems].join();
   const legend = useMemo<LegendItem[]>(() => (legendKey ? (legendKey.split(',') as LegendItem[]) : DEFAULT_LEGEND), [legendKey]);
   // Anything else than the standard view (zoomed, other than 5 days, not starting on a Monday): the screen's title becomes 'Reset'
-  const custom = zoomed || range != null || want !== 5 || weekdayOf(start) !== 0;
+  const custom = zoomed || range != null || want !== initialDays || (initialStart != null ? start !== initialStart : weekdayOf(start) !== 0);
   useEffect(() => {
     onView?.({ start, want, custom });
   }, [start, want, custom]);
@@ -330,12 +420,12 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   // Stable callbacks for everything below (all of it memo): opening a sheet re-renders this component and that
   // sheet, never the 20-odd day columns, the strip or the other sheets, so a tap on a lesson answers at once. They
   // read the newest state through `latest`, which is up to date before any event handler runs.
-  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today, hours, pxPerHour, range });
+  const latest = useRef({ byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, askFriend, reset, moveTo, home, choose, today, hours, pxPerHour, range });
   useInsertionEffect(() => {
-    latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, reset, moveTo, home, choose, today, hours, pxPerHour, range };
+    latest.current = { byDay, askBreak, onTarget, setDays, start, want, doSkip, unskip, askFriend, reset, moveTo, home, choose, today, hours, pxPerHour, range };
   });
   const data = useCallback((d: number) => byDay.get(d), [byDay]);
-  const onPressLesson = useCallback((lesson: Lesson, day: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [] }), []);
+  const onPressLesson = useCallback((lesson: Lesson, day: number, friend?: number) => setOpen({ lesson, together: latest.current.byDay.get(day)?.raw ?? [], friend }), []);
   const onPressOverlap = useCallback((lessons: Lesson[], day: number) => setChoose({ lessons, day }), []);
   const onPressTogether = useCallback((day: number, span: { start: number; end: number }) => latest.current.askBreak(day, span), []);
   // Your own break with nobody: the same (who joins later in it, or "Meestal ga je met:")
@@ -413,11 +503,19 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
   // Double tap on the strip above the grid = the screen's 'Reset'
   const onStripReset = useStable(reset);
   const stripDoubleTap = useMemo(() => Gesture.Tap().numberOfTaps(2).maxDelay(250).onEnd((_e, ok) => ok && scheduleOnRN(onStripReset)), [onStripReset]);
-  const classAt = (day: number, start: number) => latest.current.byDay.get(day)?.merged.find((l) => l.start === start && !isFree(l));
-  const onPickClass = useCallback((day: number, start: number) => setLifted(classAt(day, start) ?? null), []);
-  const onDropClass = useCallback((day: number, start: number) => {
-    const l = classAt(day, start);
-    if (l) latest.current.doSkip(l);
+  // Lane 0 is you (your own classes); in Vergelijken a higher lane is a friend's: dropping it in the bin asks them
+  // whether they'd skip it (`useAskSkip`, "Volg je Python?"), it shows as asked at once, only for you
+  const classAt = (day: number, start: number, lane = 0) => {
+    const d = latest.current.byDay.get(day);
+    return lane ? d?.lanes?.[lane]?.lessons.find((l) => l.start === start) : d?.merged.find((l) => l.start === start && !isFree(l));
+  };
+  const onPickClass = useCallback((day: number, start: number, lane: number) => setLifted(classAt(day, start, lane) ?? null), []);
+  const onDropClass = useCallback((day: number, start: number, lane: number) => {
+    const l = classAt(day, start, lane);
+    if (!l) return;
+    if (!lane) return latest.current.doSkip(l);
+    const who = latest.current.byDay.get(day)?.lanes?.[lane]?.who;
+    if (who != null) latest.current.askFriend(who, l);
   }, []);
   const onTodayPress = useCallback(() => latest.current.moveTo(latest.current.home), []);
   const onToastDone = useCallback(() => setNote(null), []);
@@ -520,7 +618,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
             today={today}
             nowMin={now}
             view={view}
-            compact={size.w / want < 120}
+            compact={size.w / want / (1 + (compare?.length ?? 0)) < 120}
             lang={lang}
             onPressLesson={onPressLesson}
             onPressOverlap={onPressOverlap}
@@ -537,7 +635,7 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
         ) : null}
         {size.w ? (
           <View pointerEvents="none" style={{ position: 'absolute', left: AXIS_W, top: 0, width: size.w, height: size.h }}>
-            <DragLayer drag={drag} lesson={lifted} width={size.w} height={size.h} compact={size.w / want < 120} />
+            <DragLayer drag={drag} lesson={lifted} width={size.w} height={size.h} compact={size.w / want / (1 + (compare?.length ?? 0)) < 120} />
           </View>
         ) : null}
         {zoomed || range ? (
@@ -568,6 +666,28 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
             </AView>
           </AView>
         ) : null}
+        {backward != null && backDay != null && size.w ? (
+          // The same tab against the left edge of the days (next to the hours), back to where there was something
+          <AView entering={enter} exiting={exit} pointerEvents="box-none" className="absolute justify-center" style={{ left: AXIS_W, top: LABEL_H, bottom: 0 }}>
+            <AView style={onwardFade}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('rooster.backTo', { day: `${weekdayShort(dateAt(backDay), lang)} ${dateAt(backDay).getDate()}` })}
+                onPress={() => moveTo(backward)}
+                hitSlop={{ top: 12, bottom: 12, right: 12 }}
+                className="items-center gap-1 rounded-r-card bg-surface border-[1.5px] border-l-0 border-line-strong pr-2.5 pl-2 py-2 active:bg-surface-sunken"
+              >
+                <Icon name="back" size={22} color="ink" strokeWidth={2} />
+                <Text variant="xs" bold tone="ink2">
+                  {weekdayShort(dateAt(backDay), lang).toUpperCase()}
+                </Text>
+                <Text variant="sm" bold>
+                  {String(dateAt(backDay).getDate())}
+                </Text>
+              </Pressable>
+            </AView>
+          </AView>
+        ) : null}
         {!showsToday && size.w ? <TodayPill width={size.w + AXIS_W} height={size.h} top={LABEL_H} onPress={onTodayPress} /> : null}
         <SkipToast note={note} onDone={onToastDone} onUndo={onToastUndo} />
         {hint === 'zoom' ? (
@@ -584,12 +704,15 @@ export const Calendar = memo(function Calendar({ only, initialStart, remember = 
           </View>
         ) : null}
       </AView>
-      <AView layout={layout}>
-        <Legend items={legend} />
-      </AView>
+      {/* What the colours mean: on the Rooster tab only (Vergelijken: each friend's colour, their face above says whose) */}
+      {!compare ? (
+        <AView layout={layout}>
+          <Legend items={legend} />
+        </AView>
+      ) : null}
       <OverlapSheet choice={choose} onClose={closeChoice} onPick={pickChoice} />
       <PeopleSheet target={people} onClose={closePeople} />
-      <LessonSheet lesson={open?.lesson ?? null} onClose={closeLesson} friends={friends.data} together={open?.together} onSkip={skipFromSheet} onUnskip={unskipFromSheet} />
+      <LessonSheet lesson={open?.lesson ?? null} onClose={closeLesson} friends={friends.data} together={open?.friend == null ? open?.together : undefined} onSkip={open?.friend == null ? skipFromSheet : undefined} onUnskip={open?.friend == null ? unskipFromSheet : undefined} />
     </PerfProfile>
   );
 });

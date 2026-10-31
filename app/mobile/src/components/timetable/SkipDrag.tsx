@@ -39,8 +39,10 @@ const THROW_V = 900;
 const SWING = { damping: 13, stiffness: 150, mass: 0.6 };
 const BACK = { damping: 18, stiffness: 220, mass: 0.8 };
 
-/** A class you can drag: its day (lib/days index) and minutes, as the grid draws it (merged double periods). */
-export type DragTarget = { day: number; start: number; end: number };
+/** A class you can drag: its day (lib/days index) and minutes, as the grid draws it (merged double periods). In
+ * Vergelijken a day has a lane per person (`Lanes`): `x0`–`x1` is the lane's part of the day's width (0–1, the whole
+ * day when left out) and `lane` which one it is (0 = you), passed on to `onPick` / `onDrop`. */
+export type DragTarget = { day: number; start: number; end: number; x0?: number; x1?: number; lane?: number };
 
 /**
  * Where a drag is, on the UI thread, shared by the grid's gesture (`useSkipGesture`, in DayGrid) and what you see
@@ -89,9 +91,9 @@ type GestureProps = {
   pxPerHour: number;
   labelH: number;
   /** A finger came down on a class: get it ready to show (before it's picked up, so the card is there at once) */
-  onPick: (day: number, start: number) => void;
+  onPick: (day: number, start: number, lane: number) => void;
   /** It landed in the bin */
-  onDrop: (day: number, start: number) => void;
+  onDrop: (day: number, start: number, lane: number) => void;
   /** Without: a finger never picks a class up (default on) */
   enabled?: boolean;
 };
@@ -107,7 +109,7 @@ type GestureProps = {
  */
 export function useSkipGesture(p: GestureProps) {
   const { drag, targets, offset, count, width, height, min0, min1, pxPerHour, labelH, onPick, onDrop, enabled = true } = p;
-  const down = useSharedValue({ x: 0, y: 0, at: 0, day: 0, start: 0 });
+  const down = useSharedValue({ x: 0, y: 0, at: 0, day: 0, start: 0, lane: 0 });
   const vxLast = useSharedValue(0);
   // Over the bin at the last move (not `drag.over`, which is animated): a tap as the card goes over it, once
   const wasOver = useSharedValue(0);
@@ -127,15 +129,18 @@ export function useSkipGesture(p: GestureProps) {
           const colW = width / count.get();
           const off = offset.get();
           const day = Math.floor(off + touch.x / colW);
+          const frac = off + touch.x / colW - day;
           const min = min0 + ((touch.y - labelH) / pxPerHour) * 60;
-          const hit = targets.get().find((g) => g.day === day && g.start <= min && min < g.end);
+          const hit = targets.get().find((g) => g.day === day && g.start <= min && min < g.end && (g.x0 === undefined || (frac >= g.x0 && frac < (g.x1 ?? 1))));
           if (!hit) {
             m.fail();
             return;
           }
           const y = (v: number) => labelH + ((v - min0) / 60) * pxPerHour;
           const top = y(Math.max(hit.start, min0));
-          const rect = { x: (day - off) * colW + 2, y: top, w: colW - 4, h: Math.max(y(Math.min(hit.end, min1)) - top - 3, 16) };
+          const x0 = hit.x0 ?? 0;
+          const x1 = hit.x1 ?? 1;
+          const rect = { x: (day - off + x0) * colW + 2, y: top, w: (x1 - x0) * colW - 4, h: Math.max(y(Math.min(hit.end, min1)) - top - 3, 16) };
           drag.rect.set(rect);
           drag.grab.set({ x: touch.x - rect.x, y: touch.y - rect.y });
           drag.tx.set(0);
@@ -147,8 +152,8 @@ export function useSkipGesture(p: GestureProps) {
           drag.side.set(touch.x > width / 2 ? -1 : 1);
           drag.phase.set(1);
           drag.lift.set(withDelay(LIFT_AFTER, withSpring(1, SWING)));
-          down.set({ x: touch.x, y: touch.y, at: Date.now(), day, start: hit.start });
-          scheduleOnRN(onPick, day, hit.start);
+          down.set({ x: touch.x, y: touch.y, at: Date.now(), day, start: hit.start, lane: hit.lane ?? 0 });
+          scheduleOnRN(onPick, day, hit.start, hit.lane ?? 0);
         })
         .onTouchesMove((e, m) => {
           if (drag.phase.get() !== 1) return;
@@ -223,7 +228,7 @@ export function useSkipGesture(p: GestureProps) {
             );
             const d = down.get();
             scheduleOnRN(snap);
-            scheduleOnRN(onDrop, d.day, d.start);
+            scheduleOnRN(onDrop, d.day, d.start, d.lane);
           } else {
             drag.phase.set(4);
             drag.over.set(withTiming(0, { duration: 140 }));
@@ -347,7 +352,7 @@ export const DragLayer = memo(function DragLayer({ drag, lesson, width, height, 
 /** Keeps the grid's draggable classes in a shared value, for the gesture on the UI thread. */
 export function useDragTargets(list: DragTarget[]) {
   const targets = useSharedValue<DragTarget[]>([]);
-  const key = list.map((g) => `${g.day}:${g.start}:${g.end}`).join();
+  const key = list.map((g) => `${g.day}:${g.start}:${g.end}:${g.lane ?? 0}:${g.x0 ?? 0}:${g.x1 ?? 1}`).join();
   useEffect(() => {
     targets.set(list);
   }, [key]);

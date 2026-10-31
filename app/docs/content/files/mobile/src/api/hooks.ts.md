@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 **Every API call the screens make**, as TanStack Query hooks: reads (`useX`) and writes (mutations that
@@ -64,10 +64,15 @@ Access requests (`POST /friends/{id}/access`, `POST /access/{id}/{action}`): ask
 timetable (the answer has the chat its card went to), say yes / no to one, or take yours back. A yes changes what
 you show them, so friends and their timetables are asked again.
 
+## `useFriendWeeks`
+
+Vergelijken's calendar: friends' timetables a week at a time (7 days per request, the same cache keys as
+`useFriendSchedules`), one query per friend and Monday in the order friends × weeks.
+
 ## `useFriendSchedules`, `useSkipAsks`, `useAskSkip`, `useAnswerSkip`
 
 Vergelijken: several friends' timetables at once (the same cache as `useFriendSchedule`), and skip questions
-(`api/roosters/skipasks.py`): your open ones (`GET /skip-requests`, the classes you asked about show as skipped for
+(`api/roosters/skipasks.py`): your open ones (`GET /skip-requests`; `useSkipAsks(false)` doesn't fetch, the Rooster tab's calendar, the classes you asked about show as skipped for
 you only), asking (`POST /friends/{id}/skip-request`: in the list at once, put back when it fails) and answering
 (`POST /skip-requests/{id}/{action}`: a yes changes your timetable, so it's asked again).
 

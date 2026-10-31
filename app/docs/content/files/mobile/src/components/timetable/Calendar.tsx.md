@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -14,7 +14,7 @@ everything moves together in the same frame, on the UI thread.
 - **How many days**: drag the dash on the strip, pinch the grid, or − / + (until you've used the dash:
   `days.learned`). Whichever way, **the day on the left stays on the left**: zooming out adds days on the right (it
   never goes back in time), zooming in narrows towards that first day. With `remember` (Rooster) it's remembered (`rooster.days`), 7 when this week's weekend is
-  busy; Vergelijken always starts on 5 days and no tips.
+  busy; Vergelijken starts on `initialDays` and no tips.
 - **Zoom**: double tap on the grid stretches the hours to your lessons; double tap again or the magnifier undoes it.
   **Dragging on the hour axis** zooms the hours by hand (`range`): the top half of the axis moves the first hour, the
   bottom half the last one, an hour per hour-height as the axis was when you touched it (at least `MIN_SPAN` hours
@@ -37,6 +37,16 @@ everything moves together in the same frame, on the UI thread.
   "Meestal ga je met:" (`useUsualPartners`). The calendar no
   longer opens `BreakSheet` itself (Today and the chat still do).
 - Each shared break shows what you did with it (asked, planned, declined: `lib/breaks.slotState` over `useBreaks`).
+- **Vergelijken** (`compare`: friend ids): every day split into a lane per person (`Lanes.withLanes` over the friends'
+  weeks from `useFriendWeeks` and your open skip questions from `useSkipAsks`), shared breaks only with them (`only`),
+  **no legend**. A friend's class tapped: `LessonSheet` without skipping (and without "who's free"). Dropped in the bin
+  (`onDropClass` with its lane): `askFriend` asks them to skip it (`useAskSkip`), with a note in `SkipToast` (`info`).
+  `initialStart` / `initialDays` are where it starts and what Reset goes back to.
+- **Arrows to where there's something**: an empty weekend at the right end of the view gets a tab on the right edge
+  (below); one at the left end a tab on the left edge (next to the hours) back to Friday (Saturday when it has
+  something), landing with that day on the right. **Nothing at all in view** (holidays, an empty weekend on its own):
+  both tabs, to the nearest day with something on either side among the loaded days (with 5+ days: that day's week);
+  none loaded: a week further, and on from there once that week is in. In Vergelijken anyone's classes count.
 - **An empty weekend** at the right end of the view (nothing on Saturday and/or Sunday): a tab against the right edge of the
   screen with the day it goes to ("MA 27"). It moves the view so that day is on the left, same number of days: Sunday when
   Sunday has something (and isn't on screen yet), otherwise Monday. Its wrapper is `pointerEvents="box-none"`, so only the

@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:05:34Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 **What a tap on the grid can open, known on the UI thread.** Per day, `DayCache` lists the stretches of the day where a
@@ -14,7 +14,10 @@ order they are listed in is the order `tapAt` resolves a tap: overlap (and `OVER
 break that isn't muted, skipped class, your own break with nobody (a free gap minus the shared breaks, from today on;
 today's that are over are dropped by `DayGrid`). Keep the two in step when you change one.
 
-## `TapTarget`, `TAP_LESSON`, `TAP_OVERLAP`, `TAP_TOGETHER`, `TAP_SKIPPED`, `TAP_ALONE`
+## `TapTarget`, `TAP_LESSON`, `TAP_OVERLAP`, `TAP_TOGETHER`, `TAP_SKIPPED`, `TAP_ALONE`, `TAP_FRIEND`
+
+In Vergelijken a target has `x0`–`x1`: the part of the day's width (its lane) it is in; `TAP_FRIEND` is a friend's class.
+`tapKindAt` gets where across the day the finger is (0–1).
 
 A stretch (day, start and end in minutes) and what it opens. The kinds are numbers: they are read in a worklet.
 

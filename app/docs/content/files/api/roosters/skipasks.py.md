@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:40:00Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 **Skip questions** ("Volg je Python?"): in Vergelijken you drag one of a friend's classes into the bin, which asks
@@ -7,7 +7,7 @@ them whether they'd skip it, because then you'd share a break (`minutes`, worked
 as the yellow blocks). It's the other way round from your own skips (`r_me.skip`): their timetable stays theirs.
 Routes in `r_friends.py` (`ask_skip`, `list_skip_requests`, `answer_skip`); table `skip_requests`
 (`migrations/0017_skip_requests.sql`). The app side: `useAskSkip`, `useSkipAsks`, `useAnswerSkip` in
-`mobile/src/api/hooks.ts`, `components/timetable/CompareView.tsx` and the card in the chat.
+`mobile/src/api/hooks.ts`, `components/timetable/Calendar.tsx` (Vergelijken) and the card in the chat.
 
 Rules:
 - While it's open **only the asker** sees the class as skipped (the app draws it from `list_for`); the one asked sees

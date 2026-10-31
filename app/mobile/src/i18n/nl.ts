@@ -759,6 +759,8 @@ export const nl = {
   'qr.scanBody': 'Scan de QR-code van een vriend.',
   'qr.noCamera': 'Roosters+ mag je camera niet gebruiken. Zet het aan bij de instellingen van je telefoon.',
   'qr.notOurs': 'Dat is geen Roosters+-code.',
+  'compare.empty': 'Leeg',
+  'rooster.backTo': 'Terug naar {day}',
   'rooster.onward': 'Naar {day}',
   'tt.planned': 'Gepland',
   'tt.asked': 'Gevraagd',

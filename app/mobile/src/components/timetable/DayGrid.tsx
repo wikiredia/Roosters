@@ -10,7 +10,7 @@ import type { Lesson } from '@/api/types';
 import { AView } from '@/components/ui/Motion';
 import { Skeleton } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { type Lang, useT } from '@/i18n';
+import { type Key, type Lang, useT } from '@/i18n';
 import { dateAt, MAX_DAYS, snap } from '@/lib/days';
 import { magnet, snap as snapTap, tick } from '@/lib/haptics';
 import { useStable } from '@/lib/latest';
@@ -18,6 +18,8 @@ import { noteColumnRender } from '@/lib/perf';
 import { hhmm, weekdayShort } from '@/lib/time';
 
 import type { DayData } from './DayCache';
+import { FriendLane } from './FriendLane';
+import { laneAt } from './Lanes';
 import { type DragTarget, type SkipDrag, useDragTargets, useSkipDrag, useSkipGesture } from './SkipDrag';
 import { TAP_ALONE, TAP_TOGETHER, type TapTarget, tapKindAt, useTapTargets } from './TapTargets';
 import { type Block, BlockView, lessonLabel, lessonsIn, OverlapBand, type Span } from './Timetable';
@@ -58,7 +60,8 @@ type Props = {
   /** Short course names (narrow columns). */
   compact: boolean;
   lang: Lang;
-  onPressLesson: (l: Lesson, day: number) => void;
+  /** A lesson tapped; `friend`: one of that friend's classes (Vergelijken), not yours */
+  onPressLesson: (l: Lesson, day: number, friend?: number) => void;
   /** A tap on (or close to) lessons that overlap: the screen asks which one you mean */
   onPressOverlap: (ls: Lesson[], day: number) => void;
   /** A tap on a shared break: that day and the break (the screen asks "Pauze samen?") */
@@ -73,8 +76,8 @@ type Props = {
   /** Drag a class into the bin to skip it (components/timetable/SkipDrag.tsx): the drag's shared state, and what
    * happens when a finger comes down on a class and when it lands in the bin. Without: classes don't move. */
   drag?: SkipDrag;
-  onPickClass?: (day: number, start: number) => void;
-  onDropClass?: (day: number, start: number) => void;
+  onPickClass?: (day: number, start: number, lane: number) => void;
+  onDropClass?: (day: number, start: number, lane: number) => void;
 };
 
 /**
@@ -163,6 +166,13 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     const min = h0 * 60 + ((y - LABEL_H) / pxPerHour) * 60;
     const d = data(day);
     if (!d) return;
+    // Vergelijken: a friend's lane has only their classes
+    const lane = d.lanes ? laneAt(d.lanes, off + x / (width / n) - day) : null;
+    if (lane && lane.who !== null) {
+      const hit = lane.lessons.find((l) => l.start <= min && min < l.end);
+      if (hit) onPressLesson(hit, day, lane.who);
+      return;
+    }
     const hits = lessonsIn(d.merged, d.overlaps, min);
     if (hits.length > 1) onPressOverlap(hits, day);
     else if (hits.length === 1) onPressLesson(hits[0], day);
@@ -187,7 +197,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     for (let day = from; day <= to; day++) {
       const d = data(day);
       if (!d) continue;
-      if (hasDrag) for (const l of d.skippable) if (day > today || (day === today && l.end > nowMin)) drags.push({ day, start: l.start, end: l.end });
+      if (hasDrag) for (const l of d.skippable) if (day > today || (day === today && l.end > nowMin)) drags.push({ day, ...l });
       for (const g of d.taps) if (!((g.kind === TAP_TOGETHER || g.kind === TAP_ALONE) && day === today && g.end <= nowMin)) taps.push(g);
     }
     return { drags, taps };
@@ -208,7 +218,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
           const n = count.get();
           const day = Math.floor(off + e.x / (width / n));
           const min = h0 * 60 + ((e.y - LABEL_H) / pxPerHour) * 60;
-          if (tapKindAt(tapTargets.get(), day, min) < 0) return;
+          if (tapKindAt(tapTargets.get(), day, min, off + e.x / (width / n) - day) < 0) return;
           scheduleOnRN(tapAt, e.x, e.y, off, n);
         }),
     [offset, count, tapTargets, width, h0, pxPerHour, tapAt],
@@ -377,8 +387,14 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
     if (wasLoading && inView()) setArrived(view.get().dir);
   }
   const entering = arrived ? (arrived > 0 ? FadeInRight : FadeInLeft).duration(240) : undefined;
+  const lanes = data?.lanes;
+  const me = lanes?.[0];
+  // Vergelijken: your lessons and breaks in your lane (left part of the day), each friend in a lane of their own
+  const mine = me ? { position: 'absolute' as const, top: 0, bottom: 0, left: `${me.x0 * 100}%` as const, width: `${(me.x1 - me.x0) * 100}%` as const } : { position: 'absolute' as const, top: 0, bottom: 0, left: 0, right: 0 };
   return (
     <AView className="absolute top-0" style={[{ height }, style]}>
+      {/* Today: a little brighter than the other days, behind everything */}
+      {isToday ? <View pointerEvents="none" className="absolute left-0 right-0 bottom-0 bg-surface opacity-70 rounded-t-[8px]" style={{ top: 0 }} /> : null}
       <Svg width={2} height={height} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
         <Line x1={1} x2={1} y1={LABEL_H} y2={height} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
       </Svg>
@@ -387,6 +403,8 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
           {`${weekdayShort(date, lang).toLowerCase()} ${date.getDate()}`}
         </Text>
       </View>
+      <View style={mine} pointerEvents="box-none">
+      {me?.empty ? <EmptyLane t={t} /> : null}
       {/* Free moments between lessons: behind everything (a shared break or a cancelled lesson goes over them). A screen
           reader can open "Meestal ga je met:" on one that isn't over (a finger only where no shared break is: `tapAt`) */}
       {free.map((f) => {
@@ -442,6 +460,12 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
           </AView>
         );
       })}
+      </View>
+      {lanes?.slice(1).map((lane) => (
+        <View key={lane.who} pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: `${lane.x0 * 100}%`, width: `${(lane.x1 - lane.x0) * 100}%` }}>
+          {lane.empty ? <EmptyLane t={t} hidden={lane.hidden} /> : <FriendLane lane={lane} y={y} h0={h0} h1={h1} now={now} compact={compact} entering={entering} t={t} />}
+        </View>
+      ))}
       {data?.loading && blocks.length === 0 ? (
         <AView entering={calm ? undefined : FadeIn} className="absolute left-1 right-1 gap-2" style={{ top: y(h0 * 60 + 60) }} pointerEvents="none">
           <Skeleton className="h-14 rounded-block" />
@@ -457,3 +481,14 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
     </AView>
   );
 });
+
+/** A lane with nothing on it that day (Vergelijken): narrow, 'Leeg' in the middle ('Verborgen' when they hide it) */
+function EmptyLane({ t, hidden = false }: { t: (k: Key) => string; hidden?: boolean }) {
+  return (
+    <View pointerEvents="none" className="absolute left-0 right-0 bottom-0 items-center justify-center" style={{ top: LABEL_H }}>
+      <Text variant="xs" bold tone="ink3" numberOfLines={2} className="text-center px-0.5">
+        {t(hidden ? 'status.hidden' : 'compare.empty')}
+      </Text>
+    </View>
+  );
+}

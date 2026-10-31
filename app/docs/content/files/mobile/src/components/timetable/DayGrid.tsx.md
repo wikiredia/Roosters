@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T15:07:49Z
+updated: 2026-10-31T16:25:00Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -40,6 +40,17 @@ cancelled lesson goes over them. Today they follow your plan (`DayCache.DayPlan`
 after school too when you stay). A tap on one where no shared break is drawn (`DayData.taps`, `TAP_ALONE`), today from now
 on or later, calls `onPressAlone` with that stretch ("Meestal ga je met:"); screen readers read 'Vrij, 10:00 tot 11:00' and
 can activate the whole gap when it isn't over.
+
+**Today's column** has a slightly brighter background (the surface colour, see-through) behind everything.
+
+**Lanes** (Vergelijken, `DayData.lanes`): your blocks are drawn in your lane, each friend's in theirs (`FriendLane`), an
+empty one shows 'Leeg' (`EmptyLane`). A tap first finds the lane from where across the day it is (`Lanes.laneAt`): in a
+friend's lane it opens that class (`onPressLesson(l, day, friendId)`); the UI thread's check (`tapKindAt`) and the drag
+(`SkipDrag`) use the same lane ranges, and the drag passes the lane to `onPickClass` / `onDropClass`.
+
+## `EmptyLane`
+
+'Leeg' (or 'Verborgen') in the middle of a lane with nothing that day.
 
 ## `DayGrid`, `Props`, `GridView`
 

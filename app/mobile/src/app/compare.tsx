@@ -1,26 +1,38 @@
-import { type Href, router, useLocalSearchParams } from 'expo-router';
+import { type Href, router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { SlideInLeft, SlideInRight } from 'react-native-reanimated';
+import { SlideInLeft } from 'react-native-reanimated';
 
 import { useFriends, useWeeks } from '@/api/hooks';
 import type { Friend, Lesson } from '@/api/types';
-import { CompareView } from '@/components/timetable/CompareView';
+import { CalendarScreen } from '@/components/timetable/CalendarScreen';
+import { friendColor } from '@/components/timetable/Lanes';
 import { isFree } from '@/components/timetable/Timetable';
 import { Avatar, Check, PinMark } from '@/components/ui/Bits';
-import { Button } from '@/components/ui/Button';
+import { Button, IconButton } from '@/components/ui/Button';
 import { Card, Row, Section, SectionHead } from '@/components/ui/Layout';
 import { AView } from '@/components/ui/Motion';
 import { BottomTabs } from '@/components/BottomTabs';
 import { Empty, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
-import { dateAt, dayIndex, mondayOf } from '@/lib/days';
+import { dateAt, dayIndex, mondayOf, weekdayOf } from '@/lib/days';
 import { prefs } from '@/lib/storage';
 import { isoDay, nowMin, parseDay } from '@/lib/time';
 
 /** Free while comparing; more than this is Premium (later). Same limit as the server. */
 const MAX_FREE = 3;
+
+/** How many days the calendar starts with: two when you compare with at most two friends (three people), else one;
+ * pinch or drag the strip for more, as on the Rooster tab. */
+function startDays(people: number) {
+  return people <= 3 ? 2 : 1;
+}
+
+/** The first day to show: today on a weekday, otherwise next Monday. */
+function firstDay(today: number) {
+  return weekdayOf(today) <= 4 ? today : mondayOf(today) + 7;
+}
 
 /** The lesson week to compare: this one, unless your lessons for it are over (Friday afternoon, the weekend):
  * then next week. */
@@ -37,16 +49,21 @@ function lessonWeek(lessons: Lesson[] | undefined, today: number) {
 
 /**
  * Vergelijken, in two steps: tick friends (up to 3 for free; the ones you pinned are suggested first), then
- * 'Vergelijk' shows you and them side by side, a column each, for a day (or two) of Monday to Friday
- * (components/timetable/CompareView: their classes, the breaks you share, drag a class of theirs into the bin to ask
- * whether they'd skip it). With `ids` (a friend's page, a chat's +) it opens on the columns straight away; the + above
- * them goes back to the list, 'Klaar' closes Vergelijken.
+ * 'Vergelijk' shows the Rooster tab's own screen and calendar (components/timetable/CalendarScreen, the same code, so
+ * the same controls and height) with a lane per person in every day: you, then each friend in their own colour
+ * (their faces top right have a ring in that colour; no legend). Tap a friend's class for its details, drag it into
+ * the bin to ask whether they'd skip it; a lane with nothing that day is narrow, 'Leeg'. With `ids` (a friend's page, a
+ * chat's +) it opens on the calendar straight away. The + top right goes back to the list; the back arrow goes back
+ * to the list when you came from it, else closes Vergelijken. No swiping back on the calendar: it would get mixed up
+ * with swiping through the days.
  */
 export default function CompareScreen() {
   const { t } = useT();
   const params = useLocalSearchParams<{ ids?: string }>();
   const [picked, setPicked] = useState<number[]>(() => (params.ids ? params.ids.split(',').map(Number).filter(Boolean) : []));
   const [step, setStep] = useState<'who' | 'week'>(params.ids ? 'week' : 'who');
+  // Came to the calendar from the list on this screen: the back arrow goes back to it
+  const [fromList, setFromList] = useState(false);
   const friends = useFriends();
   const today = dayIndex(new Date());
   const [thisWeek] = useWeeks([isoDay(dateAt(mondayOf(today)))]);
@@ -81,6 +98,7 @@ export default function CompareScreen() {
     for (const id of ids) next[id] = (next[id] ?? 0) + 1;
     setPicks(next);
     prefs.set('compare.picks', next);
+    setFromList(true);
     setStep('week');
   }
 
@@ -111,23 +129,19 @@ export default function CompareScreen() {
   const tabs = <BottomTabs active="rooster" onSelect={(name) => router.navigate(`/${name}` as Href)} />;
 
   if (step === 'week') {
+    const leave = () => (router.canGoBack() ? router.back() : router.navigate('/rooster'));
     return (
       <View className="flex-1 bg-bg">
-        <Screen
+        <Stack.Screen options={{ gestureEnabled: false }} />
+        <CalendarScreen
+          key={ids.join()}
           title={t('compare.title')}
-          right={<Button size="sm" variant="ghost" label={t('compare.done')} onPress={() => (router.canGoBack() ? router.back() : router.navigate('/rooster'))} />}
-          scroll={false}
-          contentClassName="flex-1 gap-2 pb-3"
-        >
-          <AView entering={SlideInRight.duration(240)} className="flex-1 gap-2">
-            {over ? (
-              <Text variant="sm" tone="premium">
-                {t('compare.overLimit', { n: MAX_FREE })}
-              </Text>
-            ) : null}
-            <CompareView key={ids.join()} ids={ids} onAdd={() => setStep('who')} />
-          </AView>
-        </Screen>
+          onBack={fromList ? () => setStep('who') : leave}
+          compare={ids}
+          initialStart={firstDay(today)}
+          initialDays={startDays(ids.length + 1)}
+          right={<Faces friends={chosen} onAdd={() => setStep('who')} addLabel={t('compare.add')} />}
+        />
         {tabs}
       </View>
     );
@@ -135,6 +149,7 @@ export default function CompareScreen() {
 
   return (
     <View className="flex-1 bg-bg">
+    <Stack.Screen options={{ gestureEnabled: true }} />
     <Screen
       back
       navTitle={t('compare.title')}
@@ -186,6 +201,21 @@ export default function CompareScreen() {
       )}
     </Screen>
     {tabs}
+    </View>
+  );
+}
+
+/** Who you compare with, top right: their faces, each with a ring in their colour on the calendar, and + to add or
+ * change (back to the list). */
+function Faces({ friends, onAdd, addLabel }: { friends: Friend[]; onAdd: () => void; addLabel: string }) {
+  return (
+    <View className="flex-row items-center">
+      {friends.map((f, i) => (
+        <View key={f.id} accessibilityLabel={f.display_name} className="rounded-full border-2 bg-bg" style={{ borderColor: friendColor(i), marginLeft: i ? -6 : 0, padding: 1 }}>
+          <Avatar name={f.display_name} color={f.avatar_color} uid={f.id} photo={f.photo} size="sm" />
+        </View>
+      ))}
+      <IconButton icon="plus" label={addLabel} onPress={onAdd} className="ml-1.5 w-9 h-9 rounded-full border-[1.5px] border-line-strong" />
     </View>
   );
 }

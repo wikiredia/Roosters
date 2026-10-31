@@ -191,13 +191,28 @@ export function useFriendSchedules(ids: number[], start: string, days: number) {
   });
 }
 
+/** Friends' timetables a week at a time (Vergelijken's calendar): one request per friend and Monday, in the order
+ * `ids` × `mondays` (friend by friend). The same queries as `useFriendSchedules` with 7 days. */
+export function useFriendWeeks(ids: number[], mondays: string[]) {
+  return useQueries({
+    queries: ids.flatMap((id) =>
+      mondays.map((start) => ({
+        queryKey: keys.friendSchedule(id, start, 7),
+        queryFn: () => api.get<FriendSchedule>(`/api/v1/friends/${id}/schedule?start=${start}&days=7`),
+        refetchInterval: (q: { state: { data?: FriendSchedule } }) => (q.state.data?.loading ? 2000 : false),
+      })),
+    ),
+  });
+}
+
 /** Open skip questions ("Volg je Python?"), the ones you asked and the ones for you, from today on. Vergelijken draws
- * the classes you asked about as skipped, only for you. */
-export function useSkipAsks() {
+ * the classes you asked about as skipped, only for you. `on`: false to not fetch (the calendar outside Vergelijken). */
+export function useSkipAsks(on = true) {
+  const social = useSocial();
   return useQuery({
     queryKey: keys.skipAsks,
     queryFn: () => api.get<{ skips: SkipRequest[] }>('/api/v1/skip-requests').then((r) => r.skips),
-    enabled: useSocial(),
+    enabled: social && on,
     refetchInterval: 30_000,
   });
 }
