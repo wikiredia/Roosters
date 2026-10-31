@@ -10,7 +10,7 @@ Exported for the Rooster tab's `DayGrid`.
 One block (lesson, together or free). A free moment is a light grey fill without an outline, with a small coffee
 cup in its top right corner (no text unless it has a label).
 
-## `LessonBody`, `Fit`, `fitOf`, `LINE`, `STEP`, `CH`, `MIN_W`, `MIN_H`, `Item`, `say`
+## `LessonBody`, `Fit`, `fitOf`, `LINE`, `STEP`, `CH`, `MIN_W`, `MIN_H`, `Item`
 
 **Too narrow or too low to read anything** (under `MIN_W` × `MIN_H` px): no text at all, only the coloured card (tap it
 for the sheet). **Prefixes**: each detail gets its field's short name in front ('Verd. -01', 'Lok. 019':
