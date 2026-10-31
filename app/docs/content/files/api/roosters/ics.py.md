@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-24T08:00:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 **iCalendar (.ics)** links from Google, iCloud, Outlook or WebUntis iCal, turned into lessons.
@@ -29,4 +29,4 @@ Trimmed text, cut to a maximum length, or None.
 
 ## `parse`
 
-The whole conversion described above. The uid is a hash of the event's UID, start and day, so it stays stable between fetches (needed for change detection). The title also gives the lesson's kind (`kinds.classify`).
+The whole conversion described above. The uid is a hash of the event's UID, start and day, so it stays stable between fetches (needed for change detection). The title also gives the lesson's kind (`kinds.classify`). The title is the event's SUMMARY as it is; an event without one has `''`, not a made-up title like 'Afspraak'.

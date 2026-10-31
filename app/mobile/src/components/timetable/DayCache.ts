@@ -17,12 +17,14 @@ import {
   isFree,
   kindsOf,
   type LegendItem,
+  lessonKey,
   lessonKind,
   type LessonKind,
   mergeLessons,
   OVERLAP_SLOP,
   type Overlap,
-  overlapsOf,
+  sideBySide,
+  type Slot,
   type Span,
   type TogetherSlot,
 } from './Timetable';
@@ -62,7 +64,10 @@ export type DayData = {
   loading: boolean;
   /** Merged lessons and shared breaks as blocks; `past` is false everywhere: it depends on the time (`DayColumn`) */
   blocks: Block[];
+  /** Lessons at the same time that are too many to stand side by side (`sideBySide`): grouped in a band */
   overlaps: Overlap[];
+  /** Lessons at the same time that stand side by side: their cell in the column, by `lessonKey` */
+  place: Map<string, Slot>;
   free: Span[];
   /** The dots under the strip's date */
   kinds: LessonKind[];
@@ -96,6 +101,7 @@ const WAITING: DayData = {
   loading: true,
   blocks: [],
   overlaps: [],
+  place: new Map(),
   free: [],
   kinds: [],
   legend: [],
@@ -144,7 +150,7 @@ function buildDay(day: number, lessons: Lesson[], together: Together[], loading:
   const raw = together.filter((s) => !c.only || c.only.includes(s.id));
   const slots = slotsOf(raw, iso, day, c);
   const merged = mergeLessons(lessons);
-  const overlaps = overlapsOf(lessons);
+  const { slots: place, grouped: overlaps } = sideBySide(merged);
   const free = freeGaps(lessons);
   const legend = new Set<LegendItem>();
   for (const s of slots) legend.add(s.state ?? 'together');
@@ -166,13 +172,19 @@ function buildDay(day: number, lessons: Lesson[], together: Together[], loading:
     together: slots,
     raw,
     loading,
-    blocks: dayBlocks(lessons, slots, null),
+    blocks: dayBlocks(lessons, slots, null).map((b) => (b.type === 'lesson' && place.has(lessonKey(b.lesson)) ? { ...b, slot: place.get(lessonKey(b.lesson)) } : b)),
     overlaps,
+    place,
     free,
     kinds: kindsOf(lessons),
     legend: [...legend],
     bounds: lessons.length ? { start: Math.min(...lessons.map((l) => l.start)), end: Math.max(...lessons.map((l) => l.end)) } : null,
-    skippable: merged.filter((l) => !!l.course && !isFree(l)).map((l) => ({ start: l.start, end: l.end })),
+    skippable: merged
+      .filter((l) => !!l.course && !isFree(l))
+      .map((l) => {
+        const s = place.get(lessonKey(l));
+        return { start: l.start, end: l.end, ...(s ? { x0: s.i / s.n, x1: (s.i + 1) / s.n } : {}) };
+      }),
     taps,
   };
 }

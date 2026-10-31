@@ -218,7 +218,7 @@ export const en: Record<Key, string> = {
   'tt.changed': 'Changed',
   'tt.exam': 'Exam',
   'tt.together': 'Together',
-  'tt.lesson': 'Class',
+  'tt.other': 'Other',
   'tt.overlap': 'Overlapping classes: {names}, from {from} to {to}. Tap to choose.',
   'tt.overlapShort': '{n} classes',
   'tt.whichLesson': 'Which class?',

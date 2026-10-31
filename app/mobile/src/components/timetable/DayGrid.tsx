@@ -177,7 +177,11 @@ export const DayGrid = memo(function DayGrid(p: Props) {
       if (hit) onPressLesson(hit, day, lane.who);
       return;
     }
-    const hits = lessonsIn(d.merged, d.overlaps, min);
+    // Lessons side by side: the cell the finger is in (across your own part of the day in Vergelijken)
+    const across = off + x / (width / n) - day;
+    const mine = d.lanes?.[0];
+    const fx = mine ? (across - mine.x0) / (mine.x1 - mine.x0) : across;
+    const hits = lessonsIn(d.merged, d.overlaps, min, false, d.place, fx);
     if (hits.length > 1) onPressOverlap(hits, day);
     else if (hits.length === 1) onPressLesson(hits[0], day);
     else {
@@ -467,24 +471,27 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
         const top = y(Math.max(s.start, h0 * 60));
         const h = Math.max(y(Math.min(s.end, h1 * 60)) - top - 3, 16);
         const key = b.type === 'lesson' ? `${b.lesson.start}:${b.lesson.course}:${b.lesson.location}` : `${b.type}:${s.start}`;
+        // Lessons at the same time: each in its own cell of the column, the width shared evenly
+        const slot = b.type === 'lesson' ? b.slot : undefined;
+        const place = slot ? { left: `${(slot.i / slot.n) * 100}%` as `${number}%`, width: `${100 / slot.n}%` as `${number}%` } : { left: 2, right: 2 };
         return (
           // Touches go to the grid's tap gesture; screen readers activate the block itself
           <AView
             key={key}
             entering={entering}
-            style={{ position: 'absolute', top, height: h, left: 2, right: 2 }}
+            style={{ position: 'absolute', top, height: h, ...place }}
             accessible
             accessibilityRole="button"
             accessibilityLabel={b.type === 'lesson' ? lessonLabel(b.lesson, t) : t('tt.together')}
             onAccessibilityTap={() => (b.type === 'lesson' ? onPressLesson(b.lesson, day) : b.type === 'together' && !b.muted ? onPressTogether(day, s) : undefined)}
           >
-            <View pointerEvents="none" style={{ flex: 1 }}>
+            <View pointerEvents="none" style={{ flex: 1, marginHorizontal: slot ? 1 : 0 }}>
               <BlockView block={b} style={{ flex: 1 }} compact={compact} t={t} />
             </View>
           </AView>
         );
       })}
-      {/* Lessons at the same time: a hatched band over the shared stretch, on top of both blocks */}
+      {/* Too many lessons at the same time to stand side by side: a hatched band over the shared stretch, on top of them */}
       {overlaps.map((o) => {
         const top = y(Math.max(o.start, h0 * 60));
         const h = Math.max(y(Math.min(o.end, h1 * 60)) - top - 3, 6);

@@ -7,14 +7,14 @@ import type { Key } from '@/i18n';
 import { cn } from '@/lib/cn';
 
 import { type Lane, soft } from './Lanes';
-import { isOff, LessonBody, lessonLabel, type Span } from './Timetable';
+import { isOff, LessonBody, lessonLabel, lessonTitle, type Span } from './Timetable';
 
 type T = (k: Key, p?: Record<string, string | number>) => string;
 const meets = (a: Span, b: Span) => a.start < b.end && b.start < a.end;
 
 /**
  * A friend's lane in Vergelijken (inside a day column of the calendar, `DayGrid`): their classes in their own colour
- * (`Lanes.friendColor`), with as much of the name, details and time as fits (`LessonBody`), or just 'Les' when they
+ * (`Lanes.friendColor`), with as much of the name, details and time as fits (`LessonBody`), or just 'Bezet' when they
  * only share free/busy. Cancelled: dashed red; a class you asked them to skip: dashed and struck through, 'Gevraagd'
  * (only you see that, until they answer). Touches go to the grid (a tap opens the class's sheet, a drag to the bin
  * asks them to skip it); screen readers read each class.
@@ -39,7 +39,7 @@ export function FriendLane({ lane, y, h0, h1, now, compact, entering, t }: { lan
               {asked ? (
                 <>
                   <Text variant="xs" bold strike tone="ink3" numberOfLines={2}>
-                    {l.course ?? t('tt.lesson')}
+                    {lessonTitle(l, t)}
                   </Text>
                   <Text variant="xs" tone="ink3" numberOfLines={1}>
                     {t('compare.askedTag')}

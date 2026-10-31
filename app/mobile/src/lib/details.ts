@@ -95,6 +95,23 @@ export function detailRows(l: { location?: string | null; group?: string | null 
   return out;
 }
 
+/** The rows grouped by line: a floor and the classroom right after it (two fields, as the student laid them out) share
+ * one line ('Verdieping 00 - Lokaal 010'); every other row has a line of its own. Rows stay separate inside a group. */
+export function groupLines(rows: DetailRow[], layout: DetailLayout): DetailRow[][] {
+  const only = (r: DetailRow | undefined, key: string) => !!r && !r.whole && layout.fields[r.index]?.keys.length === 1 && layout.fields[r.index].keys[0] === key;
+  const out: DetailRow[][] = [];
+  for (let i = 0; i < rows.length; i++) {
+    if (only(rows[i], 'floor') && only(rows[i + 1], 'room')) out.push([rows[i], rows[++i]]);
+    else out.push([rows[i]]);
+  }
+  return out;
+}
+
+/** The rows a timetable card shows: not the student group ("1CH_A": the other classes in the lesson), that is for the sheet. */
+export function cardRows(rows: DetailRow[], layout: DetailLayout): DetailRow[] {
+  return rows.filter((r) => !layout.fields[r.index]?.keys.includes('group'));
+}
+
 /** A short name per key, for the prefix on a timetable card ("Verd. -01"); the type gets none (its value says it) */
 const SHORT: Record<string, Key> = {
   location: 'details.short.location',

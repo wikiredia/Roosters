@@ -37,6 +37,11 @@ def test_parse_week_keeps_only_what_the_app_needs():
                for l in lessons)
 
 
+def test_a_nameless_lesson_is_always_followed():
+    cfg = {"include": ["Databases"], "picked": True}
+    assert sync.wanted("", cfg, set()) and not sync.wanted("Python Advanced", cfg, set())
+
+
 def _fake_untis(monkeypatch, periods_by_call):
     calls = []
 

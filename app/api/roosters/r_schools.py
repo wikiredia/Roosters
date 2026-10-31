@@ -73,7 +73,7 @@ def courses(school_id: int, class_id: int, request: Request, semester: int | Non
     found: dict[str, dict] = {}
 
     def add(course: str, sem: int | None, n: int):
-        if sem is None or (semester and sem != semester):
+        if not course or sem is None or (semester and sem != semester):  # a nameless lesson isn't a course to pick
             return
         f = found.setdefault(course, {"name": course, "lessons": 0, "semesters": []})
         f["lessons"] += n

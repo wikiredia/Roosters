@@ -126,7 +126,7 @@ function OriginCard({ o, layout, named, onChange }: { o: DetailOrigin; layout: D
       {example ? (
         <View className="flex-row items-center gap-2">
           <Text variant="sm" tone="ink2" className="flex-1" numberOfLines={1}>
-            {t('details.example', { course: example.course ?? t('tt.lesson') })}
+            {t('details.example', { course: example.course || t('tt.other') })}
           </Text>
           {o.examples.length > 1 ? <Button variant="ghost" size="sm" icon="refresh" label={t('details.otherExample')} onPress={() => setEx((e) => e + 1)} /> : null}
         </View>

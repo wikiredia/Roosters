@@ -135,9 +135,12 @@ def parse_week(data: dict, class_id: int) -> list[dict]:
             continue
         subjects = names(p, SUBJECT)
         d = str(p["date"])
-        course = subjects[0] if subjects else (p.get("lessonText") or "Les")
+        # The name is what Untis says: the subject, else the period's free text, else nothing (''), never a
+        # made-up title. The free text names the lesson here, so it's kept in that one case.
+        course = subjects[0] if subjects else (p.get("lessonText") or "")
         flags = p.get("is") or {}
-        # The free text is only read to tell the kind of lesson, never kept
+        # Apart from naming a lesson that has no subject (above), the free text is only read to tell the kind of
+        # lesson, never kept
         kind = kinds.classify(p.get("lessonText"), *subjects, *names(p, SUBJECT, long=False),
                               exam=cell == "EXAM" or bool(flags.get("exam")), event=bool(flags.get("event")))
         out.append({

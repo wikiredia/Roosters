@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T17:05:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 **Vergelijken's lanes**: in compare mode (`Calendar` with `compare`) every day of the calendar is split into a lane
@@ -22,7 +22,7 @@ classes and the ones you asked them to skip (pending, only you see them as asked
 
 ## `withLanes`
 
-Your `DayData` with `lanes`, plus: your taps and draggable classes limited to your lane; a `TAP_FRIEND` per friend's
+Your `DayData` with `lanes`, plus: your taps and draggable classes limited to your lane (a class side by side with another keeps its cell inside it); a `TAP_FRIEND` per friend's
 class (its sheet) and a draggable target per class of theirs that's busy, not cancelled and not asked yet (`lane` =
 their place: `Calendar` asks them to skip it); `bounds` over everyone's classes, so the hours stretch for theirs too;
 `anything` (someone has something that day: the empty-day arrows) and `waiting` (someone's week is still loading).

@@ -57,7 +57,7 @@ def parse(data: bytes, config: dict | None = None, tz=TZ) -> list[dict]:
         if e is None:
             dur = ev.decoded("DURATION", None) if ev.get("DURATION") else None
             e = s + (dur if isinstance(dur, dt.timedelta) else dt.timedelta(hours=1))
-        title = _text(ev.get("SUMMARY"), 200) or "Afspraak"
+        title = _text(ev.get("SUMMARY"), 200) or ""  # what the source says; no title = no title, not a made-up one
         if keywords and not any(k in title.lower() for k in keywords):
             continue
         if str(ev.get("TRANSP", "")).upper() == "TRANSPARENT" and config.get("skip_free"):

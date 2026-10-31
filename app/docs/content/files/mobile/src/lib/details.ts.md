@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T17:15:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 **A lesson's details as named fields**, after the layout of its origin (format and detection:
@@ -14,6 +14,12 @@ onboarding step that edits layouts (`app/onboarding/details.tsx`).
 The rows a lesson shows: per field that isn't hidden and has a value, its title and value. Merged location parts are
 joined with the split's separator ("-01.019"), anything else with " · ". A location that doesn't fit the split is
 shown whole where its first part would be (`whole`). `kind` is the kind's name, already translated.
+
+## `groupLines`, `cardRows`
+
+`groupLines`: the rows by line: a floor and the classroom right after it (two separate fields) share one line, every
+other row has its own. The sheet writes it 'Verdieping 00 - Lokaal 010'; the card 'Verd. 00 · Lok. 010'. `cardRows`: the
+rows a timetable card shows: not the student group (the other classes in the lesson), that is for the sheet.
 
 ## `layoutFor`, `PLAIN`
 

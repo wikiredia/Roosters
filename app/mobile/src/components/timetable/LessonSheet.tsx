@@ -11,11 +11,11 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useT } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { detailRows, layoutFor } from '@/lib/details';
+import { detailRows, groupLines, layoutFor } from '@/lib/details';
 import { canSkip } from '@/lib/skips';
 import { hhmm, isoDay, nowMin, parseDay, range, shortDate } from '@/lib/time';
 
-import { isFree, isOff, KIND_LABEL, KIND_STYLE, lessonKind } from './Timetable';
+import { isFree, isOff, KIND_LABEL, KIND_STYLE, lessonKind, lessonTitle } from './Timetable';
 
 type Props = {
   lesson: Lesson | null;
@@ -45,6 +45,7 @@ export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends 
   const day = parseDay(l.day);
   const when = l.day === isoDay(new Date()) ? t('today.title') : shortDate(day, lang);
   const kind = t(KIND_LABEL[lessonKind(l)]);
+  const layout = layoutFor(l.origin, details.data);
   const byId = new Map(friends.map((f) => [f.id, f]));
   const free = isFree(l);
   const skippable = !!onSkip && canSkip(l, isoDay(new Date()), nowMin());
@@ -55,22 +56,27 @@ export const LessonSheet = memo(function LessonSheet({ lesson, onClose, friends 
       visible={!!lesson}
       onClose={onClose}
       closeLabel={t('common.close')}
-      title={l.course ?? t('tt.lesson')}
+      title={lessonTitle(l, t)}
       sub={off ? t('tt.cancelled') : l.skipped ? t('tt.skipped') : l.state === 'changed' ? t('tt.changed') : l.state === 'exam' ? t('tt.exam') : undefined}
     >
       <Card>
         <Row first title={t('lesson.when')} right={<Text>{`${when} ${range(l.start, l.end)}`}</Text>} />
-        {detailRows(l, kind, layoutFor(l.origin, details.data), t).map((r) => (
-          <Row
-            key={`${r.index}:${r.title}`}
-            title={r.title}
-            right={
-              <Text className="max-w-52 text-right" selectable>
-                {r.value}
-              </Text>
-            }
-          />
-        ))}
+        {groupLines(detailRows(l, kind, layout, t), layout).map((line) =>
+          line.length > 1 ? (
+            // Floor and classroom on one line: 'Verdieping 00 - Lokaal 010'
+            <Row key={line.map((r) => `${r.index}:${r.title}`).join('|')} title={line.map((r) => `${r.title} ${r.value}`).join(' - ')} />
+          ) : (
+            <Row
+              key={`${line[0].index}:${line[0].title}`}
+              title={line[0].title}
+              right={
+                <Text className="max-w-52 text-right" selectable>
+                  {line[0].value}
+                </Text>
+              }
+            />
+          ),
+        )}
         {l.state && l.state !== 'normal' ? (
           <Row
             title={t('lesson.state')}
@@ -140,7 +146,7 @@ export const OverlapSheet = memo(function OverlapSheet({ choice, onClose, onPick
           <Row
             key={`${l.start}:${l.course}:${l.location}`}
             first={i === 0}
-            title={l.course ?? t('tt.lesson')}
+            title={lessonTitle(l, t)}
             sub={[range(l.start, l.end), t(KIND_LABEL[lessonKind(l)]), l.location].filter(Boolean).join(' · ')}
             left={<View className={cn('w-3 h-9 rounded-full border-[1.5px]', KIND_STYLE[lessonKind(l)])} />}
             chevron

@@ -10,18 +10,26 @@ import { AView, layout } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { detailRows, layoutFor, shortTitle } from '@/lib/details';
+import { cardRows, detailRows, groupLines, layoutFor, shortTitle } from '@/lib/details';
 import { hhmm, range } from '@/lib/time';
 
 /** The kinds of lessons the API tells apart (api/roosters/kinds.py), each with its own colour. */
 export type LessonKind = 'theory' | 'lab' | 'exercises' | 'project' | 'support' | 'internship' | 'info' | 'exam' | 'other';
 
-/** The lesson's kind from the API; lessons cached before it had kinds: a guess from the course name. */
+/** The lesson's kind from the API; lessons cached before it had kinds: read from the course name when it says so
+ * (Labo), else 'other' (we don't know: never a guess like 'theory'). */
 export function lessonKind(l: { kind?: string; course?: string; state?: string }): LessonKind {
   if (l.state === 'exam') return 'exam';
   if (l.kind && l.kind !== 'other') return l.kind as LessonKind;
   if (/\b(labo|lab|practicum)/i.test(l.course ?? '')) return 'lab';
-  return l.kind ? 'other' : 'theory';
+  return 'other';
+}
+
+/** What a lesson is called: the source's own text, as it is. No name from the source: a friend who shares only free/busy
+ * is 'Bezet'; your own nameless lesson is called by its kind ('Andere' when that isn't known either). Never an invented
+ * title like 'Les'. */
+export function lessonTitle(l: { course?: string; kind?: string; state?: string }, t: (k: Key) => string): string {
+  return l.course || (l.course === undefined ? t('tt.busy') : t(KIND_LABEL[lessonKind(l)]));
 }
 
 /** Block colours per kind: soft fill and a stronger border (tokens in global.css). */
@@ -69,7 +77,7 @@ export const KIND_LABEL: Record<LessonKind, Key> = {
   internship: 'tt.internship',
   info: 'tt.info',
   exam: 'tt.exam',
-  other: 'tt.lesson',
+  other: 'tt.other',
 };
 
 export function isOff(l: Lesson) {
@@ -84,7 +92,8 @@ export function isFree(l: Lesson) {
 export type Span = { start: number; end: number };
 
 export type Block =
-  | { type: 'lesson'; lesson: Lesson; past: boolean }
+  /** slot: lessons at the same time share their column side by side (`sideBySide`); without: the whole width */
+  | { type: 'lesson'; lesson: Lesson; past: boolean; slot?: Slot }
   /** names: who you share it with (two shown, then "+n"); state: what you asked (see TogetherBlock); muted: you can't
    * ask for it (over, or further than two weeks ahead) */
   | { type: 'together'; span: Span; label: string; names?: string[]; muted?: boolean; state?: BreakState | null }
@@ -213,6 +222,52 @@ export function overlapsOf(lessons: Lesson[]): Overlap[] {
   return out;
 }
 
+/** Lane `i` of `n` of a column: a lesson that runs at the same time as others gets its own cell, each `1/n` wide */
+export type Slot = { i: number; n: number };
+
+/** Up to this many lessons at the same time stand side by side in a column; more are grouped in a band (`OverlapBand`) */
+export const MAX_SIDE_BY_SIDE = 3;
+
+/** Identifies a (merged) lesson of one day: where `sideBySide` puts it */
+export const lessonKey = (l: Lesson) => `${l.start}:${l.end}:${l.course}:${l.location ?? ''}`;
+
+/**
+ * Lessons at the same time (Untis does that: two groups, a moved lesson, a class you follow twice) share their column:
+ * separate cells in the same rows, the width divided evenly. Of a stretch of lessons that run into each other, each gets
+ * a lane (the first one that is free) and every lane is `1/n` wide, `n` being the most lanes at once. With more than
+ * `max` lanes there's no room to read them: they're grouped (`grouped`, the hatched band over their shared time, a tap
+ * asks which one you mean). Cancelled and skipped lessons don't take time, so they don't count. `merged`: `mergeLessons`.
+ */
+export function sideBySide(merged: Lesson[], max = MAX_SIDE_BY_SIDE): { slots: Map<string, Slot>; grouped: Overlap[] } {
+  const ls = merged.filter((l) => !isFree(l)).sort((a, b) => a.start - b.start || a.end - b.end);
+  const clusters: Lesson[][] = [];
+  let until = -1;
+  for (const l of ls) {
+    if (clusters.length && l.start < until) {
+      clusters[clusters.length - 1].push(l);
+      until = Math.max(until, l.end);
+    } else {
+      clusters.push([l]);
+      until = l.end;
+    }
+  }
+  const slots = new Map<string, Slot>();
+  const grouped: Overlap[] = [];
+  for (const cluster of clusters) {
+    if (cluster.length < 2) continue;
+    const ends: number[] = [];
+    const lane = cluster.map((l) => {
+      let i = ends.findIndex((e) => e <= l.start);
+      if (i < 0) i = ends.length;
+      ends[i] = l.end;
+      return i;
+    });
+    if (ends.length <= max) cluster.forEach((l, k) => slots.set(lessonKey(l), { i: lane[k], n: ends.length }));
+    else grouped.push(...overlapsOf(cluster));
+  }
+  return { slots, grouped };
+}
+
 /** How close (minutes) a tap may be to an overlap to count as a tap on it: they're often only a few minutes. */
 export const OVERLAP_SLOP = 10;
 
@@ -222,12 +277,20 @@ export function lessonsAt(lessons: Lesson[], min: number, skipped = false): Less
   return lessonsIn(mergeLessons(lessons), overlapsOf(lessons), min, skipped);
 }
 
-/** `lessonsAt` for a day that has been worked out already: its merged lessons and its overlaps (`DayCache`). */
-export function lessonsIn(merged: Lesson[], overlaps: Overlap[], min: number, skipped = false): Lesson[] {
+/** `lessonsAt` for a day that has been worked out already: its merged lessons and its (grouped) overlaps (`DayCache`).
+ * Lessons side by side (`place`): the one in the cell `fx` (0–1 across the day's lessons) points at. */
+export function lessonsIn(merged: Lesson[], overlaps: Overlap[], min: number, skipped = false, place?: Map<string, Slot>, fx?: number): Lesson[] {
   const near = overlaps.find((o) => o.start - OVERLAP_SLOP <= min && min < o.end + OVERLAP_SLOP);
   if (near && !skipped) return [...near.lessons].sort((a, b) => a.start - b.start || a.end - b.end);
-  const hit = merged.find((l) => !!l.skipped === skipped && l.start <= min && min < l.end);
-  return hit ? [hit] : [];
+  const hits = merged.filter((l) => !!l.skipped === skipped && l.start <= min && min < l.end);
+  if (hits.length > 1 && place && fx !== undefined) {
+    const inCell = hits.find((l) => {
+      const s = place.get(lessonKey(l));
+      return !!s && fx >= s.i / s.n && fx < (s.i + 1) / s.n;
+    });
+    if (inCell) return [inCell];
+  }
+  return hits.length ? [hits[0]] : [];
 }
 
 /**
@@ -236,7 +299,7 @@ export function lessonsIn(merged: Lesson[], overlaps: Overlap[], min: number, sk
  */
 export function OverlapBand({ overlap, style, compact, label = true, t }: { overlap: Overlap; style: object; compact?: boolean; label?: boolean; t: (k: Key, p?: Record<string, string | number>) => string }) {
   const stroke = String(useCSSVariable('--color-line-strong') ?? '#C9C4B8');
-  const names = overlap.lessons.map((l) => (compact ? shortCourse(l.course ?? '') : l.course) || t('tt.lesson'));
+  const names = overlap.lessons.map((l) => lessonTitle(l, t));
   return (
     <View
       className="rounded-[6px] overflow-hidden bg-surface border-[1.5px] border-line-strong"
@@ -266,7 +329,7 @@ function overlaps(a: Span, b: Span) {
 }
 
 export function lessonLabel(l: Lesson, t: (k: Key, p?: Record<string, string | number>) => string) {
-  const parts = [l.course ?? t('tt.busy'), `${hhmm(l.start)} ${t('tt.to')} ${hhmm(l.end)}`];
+  const parts = [lessonTitle(l, t), `${hhmm(l.start)} ${t('tt.to')} ${hhmm(l.end)}`];
   if (l.location) parts.push(l.location);
   if (isOff(l)) parts.push(t('tt.cancelled'));
   else if (l.skipped) parts.push(t('tt.skipped'));
@@ -365,7 +428,7 @@ export function BlockView({ block, style, compact, onPressLesson, onPressInLesso
     return (
       <View className={cn('rounded-[6px] bg-friend-soft border-[1.5px] border-friend', pad)} style={style}>
         <Text variant="xs" bold>
-          {t('tt.lesson')}
+          {t('tt.busy')}
         </Text>
       </View>
     );
@@ -427,7 +490,7 @@ function SkippedBlock({ lesson, style, compact, pad, t }: { lesson: Lesson; styl
   return (
     <View accessibilityLabel={lessonLabel(lesson, t)} className={cn(compact ? 'rounded-[6px]' : 'rounded-block', 'overflow-hidden border-[1.5px] border-dashed border-skip', pad)} style={style}>
       <Text variant="xs" bold strike tone="ink3" numberOfLines={compact ? 2 : 1}>
-        {compact ? shortCourse(lesson.course ?? '') : lesson.course}
+        {lessonTitle(lesson, t)}
       </Text>
       <Text variant="xs" tone="ink3" numberOfLines={1}>
         {t('tt.skipped')}
@@ -489,16 +552,6 @@ function TogetherBlock({ block, style, compact, pad, onPressTogether, t }: { blo
   );
 }
 
-/** Short enough for a week column: "Network Security" -> "NetSec", "Python Advanced Labo" -> "Python". */
-export function shortCourse(name: string) {
-  const words = name.split(/\s+/).filter((w) => w && !/^(labo|lab|theorie|theory|practicum|wpl|hc|wc|\(.*\))$/i.test(w));
-  if (words.length === 0) return name;
-  const [first, second] = words;
-  if (first.length <= 6) return first;
-  if (second) return first.slice(0, 3) + second.charAt(0).toUpperCase() + second.slice(1, 3);
-  return `${first.slice(0, 5)}.`;
-}
-
 export const STATE_LABEL: Record<BreakState, Key> = { planned: 'tt.planned', asked: 'tt.asked', declined: 'tt.declined' };
 
 export type LegendItem = LessonKind | 'cancelled' | 'skipped' | 'together' | 'friend' | BreakState;
@@ -549,9 +602,11 @@ function fitOf(w: number, h: number): Fit {
   return { lines: h < MIN_H ? 0 : Math.max(1, Math.floor((h + 2) / LINE)), w: Math.floor(w / STEP) * STEP };
 }
 
-type Item = { pre: string | null; value: string; tone?: 'danger' };
-/** An item as text in `room` px: with its prefix when both fit, else the value only (the value always wins) */
-const say = (it: Item, room: number) => (it.pre && (it.pre.length + 1 + it.value.length) * CH <= room ? `${it.pre} ${it.value}` : it.value);
+/** One line of a card. `full`: the same with the short field names in front ('Verd. -01 · Lok. 019'), when it has any */
+type Item = { value: string; full?: string; tone?: 'danger' };
+const withPre = (it: Item) => it.full ?? it.value;
+/** An item as text in `room` px: with its prefixes when they fit, else the values only (the value always wins) */
+const say = (it: Item, room: number) => (it.full && it.full.length * CH <= room ? it.full : it.value);
 
 /**
  * What a lesson card says, after the room it has (it measures itself): first the course, then its details as the
@@ -579,13 +634,23 @@ export function LessonBody({ lesson: l, compact, t, friend = false }: { lesson: 
   const w = fit?.w ?? (compact ? 90 : 200);
   const lines = fit?.lines ?? 2;
   const width = w < 64 ? 0 : w < 110 ? 1 : w < 170 ? 2 : 3;
-  const course = l.course ?? t('tt.lesson');
-  const name = width === 0 && l.course ? shortCourse(course) : course;
+  // The source's own text, whole: on a narrow card it wraps or is cut off by the card, never abbreviated
+  const name = lessonTitle(l, t);
   // The details in the layout's order, each with its prefix; on narrow cards the type last (the colour already says it)
   const layout = layoutFor(l.origin, details.data);
-  let values: Item[] = l.course ? detailRows(l, kind === 'other' ? null : kindName, layout, t).map((r) => ({ pre: shortTitle(r, layout, t), value: r.value })) : [];
+  // A floor and its classroom share a line; the student group stays out of the card (it's in the sheet)
+  let values: Item[] =
+    l.course !== undefined
+      ? groupLines(cardRows(detailRows(l, kind === 'other' ? null : kindName, layout, t), layout), layout).map((line) => {
+          const pres = line.map((r) => shortTitle(r, layout, t));
+          return {
+            value: line.map((r) => r.value).join(' · '),
+            full: pres.some(Boolean) ? line.map((r, i) => (pres[i] ? `${pres[i]} ${r.value}` : r.value)).join(' · ') : undefined,
+          };
+        })
+      : [];
   if (width <= 1) values = [...values.filter((v) => v.value !== kindName), ...values.filter((v) => v.value === kindName)];
-  const items: Item[] = [...(off ? [{ pre: null, value: t('tt.cancelled'), tone: 'danger' as const }] : exam ? [{ pre: null, value: t('tt.exam') }] : []), ...values, { pre: null, value: range(l.start, l.end) }];
+  const items: Item[] = [...(off ? [{ value: t('tt.cancelled'), tone: 'danger' as const }] : exam ? [{ value: t('tt.exam') }] : []), ...values, { value: range(l.start, l.end) }];
   const tone = exam ? 'inverse' : off ? 'ink2' : 'ink';
   const itemTone = (it: Item) => (it.tone ?? (exam ? 'inverse' : 'ink'));
   const big = width >= 2 && !compact;
@@ -603,7 +668,7 @@ export function LessonBody({ lesson: l, compact, t, friend = false }: { lesson: 
   } else if (width === 3) {
     // Wide: name on top, the details side by side under it; with prefixes when the whole line still fits that way
     const rows = Math.max(1, lines - (big ? 2 : 1));
-    const all = items.map((it) => (it.pre ? `${it.pre} ${it.value}` : it.value)).join(' · ');
+    const all = items.map(withPre).join(' · ');
     const text = all.length * CH <= w * rows ? all : items.map((it) => it.value).join(' · ');
     body = (
       <>

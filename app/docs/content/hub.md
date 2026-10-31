@@ -1,7 +1,7 @@
 ---
 title: Roosters+
 position: 0
-updated: 2026-10-31T16:25:00Z
+updated: 2026-10-31T20:11:00Z
 ---
 
 **Roosters+** shows students their timetable straight from school and when their friends are free, so they
@@ -94,6 +94,10 @@ notifies the people affected.
   and a small banner instead of error screens.
 - **Privacy by default.** No teachers or free text from Untis; calendar links encrypted; friends see only
   what you allow; guests are invisible to others; accounts are deleted for real.
+- **The source is shown as it is.** A lesson's name, room and group are the source's own text: formatted (trimmed,
+  laid out, split into fields the student chose) but never transformed (no abbreviations, no invented titles like
+  'Les' or 'Afspraak'). What we work out from it (the kind of lesson, 'Andere' when unknown; 'Bezet' for a friend's
+  hidden lesson) is derived, never made up.
 - **Times** are minutes since midnight in the school's timezone; `DATETIME` columns are UTC.
 - **Every change comes with its docs**: see `docs/README.md`. Stale or missing docs show up in **To-do**.
 
