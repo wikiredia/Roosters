@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-30T09:30:00Z
+updated: 2026-10-31T17:15:00Z
 ---
 
 **A lesson's details as named fields**, after the layout of its origin (format and detection:
@@ -37,3 +37,9 @@ Compares two layouts (what's saved, found or suggested) regardless of key order.
 ## `rooms`, `splitRoom`
 
 "NOO.-01.020, NOO.-01.021" is two rooms.
+
+## `shortTitle`, `SHORT`
+
+The prefix a detail gets on a timetable card (`Timetable.LessonBody`): the short name of its field (`details.short.*`:
+'Geb.', 'Verd.', 'Lok.', 'Gr.'; 'D1' for part 1; a label of your own cut to 'Abc.'; merged fields joined with '+').
+None for the type (its value says it) or a location shown whole. The card only shows it when it fits next to the value.

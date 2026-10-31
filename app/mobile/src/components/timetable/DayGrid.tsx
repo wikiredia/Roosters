@@ -26,6 +26,8 @@ import { type Block, BlockView, lessonLabel, lessonsIn, OverlapBand, type Span }
 
 /** Height of the date above each column. */
 export const LABEL_H = 22;
+/** Vergelijken: the row with each person's name under the date (the header is then `LABEL_H + NAME_H`). */
+export const NAME_H = 18;
 /** Swipes settle calmly: no bouncing back and forth through days. */
 export const SWIPE = { damping: 28, stiffness: 230, mass: 1 };
 /** The number of days settles with a little bounce. */
@@ -60,6 +62,8 @@ type Props = {
   /** Short course names (narrow columns). */
   compact: boolean;
   lang: Lang;
+  /** Height of the header above the hours: `LABEL_H`, or with the names row in Vergelijken `LABEL_H + NAME_H` */
+  labelH?: number;
   /** A lesson tapped; `friend`: one of that friend's classes (Vergelijken), not yours */
   onPressLesson: (l: Lesson, day: number, friend?: number) => void;
   /** A tap on (or close to) lessons that overlap: the screen asks which one you mean */
@@ -94,10 +98,10 @@ type Props = {
  * made once and again only when the size or hours change, so those callbacks must stay the same too.
  */
 export const DayGrid = memo(function DayGrid(p: Props) {
-  const { offset, count, busyWeekends, width, height, from, to, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone, onTarget, onCount, onDoubleTap, drag, onPickClass, onDropClass } = p;
+  const { offset, count, busyWeekends, width, height, from, to, data, hours, today, nowMin, compact, lang, labelH = LABEL_H, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone, onTarget, onCount, onDoubleTap, drag, onPickClass, onDropClass } = p;
   const lineColor = String(useCSSVariable('--color-line') ?? '#E4E1DA');
   const [h0, h1] = hours;
-  const pxPerHour = (height - LABEL_H) / Math.max(1, h1 - h0);
+  const pxPerHour = (height - labelH) / Math.max(1, h1 - h0);
   const startOffset = useSharedValue(0);
   const startCount = useSharedValue(1);
   // The whole day (first day, number of days) the last tap was for: one tap per day, not one per frame
@@ -163,7 +167,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
   // calls this one, which is always the newest
   const tapAt = useStable((x: number, y: number, off: number, n: number) => {
     const day = Math.floor(off + x / (width / n));
-    const min = h0 * 60 + ((y - LABEL_H) / pxPerHour) * 60;
+    const min = h0 * 60 + ((y - labelH) / pxPerHour) * 60;
     const d = data(day);
     if (!d) return;
     // Vergelijken: a friend's lane has only their classes
@@ -217,11 +221,11 @@ export const DayGrid = memo(function DayGrid(p: Props) {
           const off = offset.get();
           const n = count.get();
           const day = Math.floor(off + e.x / (width / n));
-          const min = h0 * 60 + ((e.y - LABEL_H) / pxPerHour) * 60;
+          const min = h0 * 60 + ((e.y - labelH) / pxPerHour) * 60;
           if (tapKindAt(tapTargets.get(), day, min, off + e.x / (width / n) - day) < 0) return;
           scheduleOnRN(tapAt, e.x, e.y, off, n);
         }),
-    [offset, count, tapTargets, width, h0, pxPerHour, tapAt],
+    [offset, count, tapTargets, width, h0, pxPerHour, labelH, tapAt],
   );
 
   const ownDrag = useSkipDrag();
@@ -235,7 +239,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
     min0: h0 * 60,
     min1: h1 * 60,
     pxPerHour,
-    labelH: LABEL_H,
+    labelH,
     onPick: onPickClass ?? noop,
     onDrop: onDropClass ?? noop,
     enabled: !!drag,
@@ -264,7 +268,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
         {/* Hour lines: subtle and dotted, behind everything */}
         <Svg width={width} height={height} style={{ position: 'absolute', top: 0, left: 0 }} pointerEvents="none">
           {Array.from({ length: h1 - h0 + 1 }, (_, i) => (
-            <Line key={i} x1={0} x2={width} y1={LABEL_H + i * pxPerHour} y2={LABEL_H + i * pxPerHour} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
+            <Line key={i} x1={0} x2={width} y1={labelH + i * pxPerHour} y2={labelH + i * pxPerHour} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
           ))}
         </Svg>
         {days.map((day) => (
@@ -283,6 +287,7 @@ export const DayGrid = memo(function DayGrid(p: Props) {
             nowMin={day === today ? nowMin : null}
             compact={compact}
             lang={lang}
+            labelH={labelH}
             view={view}
             onPressLesson={onPressLesson}
             onPressOverlap={onPressOverlap}
@@ -339,6 +344,7 @@ type ColumnProps = {
   nowMin: number | null;
   compact: boolean;
   lang: Lang;
+  labelH: number;
   view: GridView;
   onPressLesson: Props['onPressLesson'];
   onPressOverlap: Props['onPressOverlap'];
@@ -351,7 +357,7 @@ type ColumnProps = {
  * (its data, the hours, the size, the minute on today's column), never because of a swipe: every prop is a number, a
  * string, a shared value, one of the cache's `DayData` objects or a callback that keeps its identity.
  */
-const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, compact, lang, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone }: ColumnProps) {
+const DayColumn = memo(function DayColumn({ day, offset, count, width, height, pxPerHour, lineColor, data, hours, today, nowMin, compact, lang, labelH, view, onPressLesson, onPressOverlap, onPressTogether, onPressAlone }: ColumnProps) {
   noteColumnRender(day);
   const { t } = useT();
   const style = useAnimatedStyle(() => {
@@ -370,7 +376,7 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
   }, [data, now, isToday]);
   const overlaps = data?.overlaps ?? [];
   const free = data?.free ?? [];
-  const y = (min: number) => LABEL_H + ((min - h0 * 60) / 60) * pxPerHour;
+  const y = (min: number) => labelH + ((min - h0 * 60) / 60) * pxPerHour;
   // Lessons slide in only when they arrive after the skeleton, on a day you're looking at (from the side you went
   // to); a column that mounts with its data, or gets it out of sight, shows them as they are
   const loading = !data || data.loading;
@@ -388,15 +394,43 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
   }
   const entering = arrived ? (arrived > 0 ? FadeInRight : FadeInLeft).duration(240) : undefined;
   const lanes = data?.lanes;
+  const strongLine = String(useCSSVariable('--color-line-strong') ?? '#C9C4B8');
   const me = lanes?.[0];
   // Vergelijken: your lessons and breaks in your lane (left part of the day), each friend in a lane of their own
   const mine = me ? { position: 'absolute' as const, top: 0, bottom: 0, left: `${me.x0 * 100}%` as const, width: `${(me.x1 - me.x0) * 100}%` as const } : { position: 'absolute' as const, top: 0, bottom: 0, left: 0, right: 0 };
   return (
     <AView className="absolute top-0" style={[{ height }, style]}>
       {/* Today: a little brighter than the other days, behind everything */}
-      {isToday ? <View pointerEvents="none" className="absolute left-0 right-0 bottom-0 bg-surface opacity-70 rounded-t-[8px]" style={{ top: 0 }} /> : null}
+      {isToday && !lanes ? <View pointerEvents="none" className="absolute left-0 right-0 bottom-0 bg-surface opacity-70 rounded-t-[8px]" style={{ top: 0 }} /> : null}
+      {/* Vergelijken: a checker of lighter and darker lanes (alternating on across the days; lighter still today), each
+          person's name on top in their colour, and a darker dashed line between people */}
+      {lanes?.map((lane, i) => {
+        const light = (day * lanes.length + i) % 2 === 0;
+        return (
+          <View
+            key={`bg:${lane.who ?? 'me'}`}
+            pointerEvents="none"
+            className={light || isToday ? 'bg-surface' : 'bg-surface-sunken'}
+            style={{ position: 'absolute', top: LABEL_H, bottom: 0, left: `${lane.x0 * 100}%`, width: `${(lane.x1 - lane.x0) * 100}%`, opacity: light ? (isToday ? 1 : 0.8) : isToday ? 0.5 : 0.6 }}
+          />
+        );
+      })}
+      {lanes?.slice(1).map((lane) => (
+        <View key={`sep:${lane.who}`} pointerEvents="none" style={{ position: 'absolute', top: LABEL_H, bottom: 0, left: `${lane.x0 * 100}%`, width: 2, marginLeft: -1 }}>
+          <Svg width={2} height={height} pointerEvents="none">
+            <Line x1={1} x2={1} y1={0} y2={height} stroke={strongLine} strokeWidth={1.25} strokeDasharray="4 3" />
+          </Svg>
+        </View>
+      ))}
+      {lanes?.map((lane) => (
+        <View key={`name:${lane.who ?? 'me'}`} pointerEvents="none" className="absolute items-center justify-center px-0.5" style={{ top: LABEL_H, height: NAME_H, left: `${lane.x0 * 100}%`, width: `${(lane.x1 - lane.x0) * 100}%` }}>
+          <Text variant="xs" bold numberOfLines={1} tone={lane.who === null ? 'you' : undefined} style={lane.color ? { color: lane.color } : undefined}>
+            {lane.name}
+          </Text>
+        </View>
+      ))}
       <Svg width={2} height={height} style={{ position: 'absolute', left: 0, top: 0 }} pointerEvents="none">
-        <Line x1={1} x2={1} y1={LABEL_H} y2={height} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
+        <Line x1={1} x2={1} y1={labelH} y2={height} stroke={lineColor} strokeWidth={1} strokeDasharray="2 4" />
       </Svg>
       <View style={{ height: LABEL_H }} className="items-center justify-center">
         <Text variant="xs" bold tone={isToday ? 'you' : day % 7 >= 5 ? 'ink3' : 'ink2'} numberOfLines={1}>
@@ -404,7 +438,7 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
         </Text>
       </View>
       <View style={mine} pointerEvents="box-none">
-      {me?.empty ? <EmptyLane t={t} /> : null}
+      {me?.empty ? <EmptyLane t={t} top={labelH} /> : null}
       {/* Free moments between lessons: behind everything (a shared break or a cancelled lesson goes over them). A screen
           reader can open "Meestal ga je met:" on one that isn't over (a finger only where no shared break is: `tapAt`) */}
       {free.map((f) => {
@@ -463,7 +497,7 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
       </View>
       {lanes?.slice(1).map((lane) => (
         <View key={lane.who} pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: `${lane.x0 * 100}%`, width: `${(lane.x1 - lane.x0) * 100}%` }}>
-          {lane.empty ? <EmptyLane t={t} hidden={lane.hidden} /> : <FriendLane lane={lane} y={y} h0={h0} h1={h1} now={now} compact={compact} entering={entering} t={t} />}
+          {lane.empty ? <EmptyLane t={t} hidden={lane.hidden} top={labelH} /> : <FriendLane lane={lane} y={y} h0={h0} h1={h1} now={now} compact={compact} entering={entering} t={t} />}
         </View>
       ))}
       {data?.loading && blocks.length === 0 ? (
@@ -483,9 +517,9 @@ const DayColumn = memo(function DayColumn({ day, offset, count, width, height, p
 });
 
 /** A lane with nothing on it that day (Vergelijken): narrow, 'Leeg' in the middle ('Verborgen' when they hide it) */
-function EmptyLane({ t, hidden = false }: { t: (k: Key) => string; hidden?: boolean }) {
+function EmptyLane({ t, hidden = false, top }: { t: (k: Key) => string; hidden?: boolean; top: number }) {
   return (
-    <View pointerEvents="none" className="absolute left-0 right-0 bottom-0 items-center justify-center" style={{ top: LABEL_H }}>
+    <View pointerEvents="none" className="absolute left-0 right-0 bottom-0 items-center justify-center" style={{ top }}>
       <Text variant="xs" bold tone="ink3" numberOfLines={2} className="text-center px-0.5">
         {t(hidden ? 'status.hidden' : 'compare.empty')}
       </Text>

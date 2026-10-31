@@ -24,7 +24,7 @@ import { isoDay, nowMin, parseDay, weekdayShort } from '@/lib/time';
 
 import { type DayData, type DayPlan, HOURS, useDays } from './DayCache';
 import { type FriendDay, withLanes } from './Lanes';
-import { DayGrid, LABEL_H, RESIZE, SWIPE } from './DayGrid';
+import { DayGrid, LABEL_H, NAME_H, RESIZE, SWIPE } from './DayGrid';
 import { DayStrip } from './DayStrip';
 import { LessonSheet, OverlapSheet } from './LessonSheet';
 import { DragLayer, useSkipDrag } from './SkipDrag';
@@ -195,13 +195,13 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
       const iso = isoDay(dateAt(day));
       const fr: FriendDay[] = compare.map((id, i) => {
         const w = friendWeeks[i * mondays.length + wi]?.data;
-        return { id, lessons: w ? w.lessons.filter((l) => l.day === iso) : [], loading: !w || !!w.loading, hidden: !!w?.hidden };
+        return { id, name: (names.get(id) ?? '?').split(/\s+/)[0], lessons: w ? w.lessons.filter((l) => l.day === iso) : [], loading: !w || !!w.loading, hidden: !!w?.hidden };
       });
-      out.set(day, withLanes(d, day, fr, asks.data ?? [], iso));
+      out.set(day, withLanes(d, day, fr, asks.data ?? [], iso, t('compare.you')));
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `friendKey` says when a friend's week changed
-  }, [ownDays, friendKey, asks.data, compareKey]);
+  }, [ownDays, friendKey, asks.data, compareKey, names, lang]);
 
   // Weekends with something on them: a swipe doesn't skip those
   // (also kept here on the JS side: render code never reads a shared value)
@@ -414,7 +414,9 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
   useEffect(() => {
     onView?.({ start, want, custom });
   }, [start, want, custom]);
-  const pxPerHour = size.h ? (size.h - LABEL_H) / (hours[1] - hours[0]) : 40;
+  // Vergelijken: a row with the names under the dates
+  const labelH = compare ? LABEL_H + NAME_H : LABEL_H;
+  const pxPerHour = size.h ? (size.h - labelH) / (hours[1] - hours[0]) : 40;
   const now = nowMin();
 
   // Stable callbacks for everything below (all of it memo): opening a sheet re-renders this component and that
@@ -599,7 +601,7 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
       </View>
       <AView layout={layout} className="flex-1 flex-row" onLayout={(e) => setSize({ w: e.nativeEvent.layout.width - AXIS_W, h: e.nativeEvent.layout.height })}>
         <GestureDetector gesture={axisPan}>
-          <View collapsable={false} style={{ width: AXIS_W, paddingTop: LABEL_H }} accessibilityHint={t('rooster.axisHint')}>
+          <View collapsable={false} style={{ width: AXIS_W, paddingTop: labelH }} accessibilityHint={t('rooster.axisHint')}>
             <TimeAxis pxPerHour={pxPerHour} hours={hours} compact />
           </View>
         </GestureDetector>
@@ -620,6 +622,7 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
             view={view}
             compact={size.w / want / (1 + (compare?.length ?? 0)) < 120}
             lang={lang}
+            labelH={labelH}
             onPressLesson={onPressLesson}
             onPressOverlap={onPressOverlap}
             onPressTogether={onPressTogether}
@@ -646,7 +649,7 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
         ) : null}
         {onward != null && size.w ? (
           // Against the right edge, a tab that starts there; the rest of the empty weekend stays swipeable (box-none)
-          <AView entering={enter} exiting={exit} pointerEvents="box-none" className="absolute right-0 justify-center" style={{ top: LABEL_H, bottom: 0 }}>
+          <AView entering={enter} exiting={exit} pointerEvents="box-none" className="absolute right-0 justify-center" style={{ top: labelH, bottom: 0 }}>
             <AView style={onwardFade}>
               <Pressable
                 accessibilityRole="button"
@@ -668,7 +671,7 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
         ) : null}
         {backward != null && backDay != null && size.w ? (
           // The same tab against the left edge of the days (next to the hours), back to where there was something
-          <AView entering={enter} exiting={exit} pointerEvents="box-none" className="absolute justify-center" style={{ left: AXIS_W, top: LABEL_H, bottom: 0 }}>
+          <AView entering={enter} exiting={exit} pointerEvents="box-none" className="absolute justify-center" style={{ left: AXIS_W, top: labelH, bottom: 0 }}>
             <AView style={onwardFade}>
               <Pressable
                 accessibilityRole="button"
@@ -688,10 +691,10 @@ export const Calendar = memo(function Calendar({ only: onlyProp, compare, initia
             </AView>
           </AView>
         ) : null}
-        {!showsToday && size.w ? <TodayPill width={size.w + AXIS_W} height={size.h} top={LABEL_H} onPress={onTodayPress} /> : null}
+        {!showsToday && size.w ? <TodayPill width={size.w + AXIS_W} height={size.h} top={labelH} onPress={onTodayPress} /> : null}
         <SkipToast note={note} onDone={onToastDone} onUndo={onToastUndo} />
         {hint === 'zoom' ? (
-          <View className="absolute left-8 right-2" style={{ top: LABEL_H + 4 }}>
+          <View className="absolute left-8 right-2" style={{ top: labelH + 4 }}>
             <Tip
               below
               text={t('rooster.zoomHint')}

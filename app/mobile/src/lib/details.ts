@@ -95,6 +95,35 @@ export function detailRows(l: { location?: string | null; group?: string | null 
   return out;
 }
 
+/** A short name per key, for the prefix on a timetable card ("Verd. -01"); the type gets none (its value says it) */
+const SHORT: Record<string, Key> = {
+  location: 'details.short.location',
+  campus: 'details.short.campus',
+  building: 'details.short.building',
+  wing: 'details.short.wing',
+  floor: 'details.short.floor',
+  room: 'details.short.room',
+  group: 'details.short.group',
+};
+
+/** The prefix a row gets on a timetable card: the short name of its field ('Geb.', 'Verd.', 'Lok.'; a label of your own
+ * shortened to 'Abc.'; merged fields joined with '+'), or null for the type and a location shown whole. Only shown
+ * when prefix and value both fit (Timetable.LessonBody): the value always wins. */
+export function shortTitle(row: DetailRow, layout: DetailLayout, t: T): string | null {
+  const f = layout.fields[row.index];
+  if (!f || row.whole || (f.keys.length === 1 && f.keys[0] === 'type')) return null;
+  const cut = (w: string) => (w.length <= 5 ? w : `${w.slice(0, 3)}.`);
+  if (f.label) return cut(f.label);
+  return f.keys
+    .filter((k) => k !== 'type')
+    .map((k) => {
+      if (SHORT[k]) return t(SHORT[k]);
+      const n = /^part(\d)$/.exec(k);
+      return n ? t('details.short.part', { n: n[1] }) : cut(k);
+    })
+    .join('+');
+}
+
 /** The layout for a lesson: its origin's (yours, or what was found), else PLAIN. */
 export function layoutFor(origin: string | undefined, origins: DetailOrigin[] | undefined): DetailLayout {
   return origins?.find((o) => o.origin === origin)?.layout ?? PLAIN;
