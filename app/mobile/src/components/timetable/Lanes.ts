@@ -22,7 +22,7 @@ export function soft(color: string) {
 }
 
 /** An empty lane (nothing that day) is this much narrower than one with something on it: 'Leeg' in the middle */
-export const EMPTY_W = 0.4;
+export const EMPTY_W = 0.55;
 
 /**
  * One person's part of a day in Vergelijken: you (`who` null: your lessons and shared breaks, as on the Rooster tab)
@@ -30,6 +30,8 @@ export const EMPTY_W = 0.4;
  */
 export type Lane = {
   who: number | null;
+  /** Shown above the lane: 'Jij', or the friend's first name */
+  name: string;
   color: string | null;
   x0: number;
   x1: number;
@@ -45,7 +47,7 @@ export type Lane = {
 };
 
 /** A friend's day as it came in (one week per request, `useFriendWeeks`) */
-export type FriendDay = { id: number; lessons: Lesson[]; loading: boolean; hidden: boolean };
+export type FriendDay = { id: number; name: string; lessons: Lesson[]; loading: boolean; hidden: boolean };
 
 const meets = (a: Span, b: Span) => a.start < b.end && b.start < a.end;
 
@@ -55,14 +57,15 @@ const meets = (a: Span, b: Span) => a.start < b.end && b.start < a.end;
  * skip it, `lane` = their place). The hours stretch for their classes too. A new object: give it the same inputs and
  * keep it (Calendar memoises the whole map).
  */
-export function withLanes(d: DayData, day: number, friends: FriendDay[], asks: SkipRequest[], iso: string): DayData {
+export function withLanes(d: DayData, day: number, friends: FriendDay[], asks: SkipRequest[], iso: string, youName: string): DayData {
   const youEmpty = !d.loading && !d.lessons.length && !d.together.length;
   const people = [
-    { who: null as number | null, color: null as string | null, empty: youEmpty, hidden: false, loading: d.loading, lessons: [] as Lesson[], asked: [] as Span[] },
+    { who: null as number | null, name: youName, color: null as string | null, empty: youEmpty, hidden: false, loading: d.loading, lessons: [] as Lesson[], asked: [] as Span[] },
     ...friends.map((f, i) => {
       const lessons = f.hidden ? [] : mergeLessons(f.lessons);
       return {
         who: f.id,
+        name: f.name,
         color: friendColor(i),
         empty: !f.loading && (f.hidden || !lessons.length),
         hidden: f.hidden,

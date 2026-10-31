@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T16:25:00Z
+updated: 2026-10-31T17:05:00Z
 ---
 
 The **days side by side** as one continuous strip of columns. Every column is placed and sized on the UI thread from
@@ -47,6 +47,15 @@ can activate the whole gap when it isn't over.
 empty one shows 'Leeg' (`EmptyLane`). A tap first finds the lane from where across the day it is (`Lanes.laneAt`): in a
 friend's lane it opens that class (`onPressLesson(l, day, friendId)`); the UI thread's check (`tapKindAt`) and the drag
 (`SkipDrag`) use the same lane ranges, and the drag passes the lane to `onPickClass` / `onDropClass`.
+
+In Vergelijken the header is taller (`labelH` = `LABEL_H + NAME_H`): under the date a row with each person's name in
+their colour ('Jij' in blue). The lanes form a **checker** of lighter and darker backgrounds that keeps alternating
+across the days (today's lanes lighter still; the separate today tint is only for the Rooster tab), and a **darker
+dashed line** separates the people within a day (the lighter dotted line stays between days).
+
+## `NAME_H`
+
+The height of that names row.
 
 ## `EmptyLane`
 

@@ -10,7 +10,7 @@ import { AView, layout } from '@/components/ui/Motion';
 import { Text } from '@/components/ui/Text';
 import { useT, type Key } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { detailRows, layoutFor } from '@/lib/details';
+import { detailRows, layoutFor, shortTitle } from '@/lib/details';
 import { hhmm, range } from '@/lib/time';
 
 /** The kinds of lessons the API tells apart (api/roosters/kinds.py), each with its own colour. */
@@ -535,56 +535,76 @@ export const Legend = memo(function Legend({ items }: { items: LegendItem[] }) {
   );
 });
 
-/** The space a lesson card's text has, in steps: how many lines of small text fit, and how wide it is (0 very narrow,
- * 1 narrow, 2 medium, 3 wide). Steps, so a card re-renders only when its layout would change (not every frame of a pinch). */
-type Fit = { lines: number; width: 0 | 1 | 2 | 3 };
+/** The space a lesson card's text has: how many lines of small text fit, and its width in px rounded to `STEP`, so a
+ * card re-renders only when its layout could change (not on every frame of a pinch). */
+type Fit = { lines: number; w: number };
 const LINE = 16;
+const STEP = 6;
+/** About how wide one character of small text is (px): to see whether a prefix still fits next to its value */
+const CH = 6.6;
+/** Narrower or lower than this (px), nothing on a card is legible: it shows no text at all */
+const MIN_W = 28;
+const MIN_H = 11;
 function fitOf(w: number, h: number): Fit {
-  return { lines: Math.max(1, Math.floor((h + 2) / LINE)), width: w < 64 ? 0 : w < 110 ? 1 : w < 170 ? 2 : 3 };
+  return { lines: h < MIN_H ? 0 : Math.max(1, Math.floor((h + 2) / LINE)), w: Math.floor(w / STEP) * STEP };
 }
+
+type Item = { pre: string | null; value: string; tone?: 'danger' };
+/** An item as text in `room` px: with its prefix when both fit, else the value only (the value always wins) */
+const say = (it: Item, room: number) => (it.pre && (it.pre.length + 1 + it.value.length) * CH <= room ? `${it.pre} ${it.value}` : it.value);
 
 /**
  * What a lesson card says, after the room it has (it measures itself): first the course, then its details as the
  * source layout breaks them up (Type, Building, Floor, Classroom, ... in your order: lib/details), then the time.
+ * A detail gets its short field name in front ('Verd. -01', 'Lok. 019': `details.shortTitle`) only when prefix and
+ * value both fit; otherwise just the value, so the numbers are always readable. Too narrow or too low to read
+ * anything: no text at all (the colour still shows a class is there; tap it for the sheet).
  * Tall and narrow (a whole week, a lane in Vergelijken): the name may take two or three lines and each detail gets a
  * line of its own, as many as fit; on a very narrow card the type goes last and the name is shortened. Wide: the name
  * on one line and the details side by side under it (wrapping when there's height for it). One line only: the name,
- * and on a wide card the first detail after it. Cancelled or exam says so first. `tone`: text colour on a friend's
- * class (Vergelijken), which has its own colours.
+ * and on a wide card the first detail after it. Cancelled or exam says so first. `friend`: a friend's class
+ * (Vergelijken), which has its own colours.
  */
 export function LessonBody({ lesson: l, compact, t, friend = false }: { lesson: Lesson; compact?: boolean; t: (k: Key, p?: Record<string, string | number>) => string; friend?: boolean }) {
   const details = useDetails();
   const [fit, setFit] = useState<Fit | null>(null);
   const onLayout = (e: LayoutChangeEvent) => {
     const f = fitOf(e.nativeEvent.layout.width, e.nativeEvent.layout.height);
-    setFit((x) => (x && x.lines === f.lines && x.width === f.width ? x : f));
+    setFit((x) => (x && x.lines === f.lines && x.w === f.w ? x : f));
   };
   const off = isOff(l);
   const kind = lessonKind(l);
   const exam = kind === 'exam' && !friend;
   const kindName = t(KIND_LABEL[kind]);
-  const width = fit?.width ?? (compact ? 1 : 3);
+  const w = fit?.w ?? (compact ? 90 : 200);
   const lines = fit?.lines ?? 2;
+  const width = w < 64 ? 0 : w < 110 ? 1 : w < 170 ? 2 : 3;
   const course = l.course ?? t('tt.lesson');
   const name = width === 0 && l.course ? shortCourse(course) : course;
-  // The details in the layout's order; on narrow cards the type last (the colour already says it)
-  let values = l.course ? detailRows(l, kind === 'other' ? null : kindName, layoutFor(l.origin, details.data), t).map((r) => r.value) : [];
-  if (width <= 1) values = [...values.filter((v) => v !== kindName), ...values.filter((v) => v === kindName)];
-  const items = [...(off ? [t('tt.cancelled')] : exam ? [t('tt.exam')] : []), ...values, range(l.start, l.end)];
+  // The details in the layout's order, each with its prefix; on narrow cards the type last (the colour already says it)
+  const layout = layoutFor(l.origin, details.data);
+  let values: Item[] = l.course ? detailRows(l, kind === 'other' ? null : kindName, layout, t).map((r) => ({ pre: shortTitle(r, layout, t), value: r.value })) : [];
+  if (width <= 1) values = [...values.filter((v) => v.value !== kindName), ...values.filter((v) => v.value === kindName)];
+  const items: Item[] = [...(off ? [{ pre: null, value: t('tt.cancelled'), tone: 'danger' as const }] : exam ? [{ pre: null, value: t('tt.exam') }] : []), ...values, { pre: null, value: range(l.start, l.end) }];
   const tone = exam ? 'inverse' : off ? 'ink2' : 'ink';
-  const itemTone = (i: number) => (i === 0 && off ? 'danger' : exam ? 'inverse' : 'ink');
+  const itemTone = (it: Item) => (it.tone ?? (exam ? 'inverse' : 'ink'));
   const big = width >= 2 && !compact;
   const changed = width === 3 && l.state === 'changed';
-  let body: ReactNode;
-  if (lines <= 1 || (big && lines <= 2 && width < 3)) {
+  let body: ReactNode = null;
+  if (fit && (fit.w < MIN_W || fit.lines === 0)) {
+    // Nothing would be legible: no text
+  } else if (lines <= 1 || (big && lines <= 2 && width < 3)) {
     // One line (two with the bigger name): the name, on a wide card with what matters most after it
     body = (
       <Text variant={big ? 'sm' : 'xs'} bold strike={off} tone={tone} numberOfLines={1}>
-        {width >= 2 && items.length > 1 ? `${name} · ${items[0]}` : name}
+        {width >= 2 && items.length > 1 ? `${name} · ${say(items[0], w - (name.length + 3) * CH)}` : name}
       </Text>
     );
   } else if (width === 3) {
-    // Wide: name on top, the details side by side under it
+    // Wide: name on top, the details side by side under it; with prefixes when the whole line still fits that way
+    const rows = Math.max(1, lines - (big ? 2 : 1));
+    const all = items.map((it) => (it.pre ? `${it.pre} ${it.value}` : it.value)).join(' · ');
+    const text = all.length * CH <= w * rows ? all : items.map((it) => it.value).join(' · ');
     body = (
       <>
         <View className="flex-row items-center justify-between gap-1">
@@ -599,8 +619,8 @@ export function LessonBody({ lesson: l, compact, t, friend = false }: { lesson: 
             </View>
           ) : null}
         </View>
-        <Text variant="xs" tone={off ? 'danger' : exam ? 'inverse' : 'ink'} numberOfLines={Math.max(1, lines - (big ? 2 : 1))}>
-          {items.join(' · ')}
+        <Text variant="xs" tone={off ? 'danger' : exam ? 'inverse' : 'ink'} numberOfLines={rows}>
+          {text}
         </Text>
       </>
     );
@@ -613,9 +633,9 @@ export function LessonBody({ lesson: l, compact, t, friend = false }: { lesson: 
         <Text variant={big ? 'sm' : 'xs'} bold strike={off} tone={tone} numberOfLines={nameLines}>
           {name}
         </Text>
-        {shown.map((v, i) => (
-          <Text key={`${i}:${v}`} variant="xs" tone={itemTone(i)} bold={i === 0 && off} numberOfLines={1}>
-            {v}
+        {shown.map((it, i) => (
+          <Text key={`${i}:${it.value}`} variant="xs" tone={itemTone(it)} bold={!!it.tone} numberOfLines={1}>
+            {say(it, w)}
           </Text>
         ))}
       </>

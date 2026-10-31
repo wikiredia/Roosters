@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T16:25:00Z
+updated: 2026-10-31T17:05:00Z
 ---
 
 **The calendar**, shared by the Rooster tab (`app/(tabs)/rooster.tsx`) and Vergelijken (`app/compare.tsx`): your
@@ -41,6 +41,7 @@ everything moves together in the same frame, on the UI thread.
   weeks from `useFriendWeeks` and your open skip questions from `useSkipAsks`), shared breaks only with them (`only`),
   **no legend**. A friend's class tapped: `LessonSheet` without skipping (and without "who's free"). Dropped in the bin
   (`onDropClass` with its lane): `askFriend` asks them to skip it (`useAskSkip`), with a note in `SkipToast` (`info`).
+  The header above the hours is taller there (`NAME_H`, the names row), so the hours, the axis and the arrows start lower.
   `initialStart` / `initialDays` are where it starts and what Reset goes back to.
 - **Arrows to where there's something**: an empty weekend at the right end of the view gets a tab on the right edge
   (below); one at the left end a tab on the left edge (next to the hours) back to Friday (Saturday when it has

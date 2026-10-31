@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T16:25:00Z
+updated: 2026-10-31T17:15:00Z
 ---
 
 The **time grid**: time axis, day columns, lesson blocks (theory or lab colours, cancelled struck through), shared breaks in yellow, the 'now' line, and the legend. Used by the Rooster tab and `WeekView`.
@@ -10,7 +10,14 @@ Exported for the Rooster tab's `DayGrid`.
 One block (lesson, together or free). A free moment is a light grey fill without an outline, with a small coffee
 cup in its top right corner (no text unless it has a label).
 
-## `LessonBody`, `Fit`, `fitOf`, `LINE`
+## `LessonBody`, `Fit`, `fitOf`, `LINE`, `STEP`, `CH`, `MIN_W`, `MIN_H`, `Item`, `say`
+
+**Too narrow or too low to read anything** (under `MIN_W` × `MIN_H` px): no text at all, only the coloured card (tap it
+for the sheet). **Prefixes**: each detail gets its field's short name in front ('Verd. -01', 'Lok. 019':
+`lib/details.shortTitle`) only when prefix and value fit together (`say`, estimated with `CH` px per character; on a
+wide card: when the whole line fits that way); otherwise only the value, so the numbers stay readable. The width is
+measured in `STEP` px steps.
+
 
 What a lesson card says, after the room it has: it measures itself and picks a layout in steps (`fitOf`: how many lines
 of small text fit, and narrow / medium / wide), so it re-renders only when the layout would change, not on every frame

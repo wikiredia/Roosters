@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-31T16:25:00Z
+updated: 2026-10-31T17:05:00Z
 ---
 
 **Vergelijken's lanes**: in compare mode (`Calendar` with `compare`) every day of the calendar is split into a lane
@@ -17,8 +17,8 @@ same colour). `soft` is the see-through fill of a class in that colour, which re
 ## `Lane`, `FriendDay`, `EMPTY_W`
 
 A lane: whose (`who` null = you), its colour, its part of the day's width (`x0`–`x1`), and for a friend their merged
-classes and the ones you asked them to skip (pending, only you see them as asked). A lane with nothing that day
-(loaded; or hidden) is `EMPTY_W` as wide as one with something, with 'Leeg' (or 'Verborgen') in the middle.
+classes and the ones you asked them to skip (pending, only you see them as asked). Each lane has a `name` ('Jij' or the friend's first name) for the names row in `DayGrid`. A lane with nothing that day
+(loaded; or hidden) is `EMPTY_W` (0.55) as wide as one with something, with 'Leeg' (or 'Verborgen') in the middle.
 
 ## `withLanes`
 
